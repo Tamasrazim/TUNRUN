@@ -59,6 +59,7 @@ Gameplay-specific mouse checks:
 - Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
 - Verify reward hashes and pickup order are seed-deterministic, Aether Shard values remain 4–8, every eighth pickup is a Singularity Core, and pickup collision happens only on a forward plane crossing.
 - Verify gate scoring consumes the same course-relative crossing point as collision; outside-aperture and non-finite points earn nothing; combo multipliers, clean-pass thresholds, reset behaviour and saturating score arithmetic are deterministic.
+- A run that sets a new career-best score or combo announces exactly which record improved; tied or lower results do not show a new-record banner.
 - Verify pickup render positions and collision offsets use the same sampled course-relative frame as the tunnel while it curves/twists; include a pickup-centered trajectory through a curved section, misses outside the collection radius, backwards movement, and non-finite collision inputs.
 - Verify moving-mine generation and hashes are seed-deterministic, motion is repeatable for equal run-clock times, motion stays within the declared envelope, and hazard planes maintain the minimum spacing from gate reaction windows.
 - Verify swept gate and mine collision transform ship coordinates into the obstacle's sampled course frame; include curved-centreline offsets, near/far sphere-edge contact, near misses, stationary-distance render frames, reverse travel, and non-finite inputs.

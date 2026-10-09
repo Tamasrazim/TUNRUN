@@ -67,6 +67,8 @@ struct AppState {
     bool runRecorded = false;
     std::uint64_t runGatesCleared = 0U;
     tunrun::RunScore runScore;
+    bool newBestScore = false;
+    bool newBestCombo = false;
     std::uint64_t lastRunReward = 0U;
     std::uint64_t lastRunCoreReward = 0U;
     std::uint64_t runAetherPickupReward = 0U;
@@ -129,6 +131,8 @@ void beginSeedEntry(AppState& app) {
 }
 void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
+    app.newBestScore = false;
+    app.newBestCombo = false;
     // A held confirm button may have just entered this screen. Treat it as
     // already held so entering/retrying a run never fires a surprise dash.
     app.flight.dashButtonWasDown = IsKeyDown(KEY_SPACE) ||
@@ -207,8 +211,10 @@ void finishRun(AppState& app) {
     if (app.profile.totalCrashes < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalCrashes;
     app.profile.bestDistance = std::max(app.profile.bestDistance,
                                         static_cast<double>(std::max(0.0F, app.flight.distance)));
-    app.profile.bestScore = std::max(app.profile.bestScore, app.runScore.total);
-    app.profile.bestCombo = std::max(app.profile.bestCombo, app.runScore.bestCombo);
+    const auto recordUpdate = tunrun::updateCareerBests(
+        app.runScore, app.profile.bestScore, app.profile.bestCombo);
+    app.newBestScore = recordUpdate.scoreImproved;
+    app.newBestCombo = recordUpdate.comboImproved;
     const double rawReward = std::floor(std::max(0.0F, app.flight.distance) / 20.0F);
     const std::uint64_t distanceReward = static_cast<std::uint64_t>(
         std::clamp(rawReward, 0.0, 250000.0));
@@ -1320,6 +1326,13 @@ int main() {
                                    static_cast<unsigned long long>(app.profile.bestCombo),
                                    static_cast<unsigned long long>(app.runScore.cleanPasses)),
                         298.0F, 11, kMuted);
+            if (app.newBestScore || app.newBestCombo) {
+                const char* recordMessage = app.newBestScore && app.newBestCombo
+                    ? "NEW SCORE + COMBO RECORD"
+                    : app.newBestScore ? "NEW PERSONAL SCORE RECORD"
+                                       : "NEW PERSONAL COMBO RECORD";
+                drawCentred(recordMessage, 312.0F, 11, kAccent);
+            }
             if (app.crashCause == CrashCause::Gate) {
                 const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);
                 drawCentred(TextFormat("GATE #%u   DISTANCE %.1f   TYPE %s",

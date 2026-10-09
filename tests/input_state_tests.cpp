@@ -176,6 +176,24 @@ int main() {
            tunrun::kScoreCap);
     assert(tunrun::saturatingScoreAdd(tunrun::kScoreCap, 1U) ==
            tunrun::kScoreCap);
+    std::uint64_t careerBestScore = 900U;
+    std::uint64_t careerBestCombo = 4U;
+    tunrun::RunScore recordRun;
+    recordRun.total = 1200U;
+    recordRun.bestCombo = 7U;
+    const auto bothRecords = tunrun::updateCareerBests(
+        recordRun, careerBestScore, careerBestCombo);
+    assert(bothRecords.scoreImproved && bothRecords.comboImproved);
+    assert(careerBestScore == 1200U && careerBestCombo == 7U);
+    const auto tiedRecords = tunrun::updateCareerBests(
+        recordRun, careerBestScore, careerBestCombo);
+    assert(!tiedRecords.scoreImproved && !tiedRecords.comboImproved);
+    recordRun.total = 1150U;
+    recordRun.bestCombo = 8U;
+    const auto comboOnly = tunrun::updateCareerBests(
+        recordRun, careerBestScore, careerBestCombo);
+    assert(!comboOnly.scoreImproved && comboOnly.comboImproved);
+    assert(careerBestScore == 1200U && careerBestCombo == 8U);
     assert(!tunrun::collidesWithGate(gate.offsetX, gate.offsetY, gate));
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));

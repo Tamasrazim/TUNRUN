@@ -85,6 +85,26 @@ inline GateScoreAward awardGatePass(RunScore& score,
     return award;
 }
 
+struct CareerRecordUpdate {
+    bool scoreImproved = false;
+    bool comboImproved = false;
+};
+
+// Update monotonically increasing career records and report which records the
+// completed run improved. Values are clamped to the same cap as live scoring.
+inline CareerRecordUpdate updateCareerBests(const RunScore& run,
+                                            std::uint64_t& bestScore,
+                                            std::uint64_t& bestCombo) noexcept {
+    CareerRecordUpdate update;
+    const std::uint64_t runScore = std::min(run.total, kScoreCap);
+    const std::uint64_t runCombo = std::min(run.bestCombo, kScoreCap);
+    update.scoreImproved = runScore > bestScore;
+    update.comboImproved = runCombo > bestCombo;
+    bestScore = std::max(bestScore, runScore);
+    bestCombo = std::max(bestCombo, runCombo);
+    return update;
+}
+
 inline void breakScoreCombo(RunScore& score) noexcept {
     score.combo = 0U;
 }

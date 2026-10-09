@@ -36,7 +36,7 @@ Resume, Restart Run (with confirmation where progress is lost), Settings, Contro
 Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/response curve, FOV, FPP/TPP camera distance, audio, graphics, motion/comfort options, UI scale, language-ready text layout, and reset-to-defaults confirmation.
 
 ### Results
-Run seed, generator version, distance/time, score, hull/collision summary, resources earned, records improved, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar.
+Run seed, generator version, distance/time, score, hull/collision summary, resources earned, a precise new-personal-record notice when score or combo improves, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar.
 
 ### Records / Statistics
 The current profile screen shows best distance, career-best score, best gate combo, completed runs, crashes, Aether Shards, Singularity Cores, ships unlocked, and active ship. Best performance by mode, seed history, clean passages, ship usage, mode-specific totals, and optional local ghost records remain planned.
