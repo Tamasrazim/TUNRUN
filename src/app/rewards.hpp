@@ -2,6 +2,7 @@
 
 #include "app/procedural_course.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
