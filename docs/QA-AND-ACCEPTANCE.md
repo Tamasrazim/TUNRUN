@@ -22,7 +22,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Mouse sensitivity renders a visible track and thumb; click/drag adjusts it, while keyboard arrows and gamepad D-pad/left stick also work. It clamps to the supported range, writes once when a pointer drag ends, and persists across restart.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
-- Reset Options restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
+- Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
 - Dropdowns open, select an item, and close.
 - A modal blocks clicks behind it.
 - Clicking one control cannot activate a second control.

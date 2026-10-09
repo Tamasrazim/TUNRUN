@@ -97,7 +97,9 @@ int main() {
     stack.push(Screen::Preview);
     stack.push(Screen::Pause);
     stack.push(Screen::Settings);
-    assert(stack.current() == Screen::Settings);
+    stack.push(Screen::SettingsResetConfirm);
+    assert(stack.current() == Screen::SettingsResetConfirm);
+    assert(stack.pop() && stack.current() == Screen::Settings);
     assert(stack.pop() && stack.current() == Screen::Pause);
     assert(stack.pop() && stack.current() == Screen::Preview);
     assert(stack.pop() && stack.current() == Screen::MainMenu);

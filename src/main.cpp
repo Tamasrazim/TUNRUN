@@ -866,7 +866,7 @@ int main() {
     }
 
     int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, controlsSelection = 0, runConfirmSelection = 0, modesSelection = 0;
-    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
+    int settingsSelection = 0, settingsResetSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
         seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
@@ -890,6 +890,7 @@ int main() {
         "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
         "MOUSE STEERING", "MOUSE SENSITIVITY", "RESET OPTIONS", "BACK"
     };
+    const std::vector<std::string> resetSettingsItems{"CANCEL", "RESET OPTIONS"};
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
     const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
     const std::vector<std::string> seedLabItems{
@@ -1368,19 +1369,36 @@ int main() {
             else if (picked == 2) app.reduceMotion = !app.reduceMotion;
             else if (picked == 3) app.mouseSteering = !app.mouseSteering;
             else if (picked == 5) {
+                settingsResetSelection = 0;
+                app.screens.push(tunrun::Screen::SettingsResetConfirm);
+            } else if (picked == 6) app.screens.pop();
+
+            if ((picked >= 0 && picked <= 3) || sensitivityChanged ||
+                pointerSensitivityCommit) {
+                (void)persistProfile(app);
+            }
+            if (settingsBackRequested && picked != 6) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::SettingsResetConfirm: {
+            drawHeader("03 / CONFIGURATION", "RESET OPTIONS?",
+                       "Only configuration changes. Wallets, ships and career records stay intact.");
+            drawCentred("THIS DOES NOT CHANGE GAME PROGRESSION.", 198.0F, 13, kMuted);
+            const int picked = drawMenu(resetSettingsItems, settingsResetSelection, 276, true, 1);
+            if (picked == 0 || (picked < 0 && backPressed())) {
+                app.screens.pop();
+            } else if (picked == 1) {
                 if (app.fullscreen) ToggleFullscreen();
                 app.fullscreen = false;
                 app.showFps = true;
                 app.reduceMotion = false;
                 app.mouseSteering = true;
                 app.mouseSensitivity = kMouseSensitivityDefault;
-            } else if (picked == 6) app.screens.pop();
-
-            if ((picked >= 0 && picked <= 3) || picked == 5 || sensitivityChanged ||
-                pointerSensitivityCommit) {
+                app.mouseSensitivityPointerDragging = false;
+                app.mouseSensitivityPointerDirty = false;
                 (void)persistProfile(app);
+                app.screens.pop();
             }
-            if (settingsBackRequested && picked != 6) app.screens.pop();
             break;
         }
         case tunrun::Screen::Credits:
