@@ -8,7 +8,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 ## Core pillars
 
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
-- **Seeded rewards:** Aether Shards and rarer Singularity Core pickups appear in the tunnel, use swept crossing checks, and contribute to the run payout.
+- **Seeded rewards:** Aether Shards render as cyan faceted gems and rarer Singularity Cores as larger warm-metallic 3D pickups; swept crossing checks award their run payout.
 - **Obstacle readability:** standard, precision, offset and wide gates have different support structures without changing their collision apertures. Mines use four distinct wireframe silhouettes and the faster generator-v2 oscillation profile.
 - **Skill scoring and records:** clean gate passes earn accuracy bonuses, gate families have different base scores, and consecutive passes raise the in-run combo multiplier. Career-best score and combo persist in profile v3, the Records / Statistics screen displays them, and the crash/results screen distinguishes new personal records from failed saves.
 - **Input and pause safety:** mouse is UI-only. WASD and the gamepad left stick move laterally; arrow keys and the right stick control yaw/pitch, and Q/E continuously roll the ship. Crash and Seed Lab seeds can be copied in exact round-trippable hexadecimal form. Destructive pause actions and settings reset ask for confirmation.

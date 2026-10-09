@@ -476,6 +476,24 @@ void drawProceduralReward(std::uint64_t seed, float playerDistance,
     const Vector3 left{x - size * 0.72F, y, z};
     const Vector3 front{x, y, z + size * 0.42F};
     const Vector3 back{x, y, z - size * 0.42F};
+    const bool singularityCore = reward.kind == tunrun::RewardKind::SingularityCore;
+    const Color faceBright = singularityCore
+        ? Color{255, 204, 140, 255} : Color{165, 243, 255, 255};
+    const Color faceDark = singularityCore
+        ? Color{132, 57, 29, 255} : Color{27, 107, 153, 255};
+    // Faceted volumetric pickup models: the shard is a cyan cut gem, while the
+    // larger core has warmer metallic faces and a distinctive orbit ring.
+    DrawTriangle3D(top, front, right, faceBright);
+    DrawTriangle3D(top, left, front, color);
+    DrawTriangle3D(top, back, left, faceDark);
+    DrawTriangle3D(top, right, back, faceBright);
+    DrawTriangle3D(bottom, right, front, faceDark);
+    DrawTriangle3D(bottom, front, left, faceBright);
+    DrawTriangle3D(bottom, left, back, faceDark);
+    DrawTriangle3D(bottom, back, right, color);
+    if (singularityCore) {
+        DrawSphereWires(Vector3{x, y, z}, size * 0.82F, 6, 12, faceBright);
+    }
     DrawLine3D(top, right, color);
     DrawLine3D(right, bottom, color);
     DrawLine3D(bottom, left, color);
