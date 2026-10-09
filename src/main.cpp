@@ -719,6 +719,7 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
     const Color bladeColor{255, 167, 119, 230};
     switch (hazard.index % 4U) {
     case 0U:
+        DrawSphere(center, hazard.radius * 0.72F, Color{112, 35, 38, 255});
         DrawSphereWires(center, hazard.radius, 8, 12, color);
         DrawLine3D(Vector3{center.x - hazard.radius, center.y, center.z},
                    Vector3{center.x + hazard.radius, center.y, center.z}, bladeColor);
@@ -730,6 +731,18 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
         const Vector3 right{center.x + hazard.radius * 0.78F, center.y, center.z};
         const Vector3 bottom{center.x, center.y - hazard.radius, center.z};
         const Vector3 left{center.x - hazard.radius * 0.78F, center.y, center.z};
+        const Vector3 front{center.x, center.y, center.z + hazard.radius * 0.55F};
+        const Vector3 back{center.x, center.y, center.z - hazard.radius * 0.55F};
+        const Color bodyLight{183, 61, 52, 245};
+        const Color bodyShade{79, 27, 36, 255};
+        DrawTriangle3D(top, right, front, bodyLight);
+        DrawTriangle3D(right, bottom, front, color);
+        DrawTriangle3D(bottom, left, front, bodyShade);
+        DrawTriangle3D(left, top, front, bodyLight);
+        DrawTriangle3D(top, back, right, bodyShade);
+        DrawTriangle3D(right, back, bottom, bodyLight);
+        DrawTriangle3D(bottom, back, left, color);
+        DrawTriangle3D(left, back, top, bodyShade);
         DrawLine3D(top, right, color); DrawLine3D(right, bottom, color);
         DrawLine3D(bottom, left, color); DrawLine3D(left, top, color);
         DrawLine3D(top, bottom, bladeColor); DrawLine3D(left, right, bladeColor);
@@ -744,6 +757,10 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
             const Vector3 shoulder{center.x - std::cos(angle) * hazard.radius * 0.55F,
                                    center.y - std::sin(angle) * hazard.radius * 0.55F,
                                    center.z + std::sin(phase) * hazard.radius * 0.28F};
+            const Vector3 bladeBack{tip.x, tip.y,
+                                    tip.z - hazard.radius * 0.22F};
+            DrawTriangle3D(center, tip, shoulder, bladeColor);
+            DrawTriangle3D(center, shoulder, bladeBack, Color{142, 43, 39, 255});
             DrawLine3D(center, tip, color);
             DrawLine3D(tip, shoulder, bladeColor);
             DrawLine3D(shoulder, center, color);
@@ -757,6 +774,13 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
         const Vector3 b{center.x - cs * hazard.radius, center.y - sn * hazard.radius, center.z};
         const Vector3 c{center.x - sn * hazard.radius, center.y + cs * hazard.radius, center.z};
         const Vector3 d{center.x + sn * hazard.radius, center.y - cs * hazard.radius, center.z};
+        const Vector3 centerFront{center.x, center.y, center.z + hazard.radius * 0.30F};
+        const Vector3 centerBack{center.x, center.y, center.z - hazard.radius * 0.30F};
+        DrawTriangle3D(a, centerFront, c, color);
+        DrawTriangle3D(c, centerBack, b, bladeColor);
+        DrawTriangle3D(b, centerFront, d, Color{178, 52, 45, 255});
+        DrawTriangle3D(d, centerBack, a, color);
+        DrawSphere(center, hazard.radius * 0.22F, Color{92, 25, 32, 255});
         DrawLine3D(a, c, color); DrawLine3D(c, b, bladeColor);
         DrawLine3D(b, d, color); DrawLine3D(d, a, bladeColor);
         DrawSphereWires(center, hazard.radius * 0.42F, 6, 8, color);

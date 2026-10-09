@@ -26,7 +26,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
 - Mouse input is confined to UI navigation and never changes flight position. Keyboard and gamepad separately control translation, yaw/pitch rotation, and roll; angular state remains finite under sustained input.
-- The tunnel has filled interior panels plus the wireframe ribs; ships render with filled, shaded 3D hull faces in the hangar and third-person view, rather than line-only silhouettes.
+- The tunnel has filled interior panels plus wireframe ribs; ships, reward pickups, and all four mine variants use shaded low-poly 3D faces rather than relying on line-only silhouettes. Mine collision remains the documented sphere, independent of cosmetic blade details.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, and reduced-motion defaults without changing wallet balances, ship unlocks, or run history.

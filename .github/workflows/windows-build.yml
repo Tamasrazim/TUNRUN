@@ -30,10 +30,14 @@ jobs:
         run: cmake --build build --config Release --parallel 2
       - name: Run unit tests
         run: ctest --test-dir build -C Release --output-on-failure
-      - name: Publish development executable artifact
+      - name: Stage portable development package
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -BuildDirectory build/Release -OutputDirectory build/package -Version "0.1.0-dev" -CommitSha $env:GITHUB_SHA
+
+      - name: Publish portable development package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: TUNRUN-Windows-x64-dev
-          path: build/Release/tunrun.exe
+          name: TUNRUN-Windows-x64-portable-dev
+          path: build/package/TUNRUN-Windows-x64-Portable.zip
           if-no-files-found: error
           retention-days: 14
