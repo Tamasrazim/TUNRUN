@@ -1270,6 +1270,26 @@ int main() {
                     4 * static_cast<int>(kButtonHeight + kButtonGap)),
                 kPanelWidth, kButtonHeight
             };
+            constexpr float sensitivityTrackInset = 30.0F;
+            const Rectangle sensitivityTrack{
+                sensitivityBounds.x + sensitivityTrackInset,
+                sensitivityBounds.y + sensitivityBounds.height - 7.0F,
+                sensitivityBounds.width - 2.0F * sensitivityTrackInset,
+                3.0F
+            };
+            const float normalizedSensitivity = std::clamp(
+                (app.mouseSensitivity - kMouseSensitivityMin) /
+                    (kMouseSensitivityMax - kMouseSensitivityMin),
+                0.0F, 1.0F);
+            DrawRectangleRounded(sensitivityTrack, 0.8F, 6, kEdge);
+            DrawRectangleRounded(Rectangle{
+                sensitivityTrack.x, sensitivityTrack.y,
+                sensitivityTrack.width * normalizedSensitivity,
+                sensitivityTrack.height
+            }, 0.8F, 6, kAccent);
+            DrawCircle(sensitivityTrack.x + sensitivityTrack.width * normalizedSensitivity,
+                       sensitivityTrack.y + sensitivityTrack.height * 0.5F,
+                       4.0F, kText);
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
                 CheckCollisionPointRec(GetMousePosition(), sensitivityBounds)) {
                 app.mouseSensitivityPointerDragging = true;
@@ -1279,7 +1299,7 @@ int main() {
             bool pointerSensitivityCommit = false;
             if (app.mouseSensitivityPointerDragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                 const float normalizedPosition =
-                    (GetMousePosition().x - sensitivityBounds.x) / sensitivityBounds.width;
+                    (GetMousePosition().x - sensitivityTrack.x) / sensitivityTrack.width;
                 const float nextSensitivity = mouseSensitivityFromSlider(normalizedPosition);
                 if (nextSensitivity != app.mouseSensitivity) {
                     app.mouseSensitivity = nextSensitivity;
@@ -1429,7 +1449,8 @@ int main() {
                            : app.crashCause == CrashCause::Hazard
                                ? "Craft intersected a moving procedural mine."
                                : "Craft collision volume touched the tunnel boundary.");
-            drawCentred(TextFormat("DISTANCE %.1f   SEED %016llX", app.flight.distance,
+            drawCentred(TextFormat("DISTANCE %.1f   TIME %.1fs   SEED %016llX",
+                                   app.flight.distance, app.elapsed,
                                    static_cast<unsigned long long>(app.courseSeed)),
                         190.0F, 16, kAccent);
             drawCentred(TextFormat("CANONICAL COURSE HASH %016llX",

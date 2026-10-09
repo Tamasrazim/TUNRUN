@@ -9,6 +9,7 @@ Test on Windows at normal DPI and scaled DPI, windowed, borderless, fullscreen, 
 For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select, Seed Entry, Settings, Pause, Results, confirmation dialogs):
 - Every button is mouse-clickable at its visible position.
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
+- Crash/results view shows final distance, active seed, elapsed in-run time, course hash, score, rewards and the applicable gate/mine contact index without overlapping the action menu.
 - Controls opens from both Main Menu and Pause, lists actual keyboard/mouse/gamepad bindings, and Back returns to the correct parent screen without unpausing the run.
 - While Controls, Settings or run-confirmation is layered above Pause, procedural hazard time remains frozen; returning to the run does not advance the mines through the pause interval.
 - Pause → Restart Same Seed asks before discarding the current run, retains the exact course seed after confirmation, and starts with clean score, dash, and pickup state.
@@ -18,7 +19,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
-- Mouse sensitivity can be adjusted by clicking or dragging its row, by keyboard arrows, and by gamepad D-pad/left stick. It clamps to the supported range, writes once when a pointer drag ends, and persists across restart.
+- Mouse sensitivity renders a visible track and thumb; click/drag adjusts it, while keyboard arrows and gamepad D-pad/left stick also work. It clamps to the supported range, writes once when a pointer drag ends, and persists across restart.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.

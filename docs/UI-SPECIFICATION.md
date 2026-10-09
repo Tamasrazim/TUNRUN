@@ -36,10 +36,10 @@ Resume, Restart Same Seed, Controls, Settings, and Return to Main Menu. Restart 
 A dedicated input reference is reachable from the main menu and Pause. It lists keyboard steering, boost, precision, dash, camera and pause controls; relative mouse steering and sensitivity; and controller stick/trigger/button mappings. Returning from Pause keeps the run paused.
 
 ### Settings
-Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/response curve, FOV, FPP/TPP camera distance, audio, graphics, motion/comfort options, UI scale, language-ready text layout, and reset-to-defaults confirmation.
+Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/response curve, FOV, FPP/TPP camera distance, audio, graphics, motion/comfort options, UI scale, language-ready text layout, and reset-to-defaults confirmation. Mouse sensitivity has a visible track/thumb and supports click or drag.
 
 ### Results
-Run seed, generator version, distance/time, score, hull/collision summary, resources earned, a precise new-personal-record notice when score or combo improves, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar.
+Run seed, generator version, final distance and elapsed in-run time, score, collision summary, course hash, resources earned, a precise new-personal-record notice when score or combo improves, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar.
 
 ### Records / Statistics
 The current profile screen shows best distance, career-best score, best gate combo, completed runs, crashes, Aether Shards, Singularity Cores, ships unlocked, and active ship. Best performance by mode, seed history, clean passages, ship usage, mode-specific totals, and optional local ghost records remain planned.
