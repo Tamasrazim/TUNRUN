@@ -967,7 +967,7 @@ int main() {
                 drawCentred(TextFormat("MINE #%u   DISTANCE %.1f   HASH %016llX",
                                        app.lastHitObjectIndex, hitMine.distance,
                                        static_cast<unsigned long long>(
-                                           tunrun::hazardHash(app.courseSeed, hitMine.index + 1U))),
+                                           tunrun::hazardHash(app.courseSeed, 128U))),
                             267.0F, 11, kDanger);
             }
             const int picked = drawMenu(crashItems, crashSelection, 285, true);
