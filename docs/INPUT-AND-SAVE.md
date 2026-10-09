@@ -17,9 +17,9 @@ Mappings are defaults and must be remappable later.
 | Action | Keyboard | Mouse | Gamepad |
 |---|---|---|---|
 | Steer horizontally/vertically | WASD or arrows | Relative movement steers while mouse-flight mode is active | Left stick |
-| Boost | Left Shift | Left button (optional configurable binding) | Right trigger |
+| Boost | Left Shift | Not bound in the current prototype | Right trigger (analog threshold) |
 | Energy dash | Space | Right button (optional configurable binding) | A / Cross |
-| Brake / precision mode | Left Ctrl | Wheel click (optional binding) | Left trigger |
+| Brake / precision mode | Left Ctrl | Not bound in the current prototype | Left trigger (analog threshold) |
 | Switch FPP / TPP | V | Configurable secondary button | Y / Triangle |
 | Pause | Esc | UI pause button; capture ends | Menu / Start |
 | Confirm / interact | Enter / E | Left click | A / Cross |

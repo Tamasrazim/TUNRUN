@@ -56,6 +56,14 @@ int main() {
     using tunrun::Screen;
     using tunrun::ScreenStack;
 
+    assert(!tunrun::triggerPressed(-1.0F));
+    assert(!tunrun::triggerPressed(0.0F));
+    assert(!tunrun::triggerPressed(-0.01F));
+    assert(tunrun::triggerPressed(0.01F));
+    assert(tunrun::triggerPressed(1.0F));
+    assert(!tunrun::triggerPressed(std::numeric_limits<float>::quiet_NaN()));
+    assert(!tunrun::triggerPressed(std::numeric_limits<float>::infinity()));
+
     ButtonEdge edge;
     assert(!edge.update(false));
     assert(edge.update(true));

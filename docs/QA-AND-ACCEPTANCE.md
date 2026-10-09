@@ -29,6 +29,7 @@ Gameplay-specific mouse checks:
 - Resume restores steering without reversed axes, huge accumulated deltas, or a frozen cursor.
 - Switching to keyboard/gamepad disables mouse-flight deltas without affecting UI clicks.
 - Disconnect/reconnect of a controller never leaves movement or boost stuck.
+- Right-trigger boost and left-trigger precision controls activate above the neutral axis value, ignore non-finite axis readings, and release as soon as the trigger returns to neutral.
 
 **Release gate:** zero known mouse-hitbox, stuck-cursor, input-context, and pause/resume defects in the required matrix.
 

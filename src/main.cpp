@@ -734,8 +734,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
              static_cast<unsigned long long>(coresPickedUp)), 35, 157, 10, kMuted);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
-             36, GetScreenHeight() - 42, 13, kMuted);
+    DrawText("WASD / ARROWS: STEER   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
+             36, GetScreenHeight() - 42, 12, kMuted);
 }
 } // namespace
 
@@ -874,11 +874,17 @@ int main() {
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
                 const double previousDistance = app.flight.distance;
+                const bool padBoost = IsGamepadAvailable(0) &&
+                    tunrun::triggerPressed(
+                        GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER));
+                const bool padPrecision = IsGamepadAvailable(0) &&
+                    tunrun::triggerPressed(
+                        GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER));
                 const tunrun::FlightInput flightInput{
                     std::clamp(steerX, -1.0F, 1.0F),
                     std::clamp(steerY, -1.0F, 1.0F),
-                    IsKeyDown(KEY_LEFT_SHIFT),
-                    IsKeyDown(KEY_LEFT_CONTROL),
+                    IsKeyDown(KEY_LEFT_SHIFT) || padBoost,
+                    IsKeyDown(KEY_LEFT_CONTROL) || padPrecision,
                     static_cast<std::uint32_t>(app.selectedShip)
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);

@@ -1,6 +1,14 @@
 #pragma once
+#include <cmath>
 #include <cstddef>
 #include <vector>
+
+namespace tunrun {
+// raylib trigger axes commonly rest at -1 and move above zero when pressed.
+[[nodiscard]] inline bool triggerPressed(float axisValue) noexcept {
+    return std::isfinite(axisValue) && axisValue > 0.0F;
+}
+} // namespace tunrun
 
 namespace tunrun {
 enum class Screen { MainMenu, Hangar, Modes, Settings, Credits, Preview, Pause, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
