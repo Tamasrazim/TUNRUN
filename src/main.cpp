@@ -701,13 +701,9 @@ int main() {
                         const auto gate = tunrun::gateAt(app.courseSeed,
                             static_cast<std::uint32_t>(gateIndex));
                         if (!tunrun::crossesGatePlane(previousDistance, app.flight.distance, gate)) continue;
-                        const double travel = static_cast<double>(app.flight.distance) - previousDistance;
-                        const float fraction = travel > 1.0e-6
-                            ? static_cast<float>(std::clamp((gate.distance - previousDistance) / travel, 0.0, 1.0))
-                            : 0.0F;
-                        const float crossingX = previousX + (app.flight.x - previousX) * fraction;
-                        const float crossingY = previousY + (app.flight.y - previousY) * fraction;
-                        if (tunrun::collidesWithGate(crossingX, crossingY, gate)) {
+                        if (tunrun::collidesWithGateAtCourseCrossing(
+                                app.courseSeed, previousX, previousY, previousDistance,
+                                app.flight.x, app.flight.y, app.flight.distance, gate)) {
                             app.crashCause = CrashCause::Gate;
                             finishRun(app);
                             app.screens.replace(tunrun::Screen::Crash);
@@ -734,7 +730,7 @@ int main() {
                         const auto hazard = tunrun::hazardAt(app.courseSeed,
                             static_cast<std::uint32_t>(hazardIndex));
                         if (tunrun::sweptCollidesWithHazard(
-                                previousX, previousY, previousDistance, previousElapsed,
+                                app.courseSeed, previousX, previousY, previousDistance, previousElapsed,
                                 app.flight.x, app.flight.y, app.flight.distance, app.elapsed,
                                 hazard)) {
                             app.crashCause = CrashCause::Hazard;

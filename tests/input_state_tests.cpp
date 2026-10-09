@@ -124,6 +124,23 @@ int main() {
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
     assert(!tunrun::crossesGatePlane(gate.distance + 0.5, gate.distance + 0.7, gate));
+    const auto gateSection = tunrun::sampleCourse(seed, gate.distance);
+    const auto gateBeforeSection = tunrun::sampleCourse(seed, gate.distance - 0.7);
+    const auto gateAfterSection = tunrun::sampleCourse(seed, gate.distance + 0.7);
+    const float centeredPreviousX = gate.offsetX + gateSection.centerX -
+                                    gateBeforeSection.centerX;
+    const float centeredPreviousY = gate.offsetY + gateSection.centerY -
+                                    gateBeforeSection.centerY;
+    const float centeredCurrentX = gate.offsetX + gateSection.centerX -
+                                   gateAfterSection.centerX;
+    const float centeredCurrentY = gate.offsetY + gateSection.centerY -
+                                   gateAfterSection.centerY;
+    assert(!tunrun::collidesWithGateAtCourseCrossing(
+        seed, centeredPreviousX, centeredPreviousY, gate.distance - 0.7,
+        centeredCurrentX, centeredCurrentY, gate.distance + 0.7, gate));
+    assert(!tunrun::collidesWithGateAtCourseCrossing(
+        seed, gate.offsetX, gate.offsetY, gate.distance + 0.1,
+        gate.offsetX, gate.offsetY, gate.distance + 0.2, gate));
 
     // Reward placement is seeded, separately versioned, and independent from
     // the obstacle layout. Swept plane checks prevent missed high-speed pickups.
@@ -197,24 +214,42 @@ int main() {
     // Contact can happen at the near edge before the craft reaches the
     // hazard center plane; the swept check must not miss it.
     assert(tunrun::sweptCollidesWithHazard(
-        hazardAtTime.x + hazardCombinedRadius - 0.15F, hazardAtTime.y,
+        seed, hazardAtTime.x + hazardCombinedRadius - 0.15F, hazardAtTime.y,
         hazard.distance - 0.8, 1.0,
         hazardAtTime.x + hazardCombinedRadius - 0.15F, hazardAtTime.y,
         hazard.distance - 0.2, 1.01, hazard));
     assert(!tunrun::sweptCollidesWithHazard(
-        hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
+        seed, hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
         hazard.distance - 0.8, 1.0,
         hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
         hazard.distance + 0.8, 1.02, hazard));
     assert(!tunrun::sweptCollidesWithHazard(
-        hazardAtTime.x, hazardAtTime.y,
+        seed, hazardAtTime.x, hazardAtTime.y,
         hazard.distance + 0.8, 1.01,
         hazardAtTime.x, hazardAtTime.y,
         hazard.distance - 0.8, 1.0, hazard));
     assert(tunrun::sweptCollidesWithHazard(
-        std::numeric_limits<float>::quiet_NaN(), 0.0F,
+        seed, std::numeric_limits<float>::quiet_NaN(), 0.0F,
         hazard.distance - 1.0, 1.0,
         0.0F, 0.0F, hazard.distance + 1.0, 1.1, hazard));
+
+    // Curved-centerline regression using the same course frame as the renderer.
+    const auto hazardSection = tunrun::sampleCourse(seed, hazard.distance);
+    const auto hazardBeforeSection = tunrun::sampleCourse(seed, hazard.distance - 0.7);
+    const auto hazardAfterSection = tunrun::sampleCourse(seed, hazard.distance + 0.7);
+    const auto hazardBeforeCenter = tunrun::hazardCenterAt(hazard, 2.0);
+    const auto hazardAfterCenter = tunrun::hazardCenterAt(hazard, 2.02);
+    const float safeHazardPreviousX = hazardSection.centerX + hazardBeforeCenter.x -
+                                      hazardBeforeSection.centerX;
+    const float safeHazardPreviousY = hazardSection.centerY + hazardBeforeCenter.y -
+                                      hazardBeforeSection.centerY;
+    const float safeHazardCurrentX = hazardSection.centerX + hazardAfterCenter.x -
+                                     hazardAfterSection.centerX;
+    const float safeHazardCurrentY = hazardSection.centerY + hazardAfterCenter.y -
+                                     hazardAfterSection.centerY;
+    assert(tunrun::sweptCollidesWithHazard(
+        seed, safeHazardPreviousX, safeHazardPreviousY, hazard.distance - 0.7, 2.0,
+        safeHazardCurrentX, safeHazardCurrentY, hazard.distance + 0.7, 2.02, hazard));
 
     // Regression batch: several derived seeds must keep hazards within the
     // declared motion envelope and outside gate reaction windows.

@@ -111,6 +111,7 @@ inline bool collidesWithHazard(float x, float y,
 // makes this a swept 3D closest-approach test, instead of checking only the
 // exact center plane and potentially missing contact at the sphere's near edge.
 inline bool sweptCollidesWithHazard(
+    std::uint64_t seed,
     float previousX, float previousY, double previousDistance, double previousTime,
     float currentX, float currentY, double currentDistance, double currentTime,
     const ProceduralHazard& hazard,
@@ -121,20 +122,29 @@ inline bool sweptCollidesWithHazard(
         !std::isfinite(previousTime) || !std::isfinite(currentTime) ||
         !std::isfinite(hazard.distance) || !std::isfinite(hazard.radius) ||
         !std::isfinite(craftRadius)) return true;
-    if (currentDistance <= previousDistance || currentTime < previousTime) return false;
+    if (currentDistance < previousDistance || currentTime < previousTime) return false;
 
     const HazardCenter previousCenter = hazardCenterAt(hazard, previousTime);
     const HazardCenter currentCenter = hazardCenterAt(hazard, currentTime);
     if (!std::isfinite(previousCenter.x) || !std::isfinite(previousCenter.y) ||
         !std::isfinite(currentCenter.x) || !std::isfinite(currentCenter.y)) return true;
 
-    // Relative coordinates include both player and mine movement; course
-    // distance supplies the longitudinal axis of the swept segment.
-    const double rx0 = static_cast<double>(previousX - previousCenter.x);
-    const double ry0 = static_cast<double>(previousY - previousCenter.y);
+    // The craft x/y values are relative to the cross-section at each frame,
+    // while mine coordinates are relative to the cross-section at the mine.
+    // Transform both endpoints into the mine's course-local frame before the
+    // swept segment test so curves do not separate visible mines from physics.
+    const auto previousSection = sampleCourse(seed, previousDistance);
+    const auto currentSection = sampleCourse(seed, currentDistance);
+    const auto hazardSection = sampleCourse(seed, hazard.distance);
+    const double rx0 = static_cast<double>(previousX) + previousSection.centerX -
+                       hazardSection.centerX - previousCenter.x;
+    const double ry0 = static_cast<double>(previousY) + previousSection.centerY -
+                       hazardSection.centerY - previousCenter.y;
     const double rz0 = previousDistance - hazard.distance;
-    const double rx1 = static_cast<double>(currentX - currentCenter.x);
-    const double ry1 = static_cast<double>(currentY - currentCenter.y);
+    const double rx1 = static_cast<double>(currentX) + currentSection.centerX -
+                       hazardSection.centerX - currentCenter.x;
+    const double ry1 = static_cast<double>(currentY) + currentSection.centerY -
+                       hazardSection.centerY - currentCenter.y;
     const double rz1 = currentDistance - hazard.distance;
     const double dx = rx1 - rx0;
     const double dy = ry1 - ry0;
