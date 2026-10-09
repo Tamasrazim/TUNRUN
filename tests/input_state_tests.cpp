@@ -1,5 +1,6 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
+#include "app/rewards.hpp"
 #include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
@@ -121,6 +122,46 @@ int main() {
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
     assert(!tunrun::crossesGatePlane(gate.distance + 0.5, gate.distance + 0.7, gate));
+
+    // Reward placement is seeded, separately versioned, and independent from
+    // the obstacle layout. Swept plane checks prevent missed high-speed pickups.
+    const auto firstReward = tunrun::rewardAt(seed, 0U);
+    const auto repeatedReward = tunrun::rewardAt(seed, 0U);
+    assert(firstReward.index == repeatedReward.index);
+    assert(firstReward.distance == repeatedReward.distance);
+    assert(firstReward.offsetX == repeatedReward.offsetX);
+    assert(firstReward.offsetY == repeatedReward.offsetY);
+    assert(firstReward.kind == tunrun::RewardKind::AetherShard);
+    assert(firstReward.shardValue >= 4U && firstReward.shardValue <= 8U);
+    assert(tunrun::rewardAt(seed, 7U).kind == tunrun::RewardKind::SingularityCore);
+    assert(tunrun::rewardAt(seed, 7U).shardValue == 0U);
+    assert(tunrun::rewardHash(seed) == tunrun::rewardHash(seed));
+    assert(tunrun::rewardHash(seed) != tunrun::rewardHash(seed + 1U));
+    assert(tunrun::rewardHash(seed, 0U) == 0U);
+    assert(tunrun::collectsReward(firstReward.offsetX, firstReward.offsetY, firstReward));
+    assert(!tunrun::collectsReward(firstReward.offsetX + tunrun::kRewardPickupRadius * 2.0F,
+                                   firstReward.offsetY, firstReward));
+    assert(tunrun::crossesRewardPlane(firstReward.distance - 0.1,
+                                      firstReward.distance + 0.1, firstReward));
+    assert(!tunrun::crossesRewardPlane(firstReward.distance + 0.1,
+                                       firstReward.distance - 0.1, firstReward));
+    assert(!tunrun::crossesRewardPlane(firstReward.distance + 0.1,
+                                       firstReward.distance + 0.2, firstReward));
+    assert(!tunrun::collectsReward(std::numeric_limits<float>::quiet_NaN(),
+                                   firstReward.offsetY, firstReward));
+    for (std::uint32_t rewardIndex = 0U; rewardIndex < 512U; ++rewardIndex) {
+        const auto reward = tunrun::rewardAt(seed, rewardIndex);
+        assert(reward.index == rewardIndex);
+        assert(reward.distance == tunrun::kRewardStartDistance +
+                                  static_cast<double>(rewardIndex) * tunrun::kRewardSpacing);
+        assert(std::abs(reward.offsetX) <= 1.45F);
+        assert(std::abs(reward.offsetY) <= 1.45F);
+        if (reward.kind == tunrun::RewardKind::AetherShard) {
+            assert(reward.shardValue >= 4U && reward.shardValue <= 8U);
+        } else {
+            assert(reward.shardValue == 0U);
+        }
+    }
 
     // Obstacle layout has its own deterministic versioned fingerprint.
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));

@@ -26,7 +26,7 @@ Still required before M1 can pass:
 - Add integration tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
 
 ## M2 — Flight and camera prototype
-**Status: in progress.** The prototype now has fixed-step lateral/vertical flight, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, and a retry screen.
+**Status: in progress.** The prototype now has fixed-step lateral/vertical flight, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, collectible seeded rewards, and a retry screen.
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
 - Both cameras work without changing physics.
 - Flight remains stable across render rates.

@@ -2,6 +2,7 @@
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
 #include "app/economy.hpp"
+#include "app/rewards.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -64,6 +65,8 @@ struct AppState {
     std::uint64_t runGatesCleared = 0U;
     std::uint64_t lastRunReward = 0U;
     std::uint64_t lastRunCoreReward = 0U;
+    std::uint64_t runAetherPickupReward = 0U;
+    std::uint64_t runSingularityCorePickupReward = 0U;
     float elapsed = 0.0F;
 };
 
@@ -128,6 +131,8 @@ void resetFlight(AppState& app, bool& tpp) {
     app.runGatesCleared = 0U;
     app.lastRunReward = 0U;
     app.lastRunCoreReward = 0U;
+    app.runAetherPickupReward = 0U;
+    app.runSingularityCorePickupReward = 0U;
     tpp = false;
 }
 void chooseNextSeed(AppState& app) {
@@ -192,8 +197,15 @@ void finishRun(AppState& app) {
     app.profile.bestDistance = std::max(app.profile.bestDistance,
                                         static_cast<double>(std::max(0.0F, app.flight.distance)));
     const double rawReward = std::floor(std::max(0.0F, app.flight.distance) / 20.0F);
-    app.lastRunReward = static_cast<std::uint64_t>(std::clamp(rawReward, 0.0, 250000.0));
+    const std::uint64_t distanceReward = static_cast<std::uint64_t>(
+        std::clamp(rawReward, 0.0, 250000.0));
+    const std::uint64_t shardRewardCap = 250000U;
+    app.lastRunReward = distanceReward + std::min(
+        app.runAetherPickupReward, shardRewardCap - distanceReward);
     app.lastRunCoreReward = std::min<std::uint64_t>(app.runGatesCleared / 10U, 1000U);
+    const std::uint64_t coreRewardRoom = 1000U - app.lastRunCoreReward;
+    app.lastRunCoreReward += std::min(
+        app.runSingularityCorePickupReward, coreRewardRoom);
     const auto maxValue = std::numeric_limits<std::uint64_t>::max();
     app.profile.aetherShards = maxValue - app.profile.aetherShards < app.lastRunReward
         ? maxValue : app.profile.aetherShards + app.lastRunReward;
@@ -372,8 +384,41 @@ void drawProceduralGate(std::uint64_t seed, float playerDistance,
         if (side % 2 == 0) DrawLine3D(outer0, inner0, Color{76, 99, 125, 205});
     }
 }
+void drawProceduralReward(std::uint64_t seed, float playerDistance,
+                          const tunrun::TunnelCrossSection& playerSection,
+                          const tunrun::ProceduralReward& reward) {
+    const float ahead = static_cast<float>(reward.distance - static_cast<double>(playerDistance));
+    if (ahead < 0.0F || ahead > 72.0F) return;
+    const auto section = tunrun::sampleCourse(seed, reward.distance);
+    const float x = section.centerX - playerSection.centerX + reward.offsetX;
+    const float y = section.centerY - playerSection.centerY + reward.offsetY;
+    const float z = -ahead;
+    const float size = reward.kind == tunrun::RewardKind::SingularityCore ? 0.48F : 0.34F;
+    const Color color = reward.kind == tunrun::RewardKind::SingularityCore
+        ? Color{255, 174, 108, 255} : Color{111, 225, 255, 255};
+    const Vector3 top{x, y + size, z};
+    const Vector3 right{x + size * 0.72F, y, z};
+    const Vector3 bottom{x, y - size, z};
+    const Vector3 left{x - size * 0.72F, y, z};
+    const Vector3 front{x, y, z + size * 0.42F};
+    const Vector3 back{x, y, z - size * 0.42F};
+    DrawLine3D(top, right, color);
+    DrawLine3D(right, bottom, color);
+    DrawLine3D(bottom, left, color);
+    DrawLine3D(left, top, color);
+    DrawLine3D(top, front, color);
+    DrawLine3D(right, front, color);
+    DrawLine3D(bottom, front, color);
+    DrawLine3D(left, front, color);
+    DrawLine3D(top, back, color);
+    DrawLine3D(right, back, color);
+    DrawLine3D(bottom, back, color);
+    DrawLine3D(left, back, color);
+}
+
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                bool tpp, float boostEnergy) {
+                bool tpp, float boostEnergy, std::uint64_t aetherPickedUp,
+                std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     Camera3D camera{};
     camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
@@ -409,6 +454,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawProceduralGate(seed, distance, playerSection,
                            tunrun::gateAt(seed, static_cast<std::uint32_t>(i)));
     }
+    const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
+        (static_cast<double>(distance) - tunrun::kRewardStartDistance) /
+        tunrun::kRewardSpacing)));
+    for (int i = firstRewardIndex; i < firstRewardIndex + 6; ++i) {
+        drawProceduralReward(seed, distance, playerSection,
+            tunrun::rewardAt(seed, static_cast<std::uint32_t>(i)));
+    }
     if (tpp) {
         const Vector3 nose{shipX, shipY, -0.2F};
         const Vector3 left{shipX - 0.75F, shipY - 0.28F, 0.65F};
@@ -421,8 +473,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawLine3D(left, right, kAccent);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 128, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 128, kEdge);
+    DrawRectangle(22, 18, 344, 150, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 150, kEdge);
     DrawText("TUNRUN / M4 PROCEDURAL", 35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
@@ -430,6 +482,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
+    DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
+             static_cast<unsigned long long>(aetherPickedUp),
+             static_cast<unsigned long long>(coresPickedUp)), 35, 137, 10, kMuted);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -621,6 +676,41 @@ int main() {
                         }
                     }
                 }
+                if (app.screens.current() == tunrun::Screen::Preview) {
+                    const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
+                        (previousDistance - tunrun::kRewardStartDistance) /
+                        tunrun::kRewardSpacing)) - 1);
+                    const int lastRewardIndex = std::max(firstRewardIndex,
+                        static_cast<int>(std::floor(
+                            (static_cast<double>(app.flight.distance) -
+                             tunrun::kRewardStartDistance) / tunrun::kRewardSpacing)) + 1);
+                    for (int rewardIndex = firstRewardIndex;
+                         rewardIndex <= lastRewardIndex; ++rewardIndex) {
+                        const auto reward = tunrun::rewardAt(app.courseSeed,
+                            static_cast<std::uint32_t>(rewardIndex));
+                        if (!tunrun::crossesRewardPlane(previousDistance,
+                                app.flight.distance, reward)) continue;
+                        const double travel = static_cast<double>(app.flight.distance) -
+                                              previousDistance;
+                        const float fraction = travel > 1.0e-6
+                            ? static_cast<float>(std::clamp(
+                                (reward.distance - previousDistance) / travel, 0.0, 1.0))
+                            : 0.0F;
+                        const float pickupX = previousX + (app.flight.x - previousX) * fraction;
+                        const float pickupY = previousY + (app.flight.y - previousY) * fraction;
+                        if (!tunrun::collectsReward(pickupX, pickupY, reward)) continue;
+                        const auto maxReward = std::numeric_limits<std::uint64_t>::max();
+                        if (reward.kind == tunrun::RewardKind::AetherShard) {
+                            app.runAetherPickupReward =
+                                maxReward - app.runAetherPickupReward < reward.shardValue
+                                ? maxReward : app.runAetherPickupReward + reward.shardValue;
+                        } else {
+                            if (app.runSingularityCorePickupReward < maxReward) {
+                                ++app.runSingularityCorePickupReward;
+                            }
+                        }
+                    }
+                }
                 if (app.screens.current() == tunrun::Screen::Preview &&
                     (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP))) tpp = !tpp;
                 if (backPressed()) app.screens.push(tunrun::Screen::Pause);
@@ -629,7 +719,9 @@ int main() {
 
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
-            drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y, tpp, app.flight.boostEnergy);
+            drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
+                       tpp, app.flight.boostEnergy, app.runAetherPickupReward,
+                       app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };

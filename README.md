@@ -3,11 +3,12 @@
 
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
-The repository has moved into native implementation. **M5 persistence and ship economy are in progress**: schema v2 adds an accidental-corruption checksum and a tested migration path for valid v1 profiles; settings and progression save locally with backup recovery; the hangar uses Aether Shards and Singularity Cores to unlock and equip ships; and each ship has distinct speed, acceleration, boost-drain and energy-recovery parameters. Seeded tunnel generation and four deterministic aperture-gate families now form the procedural gameplay prototype. Gate validation includes both an all-ship pairwise kinematic screen and a fixed-step route probe that propagates a concrete position/velocity trajectory through consecutive gates using gameplay physics. The probe is a witness trajectory, not an exhaustive proof of every reachable state. The Windows CI build and unit tests are the source of truth; this is not a finished game.
+The repository has moved into native implementation. **M5 persistence and ship economy are in progress**: schema v2 adds an accidental-corruption checksum and a tested migration path for valid v1 profiles; settings and progression save locally with backup recovery; the hangar uses Aether Shards and Singularity Cores to unlock and equip ships; and each ship has distinct speed, acceleration, boost-drain and energy-recovery parameters. Seeded tunnel generation, four deterministic aperture-gate families, and collectible Aether Shards/Singularity Cores now form the procedural gameplay prototype. Gate validation includes both an all-ship pairwise kinematic screen and a fixed-step route probe that propagates a concrete position/velocity trajectory through consecutive gates using gameplay physics. The probe is a witness trajectory, not an exhaustive proof of every reachable state. The Windows CI build and unit tests are the source of truth; this is not a finished game.
 
 ## Core pillars
 
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
+- **Seeded rewards:** Aether Shards and rarer Singularity Core pickups appear in the tunnel, use swept crossing checks, and contribute to the run payout.
 - **Curving 3D tunnels:** changing centerlines, cross-sections, twists, widths, entrances, and transitions.
 - **Fair unpredictability:** geometry bounds, gate clearance and reaction spacing are validated. A ship-specific pairwise kinematic reachability screen is now included; a full propagated-state proof and warning-time validation remain unfinished.
 - **FPP and TPP:** switch between first-person and third-person cameras without resetting the run.
@@ -37,6 +38,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 
 ### Engineering
 - [Procedural Generation](docs/PROCEDURAL-GENERATION.md)
+- [Procedural Rewards](docs/PROCEDURAL-REWARDS.md)
 - [Technical Architecture](docs/TECHNICAL-ARCHITECTURE.md)
 - [Bot AI](docs/BOT-AI.md)
 - [Input and Save](docs/INPUT-AND-SAVE.md)
