@@ -13,9 +13,11 @@ Temporary write:
 
 Set the Windows Hidden attribute on the directory and save files where supported. Hidden is a convenience only; this is not encryption, anti-cheat, or tamper protection. Use the current Windows user profile and do not require administrator privileges.
 
-## Runtime schema v1
+## Runtime schema v2
 
-The running implementation stores a strict flat JSON object with exactly 15 fields: `schemaVersion`, `showFps`, `reduceMotion`, `mouseSteering`, `fullscreen`, `mouseSensitivity`, `selectedShip`, `unlockedShips`, `aetherShards`, `singularityCores`, `totalRuns`, `totalCrashes`, `bestDistance`, `rootSeed`, and `runSerial`. The parser caps input at 64 KiB, rejects duplicate or unexpected keys, validates types/ranges, and rejects non-finite numeric values. The runtime v1 file does not yet include timestamp or checksum fields; those belong to a future explicit migration.
+Current writes use a strict flat JSON object with exactly 16 fields: the schema v1 fields plus `checksum`. The parser caps input at 64 KiB, rejects duplicate or unexpected keys, validates types and ranges, rejects non-finite values, and verifies the checksum after parsing. The checksum is a 16-character lowercase hexadecimal FNV-1a digest over the canonical v2 profile payload before the checksum field is appended. It detects accidental value corruption; it is **not** cryptographic authentication, encryption, or anti-cheat protection.
+
+Schema v1 saves (the 15-field format without a checksum) are accepted by a dedicated v1-to-v2 migration. The current primary is copied to `profile.bak` before the upgraded v2 primary is atomically replaced. When recovering from a v1 backup, the backup is not overwritten during migration. If the migration write fails, the valid profile remains loaded in memory and migration is retried on a later save.
 
 ## Planned full-game canonical schema
 
@@ -70,7 +72,7 @@ The following remains a planning example. Fields may be extended through explici
 }
 ```
 
-The example timestamp is illustrative, and the example digest is a placeholder—not a valid save file. Runtime profile v1 does not yet serialize timestamps or digests. Canonicalisation, hashing, versioning, and migration fixtures must be implemented and tested before integrity verification is enabled.
+The example timestamp is illustrative, and the example digest is a placeholder—not a valid save file. The planned SHA-256 integrity object is a future full-game format and is separate from the runtime v2 FNV-1a accidental-corruption check.
 
 ## Validation rules
 
@@ -106,7 +108,7 @@ Save after settings changes (debounced), purchases/unlocks, checkpoints, stage c
 
 ## Migration
 
-Each schema version needs a migration function and fixture tests. Migrations must be one-way and transactional: retain a backup of the pre-migration file and only replace it after the migrated profile validates. Test upgrades from every previously released schema version.
+Each future schema version needs a migration function and fixture tests. The v1-to-v2 migration is implemented and fixture-tested; it retains the validated pre-migration primary as backup before atomic replacement. Future migrations must remain one-way and transactional, with an upgrade fixture for every shipped version.
 
 ## Persistence tests
 

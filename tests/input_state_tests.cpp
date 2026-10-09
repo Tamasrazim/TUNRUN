@@ -206,6 +206,40 @@ int main() {
     assert(parsedProfile.rootSeed == profile.rootSeed);
     assert(parsedProfile.mouseSensitivity == profile.mouseSensitivity);
     assert(parsedProfile.aetherShards == profile.aetherShards);
+    assert(parsedProfile.schemaVersion == tunrun::kProfileSchemaVersion);
+    assert(serialized.find("\"checksum\": \"") != std::string::npos);
+
+    std::string tampered = serialized;
+    const std::string balanceField = "\"aetherShards\": 42";
+    const auto balanceOffset = tampered.find(balanceField);
+    assert(balanceOffset != std::string::npos);
+    tampered.replace(balanceOffset, balanceField.size(), "\"aetherShards\": 43");
+    assert(!tunrun::parseProfile(tampered, parsedProfile, profileError));
+    assert(profileError.find("checksum") != std::string::npos);
+
+    const std::string legacyV1 = R"({
+      "schemaVersion": 1,
+      "showFps": true,
+      "reduceMotion": false,
+      "mouseSteering": true,
+      "fullscreen": false,
+      "mouseSensitivity": 0.0065,
+      "selectedShip": 0,
+      "unlockedShips": [true, false, false, false, false, false, false, false],
+      "aetherShards": 42,
+      "singularityCores": 0,
+      "totalRuns": 1,
+      "totalCrashes": 0,
+      "bestDistance": 12.5,
+      "rootSeed": 12345,
+      "runSerial": 4
+    })";
+    bool migratedFromV1 = false;
+    assert(tunrun::parseProfile(legacyV1, parsedProfile, profileError, &migratedFromV1));
+    assert(migratedFromV1);
+    assert(parsedProfile.schemaVersion == tunrun::kProfileSchemaVersion);
+    assert(parsedProfile.aetherShards == 42U && parsedProfile.runSerial == 4U);
+
     assert(!tunrun::parseProfile(std::string(tunrun::kProfileMaxBytes + 1U, 'x'),
                                  parsedProfile, profileError));
 
@@ -215,6 +249,31 @@ int main() {
         (std::string("tunrun-profile-tests-") + std::to_string(stamp));
     std::error_code filesystemError;
     std::filesystem::remove_all(profileDirectory, filesystemError);
+    // A v1 primary upgrades to v2 while the exact legacy payload remains in backup.
+    const std::filesystem::path migrationDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-migration-tests-") + std::to_string(stamp));
+    std::filesystem::remove_all(migrationDirectory, filesystemError);
+    std::filesystem::create_directories(migrationDirectory, filesystemError);
+    assert(!filesystemError);
+    assert(writeTestFile(migrationDirectory / "profile.json", legacyV1));
+    tunrun::ProfileStore migrationStore(migrationDirectory);
+    const auto migratedLoad = migrationStore.load();
+    assert(migratedLoad.status == tunrun::ProfileLoadStatus::Loaded);
+    assert(migratedLoad.profile.schemaVersion == tunrun::kProfileSchemaVersion);
+    std::ifstream migratedFile(migrationDirectory / "profile.json", std::ios::binary);
+    const std::string migratedText{std::istreambuf_iterator<char>(migratedFile),
+                                   std::istreambuf_iterator<char>()};
+    assert(migratedText.find("\"schemaVersion\": 2") != std::string::npos);
+    assert(migratedText.find("\"checksum\": \"") != std::string::npos);
+    std::ifstream legacyBackupFile(migrationDirectory / "profile.bak", std::ios::binary);
+    const std::string legacyBackup{std::istreambuf_iterator<char>(legacyBackupFile),
+                                   std::istreambuf_iterator<char>()};
+    assert(legacyBackup.find("\"schemaVersion\": 1") != std::string::npos);
+    assert(tunrun::parseProfile(legacyBackup, parsedProfile, profileError, &migratedFromV1));
+    assert(migratedFromV1 && parsedProfile.schemaVersion == tunrun::kProfileSchemaVersion);
+    std::filesystem::remove_all(migrationDirectory, filesystemError);
+
     tunrun::ProfileStore store(profileDirectory);
     assert(store.load().status == tunrun::ProfileLoadStatus::NotFound);
     assert(store.save(profile).success);
