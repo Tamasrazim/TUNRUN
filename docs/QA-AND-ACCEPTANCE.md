@@ -130,3 +130,5 @@ Gameplay-specific mouse checks:
 - A clean install can launch, play, save, restart, load, update, and uninstall.
 - Version numbers and release artifacts agree.
 - No completion claim until the packaged build itself has been tested.
+
+- Verify an active dash displays animated cyan tunnel streaks and a `DASH ACTIVE` status, then transitions to recharge/energy status when the burst ends.

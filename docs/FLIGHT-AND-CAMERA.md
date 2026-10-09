@@ -104,3 +104,8 @@ The generator's warning-time validator must use maximum achievable boost speed. 
 - Focus loss and pause clear inputs, release capture, and freeze hazard time.
 - No craft can exploit camera switching to cross obstacles.
 - Collision cases include walls, thin barriers, corners, moving obstacles, and high-speed contact.
+
+
+## Dash feedback
+
+During the 0.24-second dash, short cyan streaks animate along the tunnel perimeter. The HUD switches to `DASH ACTIVE`, then shows cooldown or the minimum energy needed before another dash. These are visual cues only; flight speed and dash timing remain controlled by the fixed-step physics.

@@ -665,7 +665,7 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, bool tpp, float boostEnergy,
-                float dashCooldownRemaining, float elapsedSeconds,
+                float dashCooldownRemaining, float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
@@ -690,6 +690,25 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
                            tunnelPoint(seed, distance, ring + 1, side, playerSection), Color{48, 65, 83, 125});
             }
+        }
+    }
+    if (dashRemaining > 0.0F) {
+        const float intensity = std::clamp(
+            dashRemaining / tunrun::kDashDuration, 0.0F, 1.0F);
+        const auto alpha = static_cast<unsigned char>(
+            std::clamp(intensity * 220.0F, 0.0F, 220.0F));
+        const Color streakColor{122, 225, 255, alpha};
+        constexpr int streakCount = 12;
+        for (int i = 0; i < streakCount; ++i) {
+            const float angle = static_cast<float>(i) * 2.0F * PI / streakCount;
+            const float radialX = std::cos(angle) * 3.7F;
+            const float radialY = std::sin(angle) * 3.7F;
+            const float travel = std::fmod(elapsedSeconds * 12.0F +
+                                           static_cast<float>(i) * 2.7F, 19.0F);
+            const float depth = -2.0F - travel;
+            DrawLine3D(Vector3{radialX, radialY, depth},
+                       Vector3{radialX * 0.92F, radialY * 0.92F, depth - 2.2F},
+                       streakColor);
         }
     }
     const auto firstGate = tunrun::gateAt(seed, 0U);
@@ -748,7 +767,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
              static_cast<unsigned long long>(score.cleanPasses)), 35, 177, 10, kAccent);
-    if (dashCooldownRemaining > 0.0F) {
+    if (dashRemaining > 0.0F) {
+        DrawText("DASH ACTIVE", 35, 197, 10, kAccent);
+    } else if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
                  35, 197, 10, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
@@ -1027,7 +1048,7 @@ int main() {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp,
                        app.flight.boostEnergy, app.flight.dashCooldownRemaining,
-                       app.elapsed, app.runScore,
+                       app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
