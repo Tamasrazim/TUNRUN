@@ -501,7 +501,20 @@ int main() {
     // does not auto-repeat when the cooldown expires.
     tunrun::FlightState ordinaryFlight;
     tunrun::FlightState dashFlight;
-    for (int i = 0; i < 240; ++i) {
+    tunrun::updateFlight(ordinaryFlight,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+                            tunrun::kStarterShipId, false},
+        tunrun::kFlightFixedStep);
+    tunrun::updateFlight(dashFlight,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+                            tunrun::kStarterShipId, true},
+        tunrun::kFlightFixedStep);
+    const float dashEnergyAfterActivation = dashFlight.boostEnergy;
+    assert(dashFlight.distance > ordinaryFlight.distance);
+    assert(dashEnergyAfterActivation < 75.0F);
+    assert(dashFlight.dashRemaining > 0.0F);
+    assert(dashFlight.dashCooldownRemaining > 0.0F);
+    for (int i = 1; i < 240; ++i) {
         tunrun::updateFlight(ordinaryFlight,
             tunrun::FlightInput{0.0F, 0.0F, false, false,
                                 tunrun::kStarterShipId, false},
@@ -513,7 +526,6 @@ int main() {
     }
     assert(dashFlight.distance > ordinaryFlight.distance + 1.7F);
     assert(dashFlight.distance < ordinaryFlight.distance + 2.2F);
-    assert(dashFlight.boostEnergy < 100.0F);
     assert(dashFlight.dashRemaining == 0.0F);
     assert(dashFlight.dashCooldownRemaining == 0.0F);
     assert(dashFlight.dashButtonWasDown);
@@ -536,6 +548,16 @@ int main() {
         tunrun::kFlightFixedStep);
     assert(precisionDash.dashRemaining == 0.0F);
     assert(precisionDash.boostEnergy > 99.0F);
+
+    tunrun::FlightState lowEnergyDash;
+    lowEnergyDash.boostEnergy = 20.0F;
+    tunrun::updateFlight(lowEnergyDash,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+                            tunrun::kStarterShipId, true},
+        tunrun::kFlightFixedStep);
+    assert(lowEnergyDash.dashRemaining == 0.0F);
+    assert(lowEnergyDash.dashCooldownRemaining == 0.0F);
+    assert(lowEnergyDash.boostEnergy < 21.0F);
 
     const auto simulateAtRenderRate = [](int framesPerSecond) {
         tunrun::FlightState state;
