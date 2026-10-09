@@ -1,4 +1,5 @@
 #include "app/input_state.hpp"
+#include "app/flight_physics.hpp"
 #include "app/raw_mouse.hpp"
 #include "raylib.h"
 
@@ -34,8 +35,8 @@ struct AppState {
     bool hangarAxisLeftHeld = false;
     bool hangarAxisRightHeld = false;
     bool exitRequested = false;
-    float shipX = 0.0F;
-    float shipY = 0.0F;
+    tunrun::FlightState flight;
+    float flightAccumulator = 0.0F;
     float elapsed = 0.0F;
 };
 
@@ -175,18 +176,16 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
 
 Vector3 tunnelPoint(float time, int ring, int side) {
     constexpr int sides = 12;
-    const float z = -3.0F - static_cast<float>(ring) * 3.0F;
+    const float z = -static_cast<float>(ring) * 3.0F;
     const float depth = -z;
-    const float sway = std::sin(time * 0.55F + depth * 0.024F) * (0.25F + depth * 0.008F);
-    const float vertical = std::sin(time * 0.35F + depth * 0.017F) * depth * 0.004F;
-    const float radius = 5.5F + 0.65F * std::sin(time * 0.7F + depth * 0.031F);
+    const auto section = tunrun::sampleTunnel(time, depth);
     const float angle = static_cast<float>(side) * 2.0F * PI / sides +
                         time * 0.08F + depth * 0.012F;
-    return Vector3{sway + std::cos(angle) * radius,
-                   vertical + std::sin(angle) * radius, z};
+    return Vector3{section.centerX + std::cos(angle) * section.radius,
+                   section.centerY + std::sin(angle) * section.radius, z};
 }
 
-void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedMotion) {
+void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedMotion, float boostEnergy) {
     const float time = reducedMotion ? 0.0F : elapsed;
     Camera3D camera{};
     camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
@@ -197,7 +196,7 @@ void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedM
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
     BeginMode3D(camera);
-    constexpr int ringCount = 22;
+    constexpr int ringCount = 23;
     constexpr int sideCount = 12;
     for (int ring = 0; ring < ringCount; ++ring) {
         const Color ringColor = ring % 4 == 0
@@ -223,15 +222,17 @@ void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedM
         DrawLine3D(left, right, kAccent);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 300, 76, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 300, 76, kEdge);
-    DrawText("TUNRUN / M1 INPUT TESTBED", 35, 30, 15, kAccent);
+    DrawRectangle(22, 18, 344, 106, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 106, kEdge);
+    DrawText("TUNRUN / M2 FLIGHT PROTOTYPE", 35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
-    DrawText("NO COLLISION OR PROCEDURAL WORLD YET", 35, 73, 10, kMuted);
+    DrawText(TextFormat("BOOST ENERGY: %3.0f%%", boostEnergy), 35, 74, 13, kText);
+    DrawRectangle(187, 78, 155, 8, Color{42, 51, 64, 255});
+    DrawRectangle(187, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD / ARROWS: STEER     V: CAMERA     ESC: PAUSE",
-             36, GetScreenHeight() - 42, 14, kMuted);
+    DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
+             36, GetScreenHeight() - 42, 13, kMuted);
 }
 } // namespace
 
@@ -248,7 +249,7 @@ int main() {
 
     AppState app;
     int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
-    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0;
+    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
         "PLAY / FLIGHT TESTBED", "HANGAR", "GAME MODES", "SETTINGS", "CREDITS", "EXIT"
@@ -267,6 +268,7 @@ int main() {
         "MOUSE STEERING", "BACK"
     };
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
+    const std::vector<std::string> crashItems{"RETRY FLIGHT", "RETURN TO MAIN MENU"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const float dt = std::min(GetFrameTime(), 0.05F);
@@ -280,25 +282,45 @@ int main() {
             mouseDelta = RelativeMouseDelta{fallbackDelta.x, fallbackDelta.y};
         }
         if (app.screens.current() != tunrun::Screen::Pause &&
-            app.screens.current() != tunrun::Screen::Settings) app.elapsed += dt;
+            app.screens.current() != tunrun::Screen::Settings &&
+            app.screens.current() != tunrun::Screen::Crash) app.elapsed += dt;
 
         if (app.screens.current() == tunrun::Screen::Preview) {
             if (!IsWindowFocused()) {
                 app.screens.push(tunrun::Screen::Pause);
             } else {
-                const float movement = 4.0F * dt;
-                if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) app.shipX -= movement;
-                if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) app.shipX += movement;
-                if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) app.shipY += movement;
-                if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) app.shipY -= movement;
+                float steerX = (IsKeyDown(KEY_D) ? 1.0F : 0.0F) -
+                               (IsKeyDown(KEY_A) ? 1.0F : 0.0F);
+                float steerY = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
+                               (IsKeyDown(KEY_S) ? 1.0F : 0.0F);
+                if (IsKeyDown(KEY_RIGHT)) steerX += 1.0F;
+                if (IsKeyDown(KEY_LEFT)) steerX -= 1.0F;
+                if (IsKeyDown(KEY_UP)) steerY += 1.0F;
+                if (IsKeyDown(KEY_DOWN)) steerY -= 1.0F;
                 if (IsGamepadAvailable(0)) {
-                    app.shipX += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) * movement;
-                    app.shipY -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) * movement;
+                    float padX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+                    float padY = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+                    if (std::abs(padX) < 0.18F) padX = 0.0F;
+                    else padX = std::copysign((std::abs(padX) - 0.18F) / 0.82F, padX);
+                    if (std::abs(padY) < 0.18F) padY = 0.0F;
+                    else padY = std::copysign((std::abs(padY) - 0.18F) / 0.82F, padY);
+                    steerX += padX;
+                    steerY += padY;
                 }
-                applyRelativeMouseSteering(app.shipX, app.shipY, mouseDelta,
-                                           app.mouseSensitivity);
-                app.shipX = std::clamp(app.shipX, -3.1F, 3.1F);
-                app.shipY = std::clamp(app.shipY, -3.1F, 3.1F);
+                const tunrun::FlightInput flightInput{
+                    std::clamp(steerX, -1.0F, 1.0F),
+                    std::clamp(steerY, -1.0F, 1.0F),
+                    IsKeyDown(KEY_LEFT_SHIFT),
+                    IsKeyDown(KEY_LEFT_CONTROL)
+                };
+                tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
+                applyRelativeMouseSteering(app.flight.x, app.flight.y, mouseDelta,
+                                           app.mouseSensitivity, tunrun::kFlightLimit);
+                const auto tunnelSection = tunrun::sampleTunnel(
+                    app.reduceMotion ? 0.0F : app.elapsed, 0.0F);
+                if (tunrun::collidesWithTunnelWall(app.flight.x, app.flight.y, tunnelSection)) {
+                    app.screens.replace(tunrun::Screen::Crash);
+                }
                 if (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP)) tpp = !tpp;
                 if (backPressed()) app.screens.push(tunrun::Screen::Pause);
             }
@@ -306,7 +328,7 @@ int main() {
 
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
-            drawTunnel(app.elapsed, app.shipX, app.shipY, tpp, app.reduceMotion);
+            drawTunnel(app.elapsed, app.flight.x, app.flight.y, tpp, app.reduceMotion, app.flight.boostEnergy);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };
@@ -327,7 +349,7 @@ int main() {
             const int picked = drawMenu(mainItems, mainSelection, 185);
             if (picked >= 0) {
                 switch (picked) {
-                case 0: app.shipX = 0; app.shipY = 0; app.screens.push(tunrun::Screen::Preview); break;
+                case 0: app.flight = {}; app.flightAccumulator = 0.0F; app.elapsed = 0.0F; tpp = false; app.screens.push(tunrun::Screen::Preview); break;
                 case 1: app.screens.push(tunrun::Screen::Hangar); break;
                 case 2: app.screens.push(tunrun::Screen::Modes); break;
                 case 3: app.screens.push(tunrun::Screen::Settings); break;
@@ -370,7 +392,7 @@ int main() {
         case tunrun::Screen::Modes: {
             drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Only Practice Preview opens the current visual testbed.");
             const int picked = drawMenu(modes, modesSelection, 192);
-            if (picked == 3) app.screens.push(tunrun::Screen::Preview);
+            if (picked == 3) { app.flight = {}; app.flightAccumulator = 0.0F; app.elapsed = 0.0F; tpp = false; app.screens.push(tunrun::Screen::Preview); }
             else if (picked == 4) app.screens.pop();
             else if (picked >= 0) app.selectedMode = picked;
             if (backPressed()) app.screens.pop();
@@ -406,6 +428,22 @@ int main() {
             else if (picked == 1) app.screens.push(tunrun::Screen::Settings);
             else if (picked == 2) app.screens.reset();
             if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Crash: {
+            drawHeader("SYSTEM / FLIGHT TERMINATED", "WALL COLLISION", "Craft collision volume touched the tunnel boundary.");
+            drawCentred("Flight simulation stopped. Retry with the same input devices.", 195.0F, 16, kMuted);
+            const int picked = drawMenu(crashItems, crashSelection, 260, true);
+            if (picked == 0) {
+                app.flight = {};
+                app.flightAccumulator = 0.0F;
+                app.elapsed = 0.0F;
+                tpp = false;
+                app.screens.replace(tunrun::Screen::Preview);
+            } else if (picked == 1) {
+                app.screens.reset();
+            }
+            if (backPressed()) app.screens.reset();
             break;
         }
         case tunrun::Screen::ExitConfirm: {

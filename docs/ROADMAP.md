@@ -26,10 +26,11 @@ Still required before M1 can pass:
 - Add integration tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
 
 ## M2 — Flight and camera prototype
+**Status: in progress.** The prototype now has fixed-step lateral/vertical flight, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, and a retry screen.
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
 - Both cameras work without changing physics.
 - Flight remains stable across render rates.
-- Wall, obstacle, pause/resume and controller tests pass.
+- Wall, obstacle, pause/resume and controller tests pass; obstacle collision and the manual hardware matrix remain outstanding.
 
 ## M3 — Deterministic procedural geometry
 **Deliverable:** seeded centerlines, stable local frames, configurable cross-sections, seamless section joins, test seed viewer.

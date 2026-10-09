@@ -1,4 +1,5 @@
 #include "app/input_state.hpp"
+#include "app/flight_physics.hpp"
 #include "app/raw_mouse.hpp"
 #include <cassert>
 #include <cmath>
@@ -48,5 +49,50 @@ int main() {
     applyRelativeMouseSteering(mouseX, mouseY, RelativeMouseDelta{1.0F, 1.0F}, -1.0F);
     assert(mouseX == 3.1F && mouseY == 3.1F);
 
-    std::cout << "TUNRUN input-state tests passed.\n";
+    const auto section = tunrun::sampleTunnel(1.25F, 0.0F);
+    assert(section.radius > 4.8F && section.radius < 6.2F);
+    assert(!tunrun::collidesWithTunnelWall(section.centerX, section.centerY, section));
+    const float safeRadius = section.radius - tunrun::kCraftCollisionRadius;
+    assert(tunrun::collidesWithTunnelWall(section.centerX + safeRadius + 0.01F,
+                                         section.centerY, section));
+
+    tunrun::FlightState normal;
+    tunrun::FlightState precision;
+    float normalAccumulator = 0.0F;
+    float precisionAccumulator = 0.0F;
+    const tunrun::FlightInput steer{1.0F, 0.0F, false, false};
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(normal, steer, 1.0F / 60.0F, normalAccumulator);
+        tunrun::advanceFlight(precision, tunrun::FlightInput{1.0F, 0.0F, false, true},
+                              1.0F / 60.0F, precisionAccumulator);
+    }
+    assert(normal.x > precision.x);
+
+    tunrun::FlightState boost;
+    float boostAccumulator = 0.0F;
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(boost, tunrun::FlightInput{1.0F, 0.0F, true, false},
+                              1.0F / 120.0F, boostAccumulator);
+    }
+    assert(boost.boostEnergy < 100.0F && boost.boostEnergy > 50.0F);
+
+    const auto simulateAtRenderRate = [](int framesPerSecond) {
+        tunrun::FlightState state;
+        float accumulator = 0.0F;
+        const float frameTime = 1.0F / static_cast<float>(framesPerSecond);
+        for (int frame = 0; frame < framesPerSecond * 2; ++frame) {
+            tunrun::advanceFlight(state, tunrun::FlightInput{0.6F, -0.4F, false, false},
+                                  frameTime, accumulator);
+        }
+        return state;
+    };
+    const auto at30 = simulateAtRenderRate(30);
+    const auto at60 = simulateAtRenderRate(60);
+    const auto at120 = simulateAtRenderRate(120);
+    assert(std::abs(at30.x - at60.x) < 0.01F);
+    assert(std::abs(at30.x - at120.x) < 0.01F);
+    assert(std::abs(at30.y - at60.y) < 0.01F);
+    assert(std::abs(at30.y - at120.y) < 0.01F);
+
+    std::cout << "TUNRUN input and flight-physics tests passed.\n";
 }

@@ -3,7 +3,7 @@
 
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
-The repository has moved from documentation into **M1: application shell and input testbed**. The first native app shell, screen navigation, preview settings, a visual tunnel testbed, basic unit tests, and Windows CI are now in source. This is an early development build—not a complete game.
+The repository has moved into native implementation. The menu/input shell is in source, and **M2 flight work is in progress**: a 120 Hz fixed-step steering prototype, boost energy, precision steering, a shared test-tunnel cross-section, wall collision, and a retry screen. Windows CI compiles, runs unit tests, and publishes a temporary development artifact. This is an early development build—not a complete game.
 
 ## Core pillars
 
