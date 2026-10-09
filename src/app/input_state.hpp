@@ -53,4 +53,12 @@ public:
 private:
     std::vector<Screen> screens_;
 };
+
+// The shared elapsed clock also drives procedural mine motion. A Pause screen
+// anywhere in the stack freezes it, including while child dialogs are open.
+[[nodiscard]] inline bool shouldAdvanceRunClock(const ScreenStack& screens) noexcept {
+    return !screens.contains(Screen::Pause) &&
+           screens.current() != Screen::Settings &&
+           screens.current() != Screen::Crash;
+}
 } // namespace tunrun

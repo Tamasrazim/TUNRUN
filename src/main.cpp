@@ -914,10 +914,7 @@ int main() {
             const Vector2 fallbackDelta = GetMouseDelta();
             mouseDelta = RelativeMouseDelta{fallbackDelta.x, fallbackDelta.y};
         }
-        // Child screens opened from Pause must freeze procedural hazard time too.
-        if (!app.screens.contains(tunrun::Screen::Pause) &&
-            app.screens.current() != tunrun::Screen::Settings &&
-            app.screens.current() != tunrun::Screen::Crash) app.elapsed += dt;
+        if (tunrun::shouldAdvanceRunClock(app.screens)) app.elapsed += dt;
 
         if (app.screens.current() == tunrun::Screen::Preview) {
             if (!IsWindowFocused()) {
