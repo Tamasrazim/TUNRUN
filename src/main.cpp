@@ -4,6 +4,7 @@
 #include "app/economy.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
+#include "app/scoring.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -65,6 +66,7 @@ struct AppState {
     std::string saveWarningMessage;
     bool runRecorded = false;
     std::uint64_t runGatesCleared = 0U;
+    tunrun::RunScore runScore;
     std::uint64_t lastRunReward = 0U;
     std::uint64_t lastRunCoreReward = 0U;
     std::uint64_t runAetherPickupReward = 0U;
@@ -131,6 +133,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
+    app.runScore = {};
     app.lastRunReward = 0U;
     app.lastRunCoreReward = 0U;
     app.lastHitObjectIndex = 0U;
@@ -655,6 +658,7 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, bool tpp, float boostEnergy, float elapsedSeconds,
+                const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     Camera3D camera{};
@@ -710,8 +714,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawPlayerShip(shipId, shipX, shipY);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 174, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 174, kEdge);
+    DrawRectangle(22, 18, 344, 196, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 196, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
@@ -732,6 +736,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
              static_cast<unsigned long long>(coresPickedUp)), 35, 157, 10, kMuted);
+    DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
+             static_cast<unsigned long long>(score.total),
+             1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
+             static_cast<unsigned long long>(score.cleanPasses)), 35, 177, 10, kAccent);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -925,6 +933,13 @@ int main() {
                         if (app.runGatesCleared < std::numeric_limits<std::uint64_t>::max()) {
                             ++app.runGatesCleared;
                         }
+                        const auto scorePoint = tunrun::gatePointAtCourseCrossing(
+                            app.courseSeed, previousX, previousY, previousDistance,
+                            app.flight.x, app.flight.y, app.flight.distance, gate);
+                        if (scorePoint.crossedPlane && scorePoint.valid) {
+                            (void)tunrun::awardGatePass(
+                                app.runScore, gate, scorePoint.x, scorePoint.y);
+                        }
                     }
                 }
                 if (app.screens.current() == tunrun::Screen::Preview) {
@@ -991,7 +1006,7 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp,
-                       app.flight.boostEnergy, app.elapsed,
+                       app.flight.boostEnergy, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
@@ -1222,6 +1237,11 @@ int main() {
                                    static_cast<unsigned long long>(app.lastRunReward),
                                    static_cast<unsigned long long>(app.lastRunCoreReward)),
                         246.0F, 14, kAccent);
+            drawCentred(TextFormat("SCORE %llu   BEST COMBO %llu   CLEAN PASSES %llu",
+                                   static_cast<unsigned long long>(app.runScore.total),
+                                   static_cast<unsigned long long>(app.runScore.bestCombo),
+                                   static_cast<unsigned long long>(app.runScore.cleanPasses)),
+                        284.0F, 12, kAccent);
             if (app.crashCause == CrashCause::Gate) {
                 const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);
                 drawCentred(TextFormat("GATE #%u   DISTANCE %.1f   TYPE %s",
@@ -1236,7 +1256,7 @@ int main() {
                                            tunrun::hazardHash(app.courseSeed, 128U))),
                             267.0F, 11, kDanger);
             }
-            const int picked = drawMenu(crashItems, crashSelection, 285, true);
+            const int picked = drawMenu(crashItems, crashSelection, 310, true);
             if (picked == 0) {
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);

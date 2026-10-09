@@ -234,6 +234,49 @@ inline bool crossesGatePlane(double previousDistance, double currentDistance,
            currentDistance > previousDistance;
 }
 
+struct GateCrossingPoint {
+    bool crossedPlane = false;
+    bool valid = false;
+    float x = 0.0F;
+    float y = 0.0F;
+};
+
+inline GateCrossingPoint gatePointAtCourseCrossing(
+    std::uint64_t seed, float previousX, float previousY,
+    double previousDistance, float currentX, float currentY,
+    double currentDistance, const ProceduralGate& gate) noexcept {
+    GateCrossingPoint point;
+    if (!std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(gate.distance)) {
+        point.crossedPlane = true;
+        return point;
+    }
+    if (!crossesGatePlane(previousDistance, currentDistance, gate)) return point;
+    point.crossedPlane = true;
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY)) return point;
+    const double travel = currentDistance - previousDistance;
+    if (!std::isfinite(travel) || travel <= 1.0e-9) return point;
+    const double fraction = std::clamp(
+        (gate.distance - previousDistance) / travel, 0.0, 1.0);
+    const auto previousSection = sampleCourse(seed, previousDistance);
+    const auto currentSection = sampleCourse(seed, currentDistance);
+    const auto gateSection = sampleCourse(seed, gate.distance);
+    const double worldX0 = static_cast<double>(previousX) + previousSection.centerX;
+    const double worldY0 = static_cast<double>(previousY) + previousSection.centerY;
+    const double worldX1 = static_cast<double>(currentX) + currentSection.centerX;
+    const double worldY1 = static_cast<double>(currentY) + currentSection.centerY;
+    const double relativeX = worldX0 + (worldX1 - worldX0) * fraction -
+                             gateSection.centerX;
+    const double relativeY = worldY0 + (worldY1 - worldY0) * fraction -
+                             gateSection.centerY;
+    if (!std::isfinite(relativeX) || !std::isfinite(relativeY)) return point;
+    point.x = static_cast<float>(relativeX);
+    point.y = static_cast<float>(relativeY);
+    point.valid = std::isfinite(point.x) && std::isfinite(point.y);
+    return point;
+}
+
 // The ship's x/y values are relative to the current tunnel cross-section,
 // while gate offsets are relative to the cross-section at the gate. Interpolate
 // the ship's world-space lateral point before comparing it with the gate.

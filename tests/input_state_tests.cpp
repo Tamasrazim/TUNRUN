@@ -2,6 +2,7 @@
 #include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
+#include "app/scoring.hpp"
 #include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
@@ -141,6 +142,32 @@ int main() {
     assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
     assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
     const auto gate = tunrun::gateAt(seed, 3U);
+    tunrun::RunScore score;
+    const auto perfectScore = tunrun::awardGatePass(
+        score, gate, gate.offsetX, gate.offsetY);
+    assert(perfectScore.accepted && perfectScore.clean);
+    assert(perfectScore.multiplierTenths == 10U);
+    assert(perfectScore.points > tunrun::baseGateScore(gate.kind));
+    assert(score.total == perfectScore.points);
+    assert(score.gatesPassed == 1U && score.cleanPasses == 1U);
+    assert(score.combo == 1U && score.bestCombo == 1U);
+    const auto secondScore = tunrun::awardGatePass(
+        score, gate, gate.offsetX, gate.offsetY);
+    assert(secondScore.accepted && secondScore.multiplierTenths == 11U);
+    assert(score.combo == 2U && score.bestCombo == 2U);
+    const auto scoreBeforeReject = score.total;
+    const auto missedGateScore = tunrun::awardGatePass(
+        score, gate, gate.offsetX + gate.apertureRadius, gate.offsetY);
+    assert(!missedGateScore.accepted && score.total == scoreBeforeReject);
+    const auto invalidScore = tunrun::awardGatePass(
+        score, gate, std::numeric_limits<float>::quiet_NaN(), gate.offsetY);
+    assert(!invalidScore.accepted && score.total == scoreBeforeReject);
+    tunrun::breakScoreCombo(score);
+    assert(score.combo == 0U && score.bestCombo == 2U);
+    assert(tunrun::saturatingScoreAdd(tunrun::kScoreCap - 2U, 10U) ==
+           tunrun::kScoreCap);
+    assert(tunrun::saturatingScoreAdd(tunrun::kScoreCap, 1U) ==
+           tunrun::kScoreCap);
     assert(!tunrun::collidesWithGate(gate.offsetX, gate.offsetY, gate));
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
@@ -162,6 +189,12 @@ int main() {
     assert(!tunrun::collidesWithGateAtCourseCrossing(
         seed, gate.offsetX, gate.offsetY, gate.distance + 0.1,
         gate.offsetX, gate.offsetY, gate.distance + 0.2, gate));
+    const auto scoredCrossing = tunrun::gatePointAtCourseCrossing(
+        seed, centeredPreviousX, centeredPreviousY, gate.distance - 0.7,
+        centeredCurrentX, centeredCurrentY, gate.distance + 0.7, gate);
+    assert(scoredCrossing.crossedPlane && scoredCrossing.valid);
+    assert(std::abs(scoredCrossing.x - gate.offsetX) < 0.001F);
+    assert(std::abs(scoredCrossing.y - gate.offsetY) < 0.001F);
 
     // Reward placement is seeded, separately versioned, and independent from
     // the obstacle layout. Swept plane checks prevent missed high-speed pickups.

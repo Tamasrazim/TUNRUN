@@ -10,6 +10,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
 - **Seeded rewards:** Aether Shards and rarer Singularity Core pickups appear in the tunnel, use swept crossing checks, and contribute to the run payout.
 - **Moving hazards:** seed-derived mines oscillate over time, appear in the 3D tunnel with a HUD distance cue, and can end a run on contact.
+- **Skill scoring:** clean gate passes earn accuracy bonuses, gate families have different base scores, and consecutive passes raise the in-run combo multiplier.
 - **Curving 3D tunnels:** changing centerlines, cross-sections, twists, widths, entrances, and transitions.
 - **Fair unpredictability:** geometry bounds, gate clearance and reaction spacing are validated. A ship-specific pairwise kinematic reachability screen is now included; a full propagated-state proof and warning-time validation remain unfinished.
 - **FPP and TPP:** switch between first-person and third-person cameras without resetting the run. All eight ships have distinct procedural wireframe silhouettes in TPP and a matching 2D hangar preview, alongside separate handling parameters.
