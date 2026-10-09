@@ -1,9 +1,14 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/raw_mouse.hpp"
+#include "app/save_profile.hpp"
 #include <cassert>
+#include <chrono>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <string>
 
 int main() {
     using tunrun::ButtonEdge;
@@ -125,5 +130,78 @@ int main() {
     assert(std::abs(at30.distance - at60.distance) < 0.01F);
     assert(std::abs(at30.distance - at120.distance) < 0.01F);
 
-    std::cout << "TUNRUN input, physics, and procedural-course tests passed.\n";
+    // Profile serialization, strict parsing, backup recovery, and non-destructive reset.
+    tunrun::Profile profile;
+    profile.rootSeed = 0xD3A5B79C12345678ULL;
+    profile.mouseSensitivity = 0.0065F;
+    profile.totalRuns = 1U;
+    profile.aetherShards = 42U;
+
+    std::string profileError;
+    assert(tunrun::validateProfile(profile, profileError));
+    const std::string serialized = tunrun::serializeProfile(profile);
+    tunrun::Profile parsedProfile;
+    assert(tunrun::parseProfile(serialized, parsedProfile, profileError));
+    assert(parsedProfile.rootSeed == profile.rootSeed);
+    assert(parsedProfile.mouseSensitivity == profile.mouseSensitivity);
+    assert(parsedProfile.aetherShards == profile.aetherShards);
+    assert(!tunrun::parseProfile(std::string(tunrun::kProfileMaxBytes + 1U, 'x'),
+                                 parsedProfile, profileError));
+
+    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+    const std::filesystem::path profileDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-tests-") + std::to_string(stamp));
+    std::error_code filesystemError;
+    std::filesystem::remove_all(profileDirectory, filesystemError);
+    tunrun::ProfileStore store(profileDirectory);
+    assert(store.load().status == tunrun::ProfileLoadStatus::NotFound);
+    assert(store.save(profile).success);
+
+    auto firstLoad = store.load();
+    assert(firstLoad.status == tunrun::ProfileLoadStatus::Loaded);
+    assert(firstLoad.profile.rootSeed == profile.rootSeed);
+    assert(firstLoad.profile.totalRuns == 1U);
+
+    tunrun::Profile nextProfile = profile;
+    nextProfile.runSerial = 7U;
+    nextProfile.totalRuns = 2U;
+    nextProfile.aetherShards = 64U;
+    assert(store.save(nextProfile).success); // preserves the previous primary as backup
+
+    {
+        std::ofstream primary(profileDirectory / "profile.json", std::ios::binary | std::ios::trunc);
+        primary << "{ this is intentionally corrupted";
+        assert(static_cast<bool>(primary));
+    }
+    const auto recovered = store.load();
+    assert(recovered.status == tunrun::ProfileLoadStatus::RecoveredBackup);
+    assert(recovered.profile.runSerial == profile.runSerial);
+    assert(recovered.profile.aetherShards == profile.aetherShards);
+    assert(store.save(recovered.profile, true).success); // repair without overwriting the good backup
+    assert(store.load().status == tunrun::ProfileLoadStatus::Loaded);
+
+    for (const char* name : {"profile.json", "profile.bak"}) {
+        std::ofstream damaged(profileDirectory / name, std::ios::binary | std::ios::trunc);
+        damaged << "{ damaged";
+        assert(static_cast<bool>(damaged));
+    }
+    assert(store.load().status == tunrun::ProfileLoadStatus::RecoveryRequired);
+    tunrun::Profile defaults;
+    defaults.rootSeed = 0x8877665544332211ULL;
+    assert(store.resetToDefaults(defaults).success);
+    const auto afterReset = store.load();
+    assert(afterReset.status == tunrun::ProfileLoadStatus::Loaded);
+    assert(afterReset.profile.rootSeed == defaults.rootSeed);
+    bool foundPreservedDamagedFile = false;
+    for (const auto& entry : std::filesystem::directory_iterator(profileDirectory)) {
+        if (entry.path().filename().string().find(".corrupt-") != std::string::npos) {
+            foundPreservedDamagedFile = true;
+            break;
+        }
+    }
+    assert(foundPreservedDamagedFile);
+    std::filesystem::remove_all(profileDirectory, filesystemError);
+
+    std::cout << "TUNRUN input, physics, course, and profile-persistence tests passed.\n";
 }

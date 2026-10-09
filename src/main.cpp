@@ -1,6 +1,7 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/raw_mouse.hpp"
+#include "app/save_profile.hpp"
 #include "raylib.h"
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -45,6 +47,16 @@ struct AppState {
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
     CrashCause crashCause = CrashCause::Wall;
+    tunrun::ProfileStore profileStore;
+    tunrun::Profile profile;
+    bool profileRecoveryRequired = false;
+    bool profileWritable = true;
+    bool saveWarning = false;
+    std::string saveWarningMessage;
+    bool runRecorded = false;
+    std::uint64_t runGatesCleared = 0U;
+    std::uint64_t lastRunReward = 0U;
+    std::uint64_t lastRunCoreReward = 0U;
     float elapsed = 0.0F;
 };
 
@@ -72,14 +84,59 @@ bool rightPressed() {
 bool backPressed() {
     return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT);
 }
+bool persistProfile(AppState& app, bool preserveBackup = false) {
+    if (!app.profileWritable || app.profileRecoveryRequired) {
+        app.saveWarning = true;
+        if (app.saveWarningMessage.empty()) {
+            app.saveWarningMessage = "profile is read-only until recovery is completed";
+        }
+        return false;
+    }
+    app.profile.showFps = app.showFps;
+    app.profile.reduceMotion = app.reduceMotion;
+    app.profile.mouseSteering = app.mouseSteering;
+    app.profile.fullscreen = app.fullscreen;
+    app.profile.mouseSensitivity = app.mouseSensitivity;
+    app.profile.selectedShip = static_cast<std::uint32_t>(
+        std::clamp(app.selectedShip, 0, static_cast<int>(tunrun::kProfileShipCount) - 1));
+    app.profile.rootSeed = app.rootSeed;
+    app.profile.runSerial = app.runSerial;
+    const auto result = app.profileStore.save(app.profile, preserveBackup);
+    app.saveWarning = !result.success;
+    app.saveWarningMessage = result.message;
+    return result.success;
+}
 void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
     app.flightAccumulator = 0.0F;
     app.elapsed = 0.0F;
+    app.runRecorded = false;
+    app.runGatesCleared = 0U;
+    app.lastRunReward = 0U;
+    app.lastRunCoreReward = 0U;
     tpp = false;
 }
 void chooseNextSeed(AppState& app) {
-    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial++);
+    if (app.runSerial < std::numeric_limits<std::uint64_t>::max()) ++app.runSerial;
+    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
+    (void)persistProfile(app);
+}
+void finishRun(AppState& app) {
+    if (app.runRecorded) return;
+    app.runRecorded = true;
+    if (app.profile.totalRuns < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalRuns;
+    if (app.profile.totalCrashes < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalCrashes;
+    app.profile.bestDistance = std::max(app.profile.bestDistance,
+                                        static_cast<double>(std::max(0.0F, app.flight.distance)));
+    const double rawReward = std::floor(std::max(0.0F, app.flight.distance) / 20.0F);
+    app.lastRunReward = static_cast<std::uint64_t>(std::clamp(rawReward, 0.0, 250000.0));
+    app.lastRunCoreReward = std::min<std::uint64_t>(app.runGatesCleared / 10U, 1000U);
+    const auto maxValue = std::numeric_limits<std::uint64_t>::max();
+    app.profile.aetherShards = maxValue - app.profile.aetherShards < app.lastRunReward
+        ? maxValue : app.profile.aetherShards + app.lastRunReward;
+    app.profile.singularityCores = maxValue - app.profile.singularityCores < app.lastRunCoreReward
+        ? maxValue : app.profile.singularityCores + app.lastRunCoreReward;
+    (void)persistProfile(app);
 }
 
 void drawCentred(const char* text, float y, int fontSize, Color color) {
@@ -299,12 +356,59 @@ int main() {
     rawMouse.install(GetWindowHandle());
 
     AppState app;
+    app.profileStore = tunrun::ProfileStore::forCurrentUser();
     const auto clockSeed = static_cast<std::uint64_t>(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
-    app.rootSeed = tunrun::mixCourseBits(clockSeed);
-    chooseNextSeed(app);
+    std::uint64_t fallbackSeed = tunrun::mixCourseBits(clockSeed);
+    if (fallbackSeed == 0U) fallbackSeed = 1U;
+
+    const auto loadedProfile = app.profileStore.load();
+    bool initializeProfile = false;
+    if (loadedProfile.status == tunrun::ProfileLoadStatus::Loaded ||
+        loadedProfile.status == tunrun::ProfileLoadStatus::RecoveredBackup) {
+        app.profile = loadedProfile.profile;
+    } else {
+        app.profile = tunrun::Profile{};
+        app.profile.rootSeed = fallbackSeed;
+        initializeProfile = loadedProfile.status == tunrun::ProfileLoadStatus::NotFound;
+    }
+    if (loadedProfile.status == tunrun::ProfileLoadStatus::RecoveryRequired) {
+        app.profileRecoveryRequired = true;
+        app.profileWritable = false;
+        app.saveWarning = true;
+        app.saveWarningMessage = loadedProfile.message;
+    } else if (loadedProfile.status == tunrun::ProfileLoadStatus::Error) {
+        app.profileWritable = false;
+        app.saveWarning = true;
+        app.saveWarningMessage = loadedProfile.message;
+    }
+
+    if (app.profile.rootSeed == 0U) {
+        app.profile.rootSeed = fallbackSeed;
+        initializeProfile = true;
+    }
+    app.rootSeed = app.profile.rootSeed;
+    app.runSerial = app.profile.runSerial;
+    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
+    app.showFps = app.profile.showFps;
+    app.reduceMotion = app.profile.reduceMotion;
+    app.mouseSteering = app.profile.mouseSteering;
+    app.fullscreen = app.profile.fullscreen;
+    app.mouseSensitivity = app.profile.mouseSensitivity;
+    app.selectedShip = static_cast<int>(std::min<std::uint32_t>(
+        app.profile.selectedShip, static_cast<std::uint32_t>(tunrun::kProfileShipCount - 1U)));
+    if (app.fullscreen) ToggleFullscreen();
+
+    if (app.profileRecoveryRequired) {
+        app.screens.replace(tunrun::Screen::SaveRecovery);
+    } else if (loadedProfile.status == tunrun::ProfileLoadStatus::RecoveredBackup) {
+        (void)persistProfile(app, true);
+    } else if (initializeProfile && app.profileWritable) {
+        (void)persistProfile(app);
+    }
+
     int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
-    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0, seedLabSelection = 0;
+    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0, seedLabSelection = 0, recoverySelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
         "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
@@ -326,6 +430,7 @@ int main() {
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
     const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
     const std::vector<std::string> seedLabItems{"GENERATE NEW SEED", "START THIS SEED", "BACK"};
+    const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const float dt = std::min(GetFrameTime(), 0.05F);
@@ -384,6 +489,7 @@ int main() {
                 if (tunrun::collidesWithTunnelWall(
                         app.flight.x, app.flight.y, centredSection)) {
                     app.crashCause = CrashCause::Wall;
+                    finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
                 } else {
                     const auto firstGate = tunrun::gateAt(app.courseSeed, 0U);
@@ -406,8 +512,12 @@ int main() {
                         const float crossingY = previousY + (app.flight.y - previousY) * fraction;
                         if (tunrun::collidesWithGate(crossingX, crossingY, gate)) {
                             app.crashCause = CrashCause::Gate;
+                            finishRun(app);
                             app.screens.replace(tunrun::Screen::Crash);
                             break;
+                        }
+                        if (app.runGatesCleared < std::numeric_limits<std::uint64_t>::max()) {
+                            ++app.runGatesCleared;
                         }
                     }
                 }
@@ -437,6 +547,12 @@ int main() {
             drawCentred("T U N R U N", 56.0F, 54, kText);
             drawCentred("PROCEDURAL TUNNEL RUNNER", 116.0F, 16, kAccent);
             drawCentred("SEEDED PROCEDURAL FLIGHT / MILESTONE M3", 141.0F, 12, kMuted);
+            DrawText(TextFormat("AETHER SHARDS  %llu",
+                                static_cast<unsigned long long>(app.profile.aetherShards)),
+                     52, 162, 14, kAccent);
+            DrawText(TextFormat("SINGULARITY CORES  %llu",
+                                static_cast<unsigned long long>(app.profile.singularityCores)),
+                     330, 162, 14, kText);
             const int picked = drawMenu(mainItems, mainSelection, 185);
             if (picked >= 0) {
                 switch (picked) {
@@ -453,7 +569,8 @@ int main() {
             break;
         }
         case tunrun::Screen::Hangar: {
-            drawHeader("01 / COLLECTION", "HANGAR", "Selection preview only; unlocks and economy are not implemented.");
+            const int previousShip = app.selectedShip;
+            drawHeader("01 / COLLECTION", "HANGAR", "Selection persists locally; unlocks and purchases are next.");
             drawCentred("SHIP", 205.0F, 15, kAccent);
             const std::string selected = "[ " + ships[static_cast<std::size_t>(app.selectedShip)] + " ]";
             drawCentred(selected.c_str(), 245.0F, 32, kText);
@@ -478,6 +595,7 @@ int main() {
                     app.hangarAxisRightHeld = false;
                 }
             }
+            if (app.selectedShip != previousShip) (void)persistProfile(app);
             if (backPressed()) app.screens.pop();
             break;
         }
@@ -491,7 +609,7 @@ int main() {
             break;
         }
         case tunrun::Screen::Settings: {
-            drawHeader("03 / CONFIGURATION", "SETTINGS", "Preview settings are session-only in this milestone.");
+            drawHeader("03 / CONFIGURATION", "SETTINGS", "Settings are saved to the local TUNRUN profile.");
             auto labels = settingsItems;
             labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
@@ -503,6 +621,7 @@ int main() {
             else if (picked == 2) app.reduceMotion = !app.reduceMotion;
             else if (picked == 3) app.mouseSteering = !app.mouseSteering;
             else if (picked == 4) app.screens.pop();
+            if (picked >= 0 && picked <= 3) (void)persistProfile(app);
             if (backPressed()) app.screens.pop();
             break;
         }
@@ -534,7 +653,12 @@ int main() {
             drawCentred(TextFormat("CANONICAL COURSE HASH %016llX",
                                    static_cast<unsigned long long>(tunrun::courseHash(app.courseSeed))),
                         220.0F, 14, kMuted);
-            const int picked = drawMenu(crashItems, crashSelection, 265, true);
+            drawCentred(TextFormat("GATES CLEARED: %llu   AETHER +%llu   CORES +%llu",
+                                   static_cast<unsigned long long>(app.runGatesCleared),
+                                   static_cast<unsigned long long>(app.lastRunReward),
+                                   static_cast<unsigned long long>(app.lastRunCoreReward)),
+                        246.0F, 14, kAccent);
+            const int picked = drawMenu(crashItems, crashSelection, 285, true);
             if (picked == 0) {
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
@@ -576,8 +700,44 @@ int main() {
             if (backPressed()) app.screens.pop();
             break;
         }
+        case tunrun::Screen::SaveRecovery: {
+            drawHeader("SYSTEM / SAVE RECOVERY", "PROFILE RECOVERY REQUIRED",
+                       "Both profile copies are invalid or unreadable. They will not be overwritten automatically.");
+            drawCentred("Reset keeps damaged files as .corrupt backups.", 195.0F, 16, kMuted);
+            const int picked = drawMenu(recoveryItems, recoverySelection, 280, true, 0);
+            if (picked == 0) {
+                tunrun::Profile defaults{};
+                defaults.rootSeed = tunrun::mixCourseBits(clockSeed ^ 0xA17E5EED1234ULL);
+                if (defaults.rootSeed == 0U) defaults.rootSeed = 1U;
+                const auto resetResult = app.profileStore.resetToDefaults(defaults);
+                if (resetResult.success) {
+                    app.profile = defaults;
+                    app.profileWritable = true;
+                    app.profileRecoveryRequired = false;
+                    app.rootSeed = defaults.rootSeed;
+                    app.runSerial = defaults.runSerial;
+                    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
+                    app.showFps = defaults.showFps;
+                    app.reduceMotion = defaults.reduceMotion;
+                    app.mouseSteering = defaults.mouseSteering;
+                    app.fullscreen = defaults.fullscreen;
+                    app.mouseSensitivity = defaults.mouseSensitivity;
+                    app.selectedShip = static_cast<int>(defaults.selectedShip);
+                    app.saveWarning = false;
+                    app.saveWarningMessage.clear();
+                    resetFlight(app, tpp);
+                    app.screens.reset();
+                } else {
+                    app.saveWarning = true;
+                    app.saveWarningMessage = resetResult.message;
+                }
+            } else if (picked == 1) {
+                app.exitRequested = true;
+            }
+            break;
+        }
         case tunrun::Screen::ExitConfirm: {
-            drawHeader("SYSTEM / CONFIRMATION", "EXIT TUNRUN?", "Session-only settings will be discarded.");
+            drawHeader("SYSTEM / CONFIRMATION", "EXIT TUNRUN?", "Settings and progression are stored in your local profile.");
             const int picked = drawMenu(exitItems, exitSelection, 320, true, 1);
             if (picked == 0) app.screens.pop();
             else if (picked == 1) app.exitRequested = true;
@@ -587,10 +747,15 @@ int main() {
         case tunrun::Screen::Preview:
             break;
         }
+        if (app.saveWarning && !app.profileRecoveryRequired) {
+            DrawText("SAVE WARNING - SOME CHANGES MAY NOT BE PERSISTED",
+                     22, GetScreenHeight() - 48, 13, kDanger);
+        }
         if (app.showFps) DrawFPS(GetScreenWidth() - 92, 16);
         DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, GetScreenHeight() - 25, 12, kMuted);
         EndDrawing();
     }
+    if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
     rawMouse.uninstall();
     CloseWindow();
     return 0;

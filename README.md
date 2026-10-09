@@ -3,7 +3,7 @@
 
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
-The repository has moved into native implementation. **M3 geometry and M4 obstacle work are in progress**: seeded smooth tunnel cross-sections, a canonical course hash, parameter validation, an in-game Seed Lab, deterministic aperture gates, and gate-plane collision checks. The 120 Hz flight prototype also has forward motion, boost energy, precision steering, wall collision, and retry controls. Windows CI compiles, runs unit tests, and publishes a temporary development artifact. This is an early development build—not a complete game.
+The repository has moved into native implementation. **M5 persistence is now in progress**: a versioned local profile, saved settings and hangar selection, persisted course-seed sequence, Aether Shard and Singularity Core balances, run records, atomic file replacement, backup recovery, and a recovery screen that preserves damaged files. The seeded tunnel and initial aperture gates remain part of the prototype. The Windows CI build and persistence tests are the source of truth; this is not a finished game.
 
 ## Core pillars
 
@@ -13,7 +13,7 @@ The repository has moved into native implementation. **M3 geometry and M4 obstac
 - **FPP and TPP:** switch between first-person and third-person cameras without resetting the run.
 - **Three input families:** keyboard, mouse, and gamepad operate gameplay and every UI screen.
 - **AI pilots and drones:** bots navigate the same generated world and obey the same collision rules.
-- **Persistent progression:** distinct ships, unlocks, records, settings, Aether Shards, and Singularity Cores.
+- **Persistent progression (in progress):** settings, selected ship preview, seed sequence, run/crash records, best distance, Aether Shards, and Singularity Cores persist locally. Purchase/unlock transactions and campaign progression remain unfinished.
 - **Offline-first save:** versioned local save with atomic writes, backup, recovery, and a hidden Windows file/folder attribute.
 - **Native Windows release:** C++20, CMake and raylib are the selected prototype stack; the full game, save system, installer and updater remain unfinished.
 
@@ -57,4 +57,4 @@ All changes are committed directly to `main`. The project does **not** use other
 
 ## Current status
 
-**M3 geometry and M4 obstacle work are in progress.** Deterministic centerline/cross-section sampling, gate generation, gate collision and the Seed Lab are implemented as an initial prototype. Tangent-aligned local frames, varied/moving hazards, reachability checks, save persistence, AI, economy, assets, installer and updater remain unfinished. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.
+**M3/M4 geometry and obstacle work, and M5 persistence, are in progress.** Profile v1 stores settings, selected ship preview, seed progression, wallets and basic run records. Atomic writes, backup recovery, and explicit non-destructive recovery are implemented and being tested. Campaign checkpoints, unlock/purchase transactions, schema migrations, checksum verification, AI, assets, installer and updater remain unfinished. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.

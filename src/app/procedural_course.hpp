@@ -156,9 +156,10 @@ inline bool collidesWithGate(float x, float y, const ProceduralGate& gate,
 inline bool crossesGatePlane(double previousDistance, double currentDistance,
                              const ProceduralGate& gate) noexcept {
     if (!std::isfinite(previousDistance) || !std::isfinite(currentDistance)) return true;
-    if (currentDistance < previousDistance) std::swap(previousDistance, currentDistance);
-    return previousDistance <= gate.distance + kGateDepthHalfThickness &&
-           currentDistance >= gate.distance - kGateDepthHalfThickness;
+    // Count only a forward crossing of the gate's centre plane; otherwise a
+    // craft lingering inside the gate's thickness could score it repeatedly.
+    return previousDistance <= gate.distance && currentDistance >= gate.distance &&
+           currentDistance > previousDistance;
 }
 inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
                                                std::uint32_t gateCount = 128U) noexcept {

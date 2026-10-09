@@ -13,9 +13,13 @@ Temporary write:
 
 Set the Windows Hidden attribute on the directory and save files where supported. Hidden is a convenience only; this is not encryption, anti-cheat, or tamper protection. Use the current Windows user profile and do not require administrator privileges.
 
-## Canonical schema
+## Runtime schema v1
 
-The following is a planning example. Fields may be extended through explicit schema migrations; meanings and invariants must not change silently.
+The running implementation stores a strict flat JSON object with exactly 15 fields: `schemaVersion`, `showFps`, `reduceMotion`, `mouseSteering`, `fullscreen`, `mouseSensitivity`, `selectedShip`, `unlockedShips`, `aetherShards`, `singularityCores`, `totalRuns`, `totalCrashes`, `bestDistance`, `rootSeed`, and `runSerial`. The parser caps input at 64 KiB, rejects duplicate or unexpected keys, validates types/ranges, and rejects non-finite numeric values. The runtime v1 file does not yet include timestamp or checksum fields; those belong to a future explicit migration.
+
+## Planned full-game canonical schema
+
+The following remains a planning example. Fields may be extended through explicit schema migrations; meanings and invariants must not change silently.
 
 ```json
 {
@@ -66,7 +70,7 @@ The following is a planning example. Fields may be extended through explicit sch
 }
 ```
 
-The example timestamp is illustrative, and the example digest is a placeholder—not a valid save file. On the actual implementation, canonicalisation, hashing, and versioning must be specified and tested before integrity verification is enabled.
+The example timestamp is illustrative, and the example digest is a placeholder—not a valid save file. Runtime profile v1 does not yet serialize timestamps or digests. Canonicalisation, hashing, versioning, and migration fixtures must be implemented and tested before integrity verification is enabled.
 
 ## Validation rules
 

@@ -71,17 +71,25 @@ Use a per-user local directory:
 
 Set the Windows Hidden attribute on the profile directory and profile files where supported. Hidden is a convenience, not encryption or anti-tamper protection. Save access must be limited to the current user's local profile.
 
-## Save schema
+## Runtime profile v1
 
-The versioned profile stores:
-- schema version and last successful write timestamp;
+The current program stores a strict flat JSON object containing: schema version; FPS, reduced-motion, mouse-steering and fullscreen settings; mouse sensitivity; selected ship preview; eight unlocked-ship flags (starter ship unlocked by default); Aether Shards; Singularity Cores; total runs/crashes; best distance; root seed; and run serial. The parser requires exactly these 15 fields, rejects duplicate/missing/extra fields, checks types and numeric ranges, rejects non-finite numbers, and caps profile input at 64 KiB.
+
+Writes go to a same-directory temporary file, flush before replacement, and preserve the previous primary as `profile.bak`. Invalid primary data falls back to the backup. If both copies are invalid, TUNRUN asks for explicit reset and renames damaged files with a `.corrupt-` suffix rather than overwriting them. A backup restore repairs the primary without replacing the known-good backup with the corrupt file.
+
+This first schema does not yet store the planned timestamps, campaign checkpoints, achievements, ghosts, full input bindings, or checksum metadata. Those require explicit migrations and tests before they are added. The profile is local progression data, not an anti-cheat boundary.
+
+## Planned full-game save schema
+
+The full-game profile is intended to store:
 - settings and key/controller mappings;
 - selected ship, unlocked ships, cosmetics, and unlock history;
 - Aether Shards and Singularity Cores;
 - stage and campaign progress;
 - best scores, distances, times, achievements, and statistics;
 - recent seed runs, generator version, ruleset, and compact replay metadata;
-- optional local ghost references.
+- optional local ghost references;
+- timestamps and canonical integrity metadata.
 
 Do not store transient pointer coordinates, active mouse capture, or stuck pressed-state flags.
 

@@ -45,10 +45,10 @@ Still required before M1 can pass:
 - Moving hazards, broader reachability validation, and generation streaming remain outstanding.
 
 ## M5 — Save, resources, and hangar
-**Deliverable:** hidden local profile, backup/recovery, currency transactions, ship catalog and selection.
-- Purchases/progression persist across restarts.
-- Corrupt primary save recovers from backup; failed saves are reported.
-- Duplicate activation cannot duplicate an unlock or charge twice.
+**Status: in progress.** Profile v1 persists runtime settings, selected ship preview, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Windows uses a per-user local directory, hidden attributes, validated bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. Automated tests cover round trips, corrupt-primary backup recovery, and non-destructive reset.
+- Complete transactional ship purchases/unlocks and campaign progression.
+- Add explicit schema migrations and integrity checksums.
+- Verify persistence through real application restarts, interrupted writes, permissions, and Windows user profiles.
 
 ## M6 — Gameplay and AI
 **Deliverable:** hull, boost, dash, scoring, rewards, rival pilots, environmental drones, ghost recording.
