@@ -417,6 +417,8 @@ int main() {
     assert(hazard.baseX == hazardAgain.baseX);
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
+    assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
+    assert(tunrun::kHazardGeneratorVersion == 2U);
     const auto hazardCenter = tunrun::hazardCenterAt(hazard, 1.25);
     const auto hazardCenterAgain = tunrun::hazardCenterAt(hazardAgain, 1.25);
     assert(hazardCenter.x == hazardCenterAgain.x &&

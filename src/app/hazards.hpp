@@ -9,7 +9,7 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kHazardGeneratorVersion = 1U;
+inline constexpr std::uint32_t kHazardGeneratorVersion = 2U;
 inline constexpr double kHazardBaseDistance = 88.0;
 inline constexpr double kHazardSpacing = 84.0;
 inline constexpr double kHazardMinimumGateSeparation = 8.0;
@@ -56,7 +56,7 @@ inline ProceduralHazard hazardAt(std::uint64_t seed,
         courseSigned(seed, sample, 903U) * 0.80F,
         0.55F + courseUnit(seed, sample, 904U) * 0.65F,
         0.25F + courseUnit(seed, sample, 905U) * 0.50F,
-        0.70F + courseUnit(seed, sample, 906U) * 0.75F,
+        0.95F + courseUnit(seed, sample, 906U) * 0.85F,
         courseUnit(seed, sample, 907U) * 2.0F * 3.14159265358979323846F,
         courseUnit(seed, sample, 908U) * 2.0F * 3.14159265358979323846F,
         kHazardMinimumRadius + courseUnit(seed, sample, 909U) *
@@ -266,7 +266,7 @@ inline HazardValidation validateHazardSet(std::uint64_t seed,
         }
         if (hazard.amplitudeX < 0.55F || hazard.amplitudeX > 1.20F ||
             hazard.amplitudeY < 0.25F || hazard.amplitudeY > 0.75F ||
-            hazard.frequency < 0.70F || hazard.frequency > 1.45F ||
+            hazard.frequency < 0.95F || hazard.frequency > 1.80F ||
             hazard.radius < kHazardMinimumRadius ||
             hazard.radius > kHazardMaximumRadius) {
             result.failure = "hazard motion or radius outside generator bounds";
