@@ -12,7 +12,7 @@
 ## Screen inventory
 
 ### Main Menu
-Play, Hangar, Modes, Records, Statistics, Settings, Credits, Exit. Continue is shown only when a valid profile contains resumable progress.
+Play, Hangar, Modes, Seed Lab, Records / Statistics, Settings, Credits, Exit. The menu tightens row sizing at the minimum supported window height so every action remains visible. Continue is shown only when a valid profile contains resumable progress.
 
 ### Hangar
 Rotatable ship preview, name, handling stats, selected/unlocked/locked states, unlock requirements, resource balance, purchase confirmation, cosmetic preview, and equip action.
@@ -39,7 +39,7 @@ Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/re
 Run seed, generator version, distance/time, score, hull/collision summary, resources earned, records improved, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar.
 
 ### Records / Statistics
-Best performance by mode, seed history, longest distance, clean passages, ship usage, resource totals, and optional local ghost records.
+The current profile screen shows best distance, career-best score, best gate combo, completed runs, crashes, Aether Shards, Singularity Cores, ships unlocked, and active ship. Best performance by mode, seed history, clean passages, ship usage, mode-specific totals, and optional local ghost records remain planned.
 
 ### Dialogs
 Confirmation, insufficient currency, save error, save recovery, controller disconnected, and generation error. A dialog captures focus and blocks pointer clicks to controls behind it.

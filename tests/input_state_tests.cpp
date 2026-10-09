@@ -80,6 +80,9 @@ int main() {
     assert(stack.current() == Screen::MainMenu);
     assert(stack.size() == 1U);
     assert(!stack.pop());
+    stack.push(Screen::Records);
+    assert(stack.current() == Screen::Records);
+    assert(stack.pop() && stack.current() == Screen::MainMenu);
     stack.push(Screen::Preview);
     stack.push(Screen::Pause);
     stack.push(Screen::Settings);

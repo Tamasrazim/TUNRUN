@@ -310,7 +310,8 @@ void moveSelection(int count, int& selection) {
 
 int drawMenu(const std::vector<std::string>& labels, int& selection,
              int firstY, bool confirmEnabled = true, int dangerIndex = -1,
-             bool navigationEnabled = true) {
+             bool navigationEnabled = true, float buttonHeight = kButtonHeight,
+             float buttonGap = kButtonGap) {
     if (navigationEnabled) {
         moveSelection(static_cast<int>(labels.size()), selection);
     } else if (labels.empty()) {
@@ -318,15 +319,15 @@ int drawMenu(const std::vector<std::string>& labels, int& selection,
     } else {
         selection = std::clamp(selection, 0, static_cast<int>(labels.size()) - 1);
     }
+    const int rowHeight = static_cast<int>(buttonHeight + buttonGap);
     const int top = firstY < 0
-        ? (GetScreenHeight() - static_cast<int>(labels.size()) *
-           static_cast<int>(kButtonHeight + kButtonGap)) / 2
+        ? (GetScreenHeight() - static_cast<int>(labels.size()) * rowHeight) / 2
         : firstY;
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         const Rectangle bounds{
             (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
-            static_cast<float>(top + i * static_cast<int>(kButtonHeight + kButtonGap)),
-            kPanelWidth, kButtonHeight
+            static_cast<float>(top + i * rowHeight),
+            kPanelWidth, buttonHeight
         };
         if (CheckCollisionPointRec(GetMousePosition(), bounds)) selection = i;
         const bool click = drawButton(bounds, labels[static_cast<std::size_t>(i)].c_str(),
@@ -860,7 +861,7 @@ int main() {
     bool tpp = false;
     const std::vector<std::string> mainItems{
         "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
-        "SETTINGS", "CREDITS", "EXIT"
+        "RECORDS / STATISTICS", "SETTINGS", "CREDITS", "EXIT"
     };
     const std::vector<std::string> modes{
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
@@ -1073,16 +1074,23 @@ int main() {
             DrawText(TextFormat("SINGULARITY CORES  %llu",
                                 static_cast<unsigned long long>(app.profile.singularityCores)),
                      330, 162, 14, kText);
-            const int picked = drawMenu(mainItems, mainSelection, 185);
+            // Tighten rows at smaller window heights so every menu item stays visible.
+            const bool compactMenu = GetScreenHeight() < 680;
+            const float mainButtonHeight = compactMenu ? 40.0F : kButtonHeight;
+            const float mainButtonGap = compactMenu ? 5.0F : kButtonGap;
+            const int mainMenuTop = compactMenu ? 174 : 185;
+            const int picked = drawMenu(mainItems, mainSelection, mainMenuTop,
+                true, -1, true, mainButtonHeight, mainButtonGap);
             if (picked >= 0) {
                 switch (picked) {
                 case 0: resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); break;
                 case 1: app.screens.push(tunrun::Screen::Hangar); break;
                 case 2: app.screens.push(tunrun::Screen::Modes); break;
                 case 3: app.screens.push(tunrun::Screen::SeedLab); break;
-                case 4: app.screens.push(tunrun::Screen::Settings); break;
-                case 5: app.screens.push(tunrun::Screen::Credits); break;
-                case 6: app.screens.push(tunrun::Screen::ExitConfirm); break;
+                case 4: app.screens.push(tunrun::Screen::Records); break;
+                case 5: app.screens.push(tunrun::Screen::Settings); break;
+                case 6: app.screens.push(tunrun::Screen::Credits); break;
+                case 7: app.screens.push(tunrun::Screen::ExitConfirm); break;
                 default: break;
                 }
             }
@@ -1157,6 +1165,27 @@ int main() {
             }
             if (drawMenu({"BACK"}, hangarSelection, std::max(485, GetScreenHeight() - 100),
                          !actionConfirmed) == 0) app.screens.pop();
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Records: {
+            drawHeader("PROFILE / 01", "RECORDS & STATISTICS",
+                       "Local career records from completed runs; no account or cloud sync.");
+            DrawText("PERSONAL BESTS", 70, 184, 15, kAccent);
+            DrawText(TextFormat("BEST DISTANCE     %.1f", app.profile.bestDistance), 78, 218, 18, kText);
+            DrawText(TextFormat("BEST SCORE        %llu", static_cast<unsigned long long>(app.profile.bestScore)), 78, 251, 18, kText);
+            DrawText(TextFormat("BEST GATE COMBO   %llu", static_cast<unsigned long long>(app.profile.bestCombo)), 78, 284, 18, kText);
+            DrawLine(70, 316, GetScreenWidth() - 70, 316, kEdge);
+            DrawText("RUN HISTORY", 70, 334, 15, kAccent);
+            DrawText(TextFormat("RUNS COMPLETED    %llu", static_cast<unsigned long long>(app.profile.totalRuns)), 78, 367, 17, kText);
+            DrawText(TextFormat("CRASHES           %llu", static_cast<unsigned long long>(app.profile.totalCrashes)), 78, 397, 17, kText);
+            DrawText(TextFormat("AETHER SHARDS     %llu", static_cast<unsigned long long>(app.profile.aetherShards)), 430, 218, 16, kAccent);
+            DrawText(TextFormat("SINGULARITY CORES %llu", static_cast<unsigned long long>(app.profile.singularityCores)), 430, 251, 16, kText);
+            const auto unlockedCount = std::count(app.profile.unlockedShips.begin(), app.profile.unlockedShips.end(), true);
+            DrawText(TextFormat("SHIPS UNLOCKED    %d / %d", static_cast<int>(unlockedCount), static_cast<int>(tunrun::kProfileShipCount)), 430, 284, 16, kText);
+            DrawText(TextFormat("ACTIVE SHIP       %s", tunrun::shipDefinition(static_cast<std::uint32_t>(app.selectedShip)).name), 430, 367, 15, kText);
+            if (app.saveWarning) DrawText("SAVE WARNING: CAREER DATA MAY NOT BE PERSISTED", 78, 433, 11, kDanger);
+            if (drawMenu({"BACK"}, mainSelection, GetScreenHeight() - 86) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         }
