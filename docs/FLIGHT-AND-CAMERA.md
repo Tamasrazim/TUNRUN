@@ -13,7 +13,7 @@ Simulation should use a fixed timestep or controlled accumulator. Render frames 
 ### Motion components
 
 - Forward speed, target speed, acceleration, braking/precision mode, boost, and dash.
-- Dash is an edge-triggered 0.24-second forward burst (19 units/s, or 24 while also boosting), costs 28 energy, and has a 1.20-second cooldown. It cannot activate while precision mode is held and does not repeat while the key/button remains down.
+- Dash is an edge-triggered 0.24-second forward burst (19 units/s, or 24 while also boosting), costs 28 energy, and has a 1.20-second cooldown. It cannot activate while precision mode is held and does not repeat while the key/button remains down. A key used to confirm a menu action is treated as already held when the run starts, preventing an accidental dash on entry.
 - Horizontal and vertical steering with bounded rate and acceleration.
 - Angular response and banking based on steering and tunnel frame rotation.
 - Hull integrity and collision response.

@@ -12,6 +12,8 @@ For each screen (Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Re
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
 - Mouse sensitivity can be adjusted with keyboard arrows and gamepad D-pad/left stick, clamps to the profile's supported range, and persists across restart.
+- Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
+- Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
 - Dropdowns open, select an item, and close.
 - A modal blocks clicks behind it.

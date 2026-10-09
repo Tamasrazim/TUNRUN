@@ -129,6 +129,11 @@ void beginSeedEntry(AppState& app) {
 }
 void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
+    // A held confirm button may have just entered this screen. Treat it as
+    // already held so entering/retrying a run never fires a surprise dash.
+    app.flight.dashButtonWasDown = IsKeyDown(KEY_SPACE) ||
+        (IsGamepadAvailable(0) &&
+         IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
     app.flightAccumulator = 0.0F;
     app.elapsed = 0.0F;
     app.runRecorded = false;
@@ -744,13 +749,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
                  35, 197, 10, kMuted);
-    } else {
+    } else if (boostEnergy >= tunrun::kDashEnergyCost) {
         DrawText("DASH READY: SPACE / PAD A", 35, 197, 10, kAccent);
+    } else {
+        DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
+                 35, 197, 10, kMuted);
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD / ARROWS: STEER   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
-             36, GetScreenHeight() - 42, 12, kMuted);
+    DrawText("WASD / ARROWS: STEER   SPACE / A: DASH   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
+             36, GetScreenHeight() - 42, 11, kMuted);
 }
 } // namespace
 
@@ -1150,7 +1158,11 @@ int main() {
             labels[3] = std::string("MOUSE STEERING: ") + (app.mouseSteering ? "ON" : "OFF");
             labels[4] = std::string("MOUSE SENSITIVITY: ") +
                         TextFormat("%.4f", app.mouseSensitivity);
-            const int picked = drawMenu(labels, settingsSelection, 205);
+            // Seven settings actions must remain visible at the minimum
+            // supported height (800 x 560), including the Back button.
+            const int settingsMenuY = std::max(
+                145, std::min(205, GetScreenHeight() - 404));
+            const int picked = drawMenu(labels, settingsSelection, settingsMenuY);
 
             bool sensitivityChanged = false;
             int sensitivityDirection = leftPressed() ? -1 : rightPressed() ? 1 : 0;
