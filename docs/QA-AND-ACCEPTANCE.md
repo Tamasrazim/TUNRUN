@@ -57,7 +57,7 @@ Gameplay-specific mouse checks:
 
 ## 3. Procedural playability
 
-- Same seed and generator version produce the same canonical hash; a changed seed produces a different course hash.
+- Same seed and generator version produce the same canonical hash; a changed seed produces a different course hash. Seed Lab validation is cached by seed and active ship, so reopening the same configuration reuses the result while either key changing triggers a recomputation.
 - Generated centerline, radius, twist, gate aperture, and gate offsets remain inside declared bounds.
 - Gate distances are strictly increasing, retain minimum reaction spacing, and leave nominal tunnel clearance for the craft.
 - Swept gate-plane tests detect obstacle contact between fixed simulation steps while a craft in the opening clears the gate.

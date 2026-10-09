@@ -1642,24 +1642,35 @@ int main() {
         }
         case tunrun::Screen::SeedLab: {
             drawHeader("03 / GENERATION", "SEED LAB", "Inspect deterministic course, gate, mine, and reward data for this seed.");
-            const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
-            const auto gateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
-            const auto hazardValidation = tunrun::validateHazardSet(app.courseSeed, 32U);
-            const auto reachability = tunrun::validateGateReachability(
-                app.courseSeed, 32U, static_cast<std::uint32_t>(app.selectedShip));
-            static bool routeCacheValid = false;
-            static std::uint64_t routeCacheSeed = 0U;
-            static std::uint32_t routeCacheShip = 0U;
-            static tunrun::SimulatedRouteValidation routeState;
             const auto currentShipId = static_cast<std::uint32_t>(app.selectedShip);
-            if (!routeCacheValid || routeCacheSeed != app.courseSeed ||
-                routeCacheShip != currentShipId) {
-                routeState = tunrun::validateSimulatedRouteReachability(
+            // These deterministic checks are expensive enough to keep out of the
+            // render loop. Recompute once when either seed or selected ship changes.
+            static bool validationCacheValid = false;
+            static std::uint64_t validationCacheSeed = 0U;
+            static std::uint32_t validationCacheShip = 0U;
+            static tunrun::CourseValidation cachedCourseValidation;
+            static tunrun::ObstacleValidation cachedGateValidation;
+            static tunrun::HazardValidation cachedHazardValidation;
+            static tunrun::ReachabilityValidation cachedReachability;
+            static tunrun::SimulatedRouteValidation cachedRouteState;
+            if (!validationCacheValid || validationCacheSeed != app.courseSeed ||
+                validationCacheShip != currentShipId) {
+                cachedCourseValidation = tunrun::validateCourse(app.courseSeed, 360.0);
+                cachedGateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
+                cachedHazardValidation = tunrun::validateHazardSet(app.courseSeed, 32U);
+                cachedReachability = tunrun::validateGateReachability(
                     app.courseSeed, 32U, currentShipId);
-                routeCacheSeed = app.courseSeed;
-                routeCacheShip = currentShipId;
-                routeCacheValid = true;
+                cachedRouteState = tunrun::validateSimulatedRouteReachability(
+                    app.courseSeed, 32U, currentShipId);
+                validationCacheSeed = app.courseSeed;
+                validationCacheShip = currentShipId;
+                validationCacheValid = true;
             }
+            const auto& validation = cachedCourseValidation;
+            const auto& gateValidation = cachedGateValidation;
+            const auto& hazardValidation = cachedHazardValidation;
+            const auto& reachability = cachedReachability;
+            const auto& routeState = cachedRouteState;
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
                         160.0F, 20, kText);
             drawCentred(TextFormat("COURSE V%u   HASH %016llX",
