@@ -28,6 +28,7 @@ struct AppState {
     bool showFps = true;
     bool reduceMotion = false;
     bool fullscreen = false;
+    bool exitRequested = false;
     float shipX = 0.0F;
     float shipY = 0.0F;
     float elapsed = 0.0F;
