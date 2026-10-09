@@ -1067,9 +1067,10 @@ int main() {
             break;
         }
         case tunrun::Screen::SeedLab: {
-            drawHeader("03 / GENERATION", "SEED LAB", "Regenerate identical geometry from a seed; change the seed to explore another course.");
+            drawHeader("03 / GENERATION", "SEED LAB", "Inspect deterministic course, gate, mine, and reward data for this seed.");
             const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
             const auto gateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
+            const auto hazardValidation = tunrun::validateHazardSet(app.courseSeed, 32U);
             const auto reachability = tunrun::validateGateReachability(
                 app.courseSeed, 32U, static_cast<std::uint32_t>(app.selectedShip));
             static bool routeCacheValid = false;
@@ -1086,44 +1087,48 @@ int main() {
                 routeCacheValid = true;
             }
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
-                        175.0F, 22, kText);
-            drawCentred(TextFormat("GENERATOR V%u   HASH %016llX", tunrun::kCourseGeneratorVersion,
+                        160.0F, 20, kText);
+            drawCentred(TextFormat("COURSE V%u   HASH %016llX",
+                                   tunrun::kCourseGeneratorVersion,
                                    static_cast<unsigned long long>(tunrun::courseHash(app.courseSeed))),
-                        215.0F, 15, kAccent);
-            drawCentred(TextFormat("VALIDATOR: %s   SAMPLES: %u",
-                                   validation.valid ? "PASS" : "FAIL", validation.samplesChecked),
-                        243.0F, 14, validation.valid ? kAccent : kDanger);
-            drawCentred(TextFormat("RADIUS %.2f-%.2f   MAX CENTRE OFFSET %.2f",
+                        189.0F, 12, kAccent);
+            drawCentred(TextFormat("COURSE %s / %u SAMPLES   RADIUS %.2f-%.2f   MAX OFFSET %.2f",
+                                   validation.valid ? "PASS" : "FAIL", validation.samplesChecked,
                                    validation.minimumRadius, validation.maximumRadius,
                                    validation.maximumCenterOffset),
-                        266.0F, 13, kMuted);
-            drawCentred(TextFormat("OBSTACLES V%u: %s   GATES CHECKED: %u",
+                        209.0F, 10, validation.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("GATES V%u %s / %u   MIX S%u P%u O%u W%u",
                                    tunrun::kObstacleGeneratorVersion,
                                    gateValidation.valid ? "PASS" : "FAIL",
-                                   gateValidation.gatesChecked),
-                        288.0F, 13, gateValidation.valid ? kAccent : kDanger);
-            drawCentred(TextFormat("MIX S%u P%u O%u W%u   HASH %016llX",
-                                   gateValidation.standardGates,
-                                   gateValidation.precisionGates,
-                                   gateValidation.offsetGates,
-                                   gateValidation.wideGates,
+                                   gateValidation.gatesChecked,
+                                   gateValidation.standardGates, gateValidation.precisionGates,
+                                   gateValidation.offsetGates, gateValidation.wideGates),
+                        229.0F, 10, gateValidation.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("GATE HASH %016llX   PAIRWISE %s: %s   MIN SLACK %.2F",
                                    static_cast<unsigned long long>(
-                                       tunrun::obstacleHash(app.courseSeed, 32U))),
-                        311.0F, 11, kMuted);
-            const auto& screenShip = tunrun::shipDefinition(
-                static_cast<std::uint32_t>(app.selectedShip));
-            drawCentred(TextFormat("PAIRWISE %s: %s   MAX SHIFT %.2F / MIN SLACK %.2F",
-                                   screenShip.name,
+                                       tunrun::obstacleHash(app.courseSeed, 32U)),
+                                   tunrun::shipDefinition(currentShipId).name,
                                    reachability.valid ? "PASS" : "FAIL",
-                                   reachability.maximumRequiredShift,
                                    reachability.minimumReachableSlack),
-                        334.0F, 11, reachability.valid ? kAccent : kDanger);
+                        249.0F, 10, reachability.valid ? kAccent : kDanger);
             drawCentred(TextFormat("STATE ROUTE: %s   CLEARANCE %.2F   STEPS %u",
                                    routeState.valid ? "PASS" : "FAIL",
                                    routeState.minimumGateClearance,
                                    routeState.simulationSteps),
-                        356.0F, 11, routeState.valid ? kAccent : kDanger);
-            const int picked = drawMenu(seedLabItems, seedLabSelection, 384, true);
+                        269.0F, 10, routeState.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("MINES V%u %s %u/32 H %016llX   REWARDS V%u H %016llX",
+                                   tunrun::kHazardGeneratorVersion,
+                                   hazardValidation.valid ? "PASS" : "FAIL",
+                                   hazardValidation.hazardsChecked,
+                                   static_cast<unsigned long long>(
+                                       tunrun::hazardHash(app.courseSeed, 32U)),
+                                   tunrun::kRewardGeneratorVersion,
+                                   static_cast<unsigned long long>(
+                                       tunrun::rewardHash(app.courseSeed, 32U))),
+                        291.0F, 9, hazardValidation.valid ? kAccent : kDanger);
+            const int seedLabMenuY = std::max(
+                310, std::min(430, GetScreenHeight() - 250));
+            const int picked = drawMenu(seedLabItems, seedLabSelection, seedLabMenuY, true);
             if (picked == 0) {
                 beginSeedEntry(app); seedEntrySelection=0; app.screens.push(tunrun::Screen::SeedEntry);
             } else if (picked == 1) chooseNextSeed(app);
@@ -1133,7 +1138,7 @@ int main() {
             if (backPressed()) app.screens.pop();
             break;
         }
-        case tunrun::Screen::SaveRecovery: {
+case tunrun::Screen::SaveRecovery: {
             drawHeader("SYSTEM / SAVE RECOVERY", "PROFILE RECOVERY REQUIRED",
                        "Both profile copies are invalid or unreadable. They will not be overwritten automatically.");
             drawCentred("Reset keeps damaged files as .corrupt backups.", 195.0F, 16, kMuted);

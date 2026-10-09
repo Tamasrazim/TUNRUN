@@ -51,7 +51,7 @@ Gameplay-specific mouse checks:
 - Verify reward hashes and pickup order are seed-deterministic, Aether Shard values remain 4–8, every eighth pickup is a Singularity Core, and pickup collision happens only on a forward plane crossing.
 - Verify pickup render positions and collision offsets use the same course-relative frame as the tunnel while it curves/twists; non-finite collision inputs must be rejected.
 - Verify moving-mine generation and hashes are seed-deterministic, motion is repeatable for equal run-clock times, motion stays within the declared envelope, and hazard planes maintain the minimum spacing from gate reaction windows.
-- Verify frame-to-frame swept 3D hazard collision catches contact at the near/far sphere edge as well as at the centre plane; include near misses, reverse travel, non-finite input, and frame-endpoint timing changes.
+- Verify swept gate and mine collision transform ship coordinates into the obstacle's sampled course frame; include curved-centreline offsets, near/far sphere-edge contact, near misses, reverse travel, and non-finite inputs.
 - Run multi-seed hazard validation (currently 24 derived seeds × 128 hazards) and gameplay simulations for all eight ships; confirm warning distance gives enough time to evade. Parameter bounds alone are not proof of avoidability.
 - Validate any additional dynamic hazard families over their full relevant timing windows.
 - Detect unavoidable obstacle intersections and insufficient warning distance.
