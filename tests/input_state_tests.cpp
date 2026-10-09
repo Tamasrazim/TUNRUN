@@ -694,6 +694,14 @@ int main() {
     assert(tunrun::parseProfile(legacyV2, parsedProfile, profileError, &migratedFromLegacy));
     assert(migratedFromLegacy && parsedProfile.schemaVersion == tunrun::kProfileSchemaVersion);
     assert(parsedProfile.bestScore == 0U && parsedProfile.bestCombo == 0U);
+    std::string tamperedLegacyV2 = legacyV2;
+    const auto legacyCurrencyField = tamperedLegacyV2.find("\"aetherShards\": 42");
+    assert(legacyCurrencyField != std::string::npos);
+    tamperedLegacyV2.replace(legacyCurrencyField,
+                             std::string("\"aetherShards\": 42").size(),
+                             "\"aetherShards\": 43");
+    assert(!tunrun::parseProfile(tamperedLegacyV2, parsedProfile, profileError));
+    assert(profileError.find("checksum") != std::string::npos);
 
     assert(!tunrun::parseProfile(std::string(tunrun::kProfileMaxBytes + 1U, 'x'),
                                  parsedProfile, profileError));

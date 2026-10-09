@@ -1073,7 +1073,7 @@ int main() {
         case tunrun::Screen::MainMenu: {
             drawCentred("T U N R U N", 56.0F, 54, kText);
             drawCentred("PROCEDURAL TUNNEL RUNNER", 116.0F, 16, kAccent);
-            drawCentred("SEEDED PROCEDURAL FLIGHT / MILESTONE M3", 141.0F, 12, kMuted);
+            drawCentred("SEEDED COURSE / NATIVE FLIGHT PROTOTYPE", 141.0F, 12, kMuted);
             DrawText(TextFormat("AETHER SHARDS  %llu",
                                 static_cast<unsigned long long>(app.profile.aetherShards)),
                      52, 162, 14, kAccent);
