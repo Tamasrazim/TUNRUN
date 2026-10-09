@@ -36,8 +36,8 @@ All bindings must be configurable with conflict detection, reset-to-defaults, an
 
 ### Gameplay state
 
-- Mouse steering uses relative motion. The input backend should use Windows Raw Input (WM_INPUT) or an equivalent native relative-motion path; it must not recenter the cursor with repeated SetCursorPos warps.
-- The cursor is hidden/captured only while gameplay mouse steering is active and the game window is focused.
+- Windows builds use relative mouse deltas from Raw Input (WM_INPUT). Flight steering must never recenter the cursor with repeated SetCursorPos warps.
+- The native cursor is hidden over the client area and clipped to the client bounds only while gameplay mouse steering is active and the game window is focused. Clip bounds are refreshed as the window resizes.
 - Mouse capture is released before pause, menu, settings, results, focus loss, or shutdown.
 - A lost-focus event clears accumulated deltas and held mouse-button states before pausing.
 - Returning from pause re-enters gameplay input explicitly and restores only the requested gameplay capture state.

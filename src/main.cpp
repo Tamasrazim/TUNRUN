@@ -1,4 +1,5 @@
 #include "app/input_state.hpp"
+#include "app/raw_mouse.hpp"
 #include "raylib.h"
 
 #include <algorithm>
@@ -28,6 +29,10 @@ struct AppState {
     bool showFps = true;
     bool reduceMotion = false;
     bool fullscreen = false;
+    bool mouseSteering = true;
+    float mouseSensitivity = 0.004F;
+    bool hangarAxisLeftHeld = false;
+    bool hangarAxisRightHeld = false;
     bool exitRequested = false;
     float shipX = 0.0F;
     float shipY = 0.0F;
@@ -48,6 +53,12 @@ bool downPressed() {
 bool confirmPressed() {
     return IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) ||
            padPressed(GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+}
+bool leftPressed() {
+    return IsKeyPressed(KEY_LEFT) || padPressed(GAMEPAD_BUTTON_LEFT_FACE_LEFT);
+}
+bool rightPressed() {
+    return IsKeyPressed(KEY_RIGHT) || padPressed(GAMEPAD_BUTTON_LEFT_FACE_RIGHT);
 }
 bool backPressed() {
     return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT);
@@ -93,8 +104,44 @@ bool drawButton(Rectangle bounds, const char* label, bool selected, bool danger 
 
 void moveSelection(int count, int& selection) {
     if (count <= 0) { selection = 0; return; }
-    if (upPressed()) selection = (selection - 1 + count) % count;
-    if (downPressed()) selection = (selection + 1) % count;
+
+    bool moved = false;
+    if (upPressed()) {
+        selection = (selection - 1 + count) % count;
+        moved = true;
+    } else if (downPressed()) {
+        selection = (selection + 1) % count;
+        moved = true;
+    }
+
+    // Rate-limited analogue navigation prevents held sticks racing through menus.
+    static int previousStickDirection = 0;
+    static float repeatDelay = 0.0F;
+    float verticalAxis = 0.0F;
+    if (IsGamepadAvailable(0)) {
+        verticalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+    }
+    const int direction = verticalAxis < -0.55F ? -1
+        : verticalAxis > 0.55F ? 1 : 0;
+    if (direction == 0) {
+        previousStickDirection = 0;
+        repeatDelay = 0.0F;
+    } else if (!moved) {
+        if (direction != previousStickDirection) {
+            selection = (selection + direction + count) % count;
+            previousStickDirection = direction;
+            repeatDelay = 0.24F;
+        } else {
+            repeatDelay -= GetFrameTime();
+            if (repeatDelay <= 0.0F) {
+                selection = (selection + direction + count) % count;
+                repeatDelay = 0.12F;
+            }
+        }
+    } else {
+        previousStickDirection = direction;
+        repeatDelay = 0.24F;
+    }
     selection = std::clamp(selection, 0, count - 1);
 }
 
@@ -196,6 +243,9 @@ int main() {
     SetTargetFPS(144);
     SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
+    RawMouse rawMouse;
+    rawMouse.install(GetWindowHandle());
+
     AppState app;
     int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
     int settingsSelection = 0, pauseSelection = 0, exitSelection = 0;
@@ -213,12 +263,22 @@ int main() {
     };
     const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
     const std::vector<std::string> settingsItems{
-        "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION", "BACK"
+        "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
+        "MOUSE STEERING", "BACK"
     };
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const float dt = std::min(GetFrameTime(), 0.05F);
+        const bool wantsMouseCapture =
+            app.screens.current() == tunrun::Screen::Preview &&
+            app.mouseSteering && IsWindowFocused();
+        rawMouse.setActive(wantsMouseCapture);
+        RelativeMouseDelta mouseDelta = rawMouse.consume();
+        if (!rawMouse.installed() && wantsMouseCapture) {
+            const Vector2 fallbackDelta = GetMouseDelta();
+            mouseDelta = RelativeMouseDelta{fallbackDelta.x, fallbackDelta.y};
+        }
         if (app.screens.current() != tunrun::Screen::Pause &&
             app.screens.current() != tunrun::Screen::Settings) app.elapsed += dt;
 
@@ -235,9 +295,11 @@ int main() {
                     app.shipX += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) * movement;
                     app.shipY -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) * movement;
                 }
+                applyRelativeMouseSteering(app.shipX, app.shipY, mouseDelta,
+                                           app.mouseSensitivity);
                 app.shipX = std::clamp(app.shipX, -3.1F, 3.1F);
                 app.shipY = std::clamp(app.shipY, -3.1F, 3.1F);
-                if (IsKeyPressed(KEY_V)) tpp = !tpp;
+                if (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP)) tpp = !tpp;
                 if (backPressed()) app.screens.push(tunrun::Screen::Pause);
             }
         }
@@ -245,6 +307,13 @@ int main() {
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.elapsed, app.shipX, app.shipY, tpp, app.reduceMotion);
+            const Rectangle pauseBounds{
+                static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
+            };
+            if (drawButton(pauseBounds, "PAUSE", false)) {
+                app.screens.push(tunrun::Screen::Pause);
+            }
+            if (app.showFps) DrawFPS(GetScreenWidth() - 92, 72);
             EndDrawing();
             continue;
         }
@@ -280,8 +349,21 @@ int main() {
             if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 + 110), 350, 70, 45}, ">", false))
                 app.selectedShip = (app.selectedShip + 1) % 8;
             if (drawMenu({"BACK"}, hangarSelection, GetScreenHeight() - 96) == 0) app.screens.pop();
-            if (IsKeyPressed(KEY_LEFT)) app.selectedShip = (app.selectedShip + 7) % 8;
-            if (IsKeyPressed(KEY_RIGHT)) app.selectedShip = (app.selectedShip + 1) % 8;
+            if (leftPressed()) app.selectedShip = (app.selectedShip + 7) % 8;
+            if (rightPressed()) app.selectedShip = (app.selectedShip + 1) % 8;
+            if (IsGamepadAvailable(0)) {
+                const float horizontalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+                if (horizontalAxis < -0.65F && !app.hangarAxisLeftHeld) {
+                    app.selectedShip = (app.selectedShip + 7) % 8;
+                    app.hangarAxisLeftHeld = true;
+                } else if (horizontalAxis > 0.65F && !app.hangarAxisRightHeld) {
+                    app.selectedShip = (app.selectedShip + 1) % 8;
+                    app.hangarAxisRightHeld = true;
+                } else if (std::abs(horizontalAxis) < 0.25F) {
+                    app.hangarAxisLeftHeld = false;
+                    app.hangarAxisRightHeld = false;
+                }
+            }
             if (backPressed()) app.screens.pop();
             break;
         }
@@ -300,11 +382,13 @@ int main() {
             labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
             labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
-            const int picked = drawMenu(labels, settingsSelection, 240);
+            labels[3] = std::string("MOUSE STEERING: ") + (app.mouseSteering ? "ON" : "OFF");
+            const int picked = drawMenu(labels, settingsSelection, 225);
             if (picked == 0) { app.fullscreen = !app.fullscreen; ToggleFullscreen(); }
             else if (picked == 1) app.showFps = !app.showFps;
             else if (picked == 2) app.reduceMotion = !app.reduceMotion;
-            else if (picked == 3) app.screens.pop();
+            else if (picked == 3) app.mouseSteering = !app.mouseSteering;
+            else if (picked == 4) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         }
@@ -339,6 +423,7 @@ int main() {
         DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, GetScreenHeight() - 25, 12, kMuted);
         EndDrawing();
     }
+    rawMouse.uninstall();
     CloseWindow();
     return 0;
 }

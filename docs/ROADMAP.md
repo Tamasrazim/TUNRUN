@@ -13,16 +13,17 @@ This roadmap defines evidence required to advance. A milestone is not complete u
 
 Current slice:
 - Native raylib window, responsive screen shell, main menu, settings, credits, hangar preview and mode selection.
-- Keyboard, pointer and basic gamepad navigation for menu controls.
-- A moving 3D tunnel visual testbed with FPP/TPP camera presentation toggle.
-- Pure C++ tests for edge-triggered button activation and screen-stack navigation.
+- Keyboard, pointer, gamepad D-pad and rate-limited left-stick navigation for menu controls.
+- Windows Raw Input relative mouse flight steering with focus-aware capture, cursor clipping (no recentering/warping), and immediate capture release on focus loss or leaving the run.
+- A moving 3D tunnel visual testbed with FPP/TPP camera presentation toggle and an in-run mouse-clickable Pause control.
+- Pure C++ tests for edge-triggered button activation, screen-stack navigation, and relative mouse steering/clamping.
 - Windows x64 build/test workflow on pushes to `main`.
 
 Still required before M1 can pass:
 - Verify the Windows CI build and fix all compile/test failures.
-- Implement a proper action-based input service, focus transitions and Raw Input relative mouse steering without cursor warping.
-- Test pointer hitboxes at supported DPI/window sizes; make every screen fully operable by mouse, keyboard and gamepad.
-- Add tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
+- Verify raw mouse steering and focus/capture transitions on real Windows hardware at normal and scaled DPI, windowed and fullscreen.
+- Test pointer hitboxes after resize/fullscreen transitions; make every screen fully operable by mouse, keyboard and gamepad.
+- Add integration tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
 
 ## M2 — Flight and camera prototype
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
