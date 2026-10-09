@@ -69,7 +69,8 @@ This repository is in the **planning and architecture stage**. These documents d
 - [Security Policy](SECURITY.md) explains private vulnerability reporting.
 - [Contributing](CONTRIBUTING.md) records the project workflow: commits go directly to `main`; there are no extra branches or pull requests.
 - [Security and Privacy](docs/SECURITY-AND-PRIVACY.md) defines implementation safeguards. Main-only GitHub Actions validate documentation and scan Git history for hardcoded secrets; game-code analysis will be added when source code exists.
-- [Third-Party and Licenses](docs/THIRD-PARTY-AND-LICENSES.md) records asset/dependency review rules. A project-wide reuse license has not yet been selected.
+- [License](LICENSE) — proprietary, all rights reserved; public visibility does not grant general reuse rights.
+- [Third-Party and Licenses](docs/THIRD-PARTY-AND-LICENSES.md) records asset/dependency review rules. Third-party material remains governed by its own license.
 
 ## Current status
 

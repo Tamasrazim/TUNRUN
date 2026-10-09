@@ -29,4 +29,6 @@ The register must cover libraries, transitive dependencies, fonts, textures, mod
 
 ## TUNRUN's own license
 
-There is currently no root `LICENSE` file. Until the owner chooses and adds one, do not imply that the source code or assets are freely reusable or redistributable. A public GitHub repository is not itself a license grant. Pick a license deliberately before inviting third-party contributions or publishing reusable game assets.
+The root [`LICENSE`](../LICENSE) applies a project-specific proprietary, all-rights-reserved notice to original project content. TUNRUN is publicly viewable but is not released under an open-source license. Access, viewing, and forking on GitHub remain subject to GitHub's Terms of Service; that platform permission is not a general license to republish or reuse project content outside the permissions granted by GitHub and applicable law.
+
+This notice is not a standard SPDX-recognized open-source license. Third-party dependencies and assets are not relicensed by it: identify each separately, include required notices, and verify redistribution rights before shipping. Obtain appropriate legal review before a commercial release or broader licensing change.

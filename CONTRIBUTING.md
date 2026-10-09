@@ -12,6 +12,10 @@ Direct-to-main does not mean untested. Before committing a change:
 3. Update documentation and tests when behavior or requirements change.
 4. Push the commit to `main`, then inspect the resulting GitHub Actions run and fix failures with a follow-up commit on `main`.
 
+## License and contributions
+
+The project uses the proprietary, all-rights-reserved notice in [`LICENSE`](LICENSE); it is not an open-source contribution program. Do not submit third-party code or assets unless their license and redistribution rights have been verified and the repository owner has explicitly approved their inclusion. The repository owner must confirm permission and attribution before incorporating externally authored material.
+
 ## Project status
 
 The current repository is a specification baseline. Do not describe a feature, executable, installer, security scanner, or release as working until there is implementation and test evidence.
