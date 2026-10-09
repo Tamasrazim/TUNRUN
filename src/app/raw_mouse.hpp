@@ -19,6 +19,18 @@ inline constexpr float kMouseSensitivityStep = 0.0005F;
     return std::clamp(current, kMouseSensitivityMin, kMouseSensitivityMax);
 }
 
+// Maps a pointer's normalized horizontal position onto the supported
+// sensitivity range, quantized to the same step used by keyboard/controller input.
+[[nodiscard]] inline float mouseSensitivityFromSlider(float normalizedPosition) noexcept {
+    if (!std::isfinite(normalizedPosition)) return kMouseSensitivityDefault;
+    const float position = std::clamp(normalizedPosition, 0.0F, 1.0F);
+    const float raw = kMouseSensitivityMin +
+        position * (kMouseSensitivityMax - kMouseSensitivityMin);
+    const float steps = std::round((raw - kMouseSensitivityMin) / kMouseSensitivityStep);
+    return std::clamp(kMouseSensitivityMin + steps * kMouseSensitivityStep,
+                      kMouseSensitivityMin, kMouseSensitivityMax);
+}
+
 struct RelativeMouseDelta {
     float x = 0.0F;
     float y = 0.0F;

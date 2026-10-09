@@ -144,6 +144,15 @@ int main() {
         std::numeric_limits<float>::quiet_NaN(), 0) == kMouseSensitivityDefault);
     assert(adjustMouseSensitivity(-100.0F, 1) >= kMouseSensitivityMin);
     assert(adjustMouseSensitivity(100.0F, -1) <= kMouseSensitivityMax);
+    assert(mouseSensitivityFromSlider(0.0F) == kMouseSensitivityMin);
+    assert(mouseSensitivityFromSlider(1.0F) == kMouseSensitivityMax);
+    assert(mouseSensitivityFromSlider(-2.0F) == kMouseSensitivityMin);
+    assert(mouseSensitivityFromSlider(2.0F) == kMouseSensitivityMax);
+    assert(mouseSensitivityFromSlider(
+        std::numeric_limits<float>::quiet_NaN()) == kMouseSensitivityDefault);
+    const float middleSensitivity = mouseSensitivityFromSlider(0.5F);
+    assert(middleSensitivity >= kMouseSensitivityMin &&
+           middleSensitivity <= kMouseSensitivityMax);
 
     constexpr std::uint64_t seed = 0x123456789ABCDEF0ULL;
     const auto section = tunrun::sampleCourse(seed, 1.25);

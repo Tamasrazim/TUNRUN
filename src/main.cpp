@@ -50,6 +50,8 @@ struct AppState {
     bool fullscreen = false;
     bool mouseSteering = true;
     float mouseSensitivity = kMouseSensitivityDefault;
+    bool mouseSensitivityPointerDragging = false;
+    bool mouseSensitivityPointerDirty = false;
     bool hangarAxisLeftHeld = false;
     bool hangarAxisRightHeld = false;
     bool exitRequested = false;
@@ -1261,6 +1263,44 @@ int main() {
             const int settingsMenuY = std::max(
                 145, std::min(205, GetScreenHeight() - 404));
             const int picked = drawMenu(labels, settingsSelection, settingsMenuY);
+            const bool settingsBackRequested = backPressed();
+            const Rectangle sensitivityBounds{
+                (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
+                static_cast<float>(settingsMenuY +
+                    4 * static_cast<int>(kButtonHeight + kButtonGap)),
+                kPanelWidth, kButtonHeight
+            };
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+                CheckCollisionPointRec(GetMousePosition(), sensitivityBounds)) {
+                app.mouseSensitivityPointerDragging = true;
+                app.mouseSensitivityPointerDirty = false;
+            }
+
+            bool pointerSensitivityCommit = false;
+            if (app.mouseSensitivityPointerDragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                const float normalizedPosition =
+                    (GetMousePosition().x - sensitivityBounds.x) / sensitivityBounds.width;
+                const float nextSensitivity = mouseSensitivityFromSlider(normalizedPosition);
+                if (nextSensitivity != app.mouseSensitivity) {
+                    app.mouseSensitivity = nextSensitivity;
+                    app.mouseSensitivityPointerDirty = true;
+                }
+            }
+            if (app.mouseSensitivityPointerDragging &&
+                IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                app.mouseSensitivityPointerDragging = false;
+                pointerSensitivityCommit = app.mouseSensitivityPointerDirty;
+                app.mouseSensitivityPointerDirty = false;
+            }
+            // Leaving Settings mid-drag still commits the last visible value and
+            // clears pointer state, so a later visit cannot inherit a stale drag.
+            if ((picked == 6 || settingsBackRequested) &&
+                app.mouseSensitivityPointerDragging) {
+                pointerSensitivityCommit =
+                    pointerSensitivityCommit || app.mouseSensitivityPointerDirty;
+                app.mouseSensitivityPointerDragging = false;
+                app.mouseSensitivityPointerDirty = false;
+            }
 
             bool sensitivityChanged = false;
             int sensitivityDirection = leftPressed() ? -1 : rightPressed() ? 1 : 0;
@@ -1293,7 +1333,8 @@ int main() {
                     }
                 }
             }
-            if (settingsSelection == 4 && sensitivityDirection != 0 && picked < 0) {
+            if (settingsSelection == 4 && sensitivityDirection != 0 && picked < 0 &&
+                !app.mouseSensitivityPointerDragging) {
                 const float nextSensitivity = adjustMouseSensitivity(
                     app.mouseSensitivity, sensitivityDirection);
                 sensitivityChanged = nextSensitivity != app.mouseSensitivity;
@@ -1315,10 +1356,11 @@ int main() {
                 app.mouseSensitivity = kMouseSensitivityDefault;
             } else if (picked == 6) app.screens.pop();
 
-            if ((picked >= 0 && picked <= 3) || picked == 5 || sensitivityChanged) {
+            if ((picked >= 0 && picked <= 3) || picked == 5 || sensitivityChanged ||
+                pointerSensitivityCommit) {
                 (void)persistProfile(app);
             }
-            if (backPressed()) app.screens.pop();
+            if (settingsBackRequested && picked != 6) app.screens.pop();
             break;
         }
         case tunrun::Screen::Credits:
