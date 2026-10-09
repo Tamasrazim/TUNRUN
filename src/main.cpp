@@ -453,6 +453,14 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         Color{165, 190, 218, 255}
     };
     const Color color = hullColors[shipId < 8U ? shipId : 0U];
+    const Color hullLight{
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.r) + 34)),
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.g) + 34)),
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.b) + 34)), 255};
+    const Color hullShade{
+        static_cast<unsigned char>(color.r * 0.48F),
+        static_cast<unsigned char>(color.g * 0.48F),
+        static_cast<unsigned char>(color.b * 0.48F), 255};
     const float cp = std::cos(pitch), sp = std::sin(pitch);
     const float cy = std::cos(yaw), sy = std::sin(yaw);
     const float cr = std::cos(roll), sr = std::sin(roll);
@@ -466,6 +474,24 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         return Vector3{shipX + rolledX, shipY + rolledY, yawedZ};
     };
     const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
+    // A shaded faceted fuselage under the distinct wireframe silhouette makes
+    // each ship read as a solid 3D object instead of a flat HUD glyph.
+    const auto nose = v(0.0F, 0.0F, -0.64F);
+    const auto top = v(0.0F, 0.22F, 0.10F);
+    const auto bottom = v(0.0F, -0.20F, 0.34F);
+    const auto left = v(-0.30F, -0.01F, 0.28F);
+    const auto right = v(0.30F, -0.01F, 0.28F);
+    const auto tail = v(0.0F, 0.05F, 0.86F);
+    DrawTriangle3D(nose, top, left, hullLight);
+    DrawTriangle3D(nose, right, top, color);
+    DrawTriangle3D(nose, bottom, right, hullShade);
+    DrawTriangle3D(nose, left, bottom, color);
+    DrawTriangle3D(top, tail, left, hullLight);
+    DrawTriangle3D(top, right, tail, color);
+    DrawTriangle3D(left, tail, bottom, hullShade);
+    DrawTriangle3D(bottom, tail, right, hullShade);
+    DrawSphere(v(-0.19F, -0.04F, 0.66F), 0.085F, Color{100, 224, 255, 255});
+    DrawSphere(v(0.19F, -0.04F, 0.66F), 0.085F, Color{100, 224, 255, 255});
     switch (shipId) {
     case 0U: { // DRIFTWING: light delta wing.
         const auto nose = v(0.0F, 0.0F, -0.35F);
@@ -719,12 +745,22 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const Color ringColor = ring % 4 == 0
             ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
         for (int side = 0; side < sideCount; ++side) {
-            DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
-                       tunnelPoint(seed, distance, ring, (side + 1) % sideCount, playerSection), ringColor);
+            const int nextSide = (side + 1) % sideCount;
+            const Vector3 a = tunnelPoint(seed, distance, ring, side, playerSection);
+            const Vector3 b = tunnelPoint(seed, distance, ring, nextSide, playerSection);
             if (ring + 1 < lastRing) {
-                DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
-                           tunnelPoint(seed, distance, ring + 1, side, playerSection), Color{48, 65, 83, 125});
+                const Vector3 d = tunnelPoint(seed, distance, ring + 1, side, playerSection);
+                const Vector3 c = tunnelPoint(seed, distance, ring + 1, nextSide, playerSection);
+                const bool panelRidge = (side % 5 == 0) || (ring % 8 == 0);
+                const Color panel = panelRidge
+                    ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255};
+                // Fill the tunnel interior with actual 3D polygon faces, not
+                // just projected grid lines. The brighter ribs stay visible.
+                DrawTriangle3D(a, b, c, panel);
+                DrawTriangle3D(a, c, d, panel);
+                DrawLine3D(a, d, Color{48, 65, 83, 125});
             }
+            DrawLine3D(a, b, ringColor);
         }
     }
     if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {

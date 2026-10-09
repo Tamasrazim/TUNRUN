@@ -27,7 +27,7 @@ Text input with normalization, validation, copy/share function, generator versio
 Shows generation progress and a status message. CPU generation is asynchronous; the game must not freeze the UI while waiting. Cancel returns safely to the previous menu.
 
 ### In-Run HUD
-Speed, hull, energy, current score/multiplier, next mine distance, and its player-relative left/right and up/down bearing, plus pause prompt, optional distance/time, and minimal contextual warning. The TPP chase camera stays inside the rear tunnel cross-section; the camera placement is clamped relative to that section's own centerline as the route bends. All HUD elements respect UI scale and safe margins.
+Speed, hull, energy, current score/multiplier, next mine distance, and its player-relative left/right and up/down bearing, plus pause prompt, optional distance/time, and minimal contextual warning. The TPP chase camera stays inside the rear tunnel cross-section; the camera placement is clamped relative to that section's own centerline as the route bends. The tube uses filled interior surfaces and raised ribs for real 3D depth. All HUD elements respect UI scale and safe margins.
 
 ### Pause
 Resume, Restart Same Seed, Controls, Settings, and Return to Main Menu. Restart and leaving the run both require explicit confirmation because the current score and unbanked pickups are discarded. Opening Controls or Settings keeps the run paused; Back returns to Pause.
