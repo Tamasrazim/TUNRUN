@@ -94,7 +94,7 @@ void RawMouse::setActive(bool wanted) noexcept {
         SetCursor(nullptr);
     } else {
         ClipCursor(nullptr);
-        SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+        SetCursor(LoadCursorW(nullptr, MAKEINTRESOURCEW(32512)));
         clear();
     }
 }
