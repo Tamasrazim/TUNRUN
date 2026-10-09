@@ -117,6 +117,13 @@ int main() {
     assert(literal.valid && literal.hexadecimal && literal.seed==0x0123456789ABCDEFULL);
     const auto bare=tunrun::parseSeedText("0123456789ABCDEF");
     assert(bare.valid && bare.seed==literal.seed);
+    assert(tunrun::formatHexSeed(literal.seed) == "0x0123456789abcdef");
+    assert(tunrun::formatHexSeed(0U) == "0x0000000000000000");
+    assert(tunrun::formatHexSeed(std::numeric_limits<std::uint64_t>::max()) ==
+           "0xffffffffffffffff");
+    const auto copiedSeedRoundTrip = tunrun::parseSeedText(tunrun::formatHexSeed(literal.seed));
+    assert(copiedSeedRoundTrip.valid && copiedSeedRoundTrip.hexadecimal &&
+           copiedSeedRoundTrip.seed == literal.seed);
     const auto textA=tunrun::parseSeedText("  White   Tunnel_7 ");
     const auto textB=tunrun::parseSeedText("white tunnel_7");
     assert(textA.valid && textB.valid && textA.seed==textB.seed && !textA.hexadecimal);

@@ -25,6 +25,18 @@ inline bool parseHexSeed(std::string_view text, std::uint64_t& value) noexcept {
     }
     return true;
 }
+
+// A fixed-width, lowercase representation can be pasted back into Seed Entry
+// without ambiguity or losing leading zeroes.
+[[nodiscard]] inline std::string formatHexSeed(std::uint64_t seed) {
+    constexpr char digits[] = "0123456789abcdef";
+    std::string text = "0x";
+    text.reserve(18U);
+    for (int shift = 60; shift >= 0; shift -= 4) {
+        text.push_back(digits[(seed >> static_cast<unsigned>(shift)) & 0x0fU]);
+    }
+    return text;
+}
 // Hex input is literal; other accepted text is normalized and hashed.
 inline SeedTextParseResult parseSeedText(std::string_view input) {
     SeedTextParseResult result;

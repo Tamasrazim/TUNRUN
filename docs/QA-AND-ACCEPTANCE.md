@@ -10,6 +10,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Every button is mouse-clickable at its visible position.
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
 - Crash/results view shows final distance, active seed, elapsed in-run time, course hash, score, rewards and the applicable gate/mine contact index without overlapping the action menu.
+- Copy Seed writes the exact lowercase fixed-width `0x`-prefixed 64-bit seed to the OS clipboard; pasting it into Seed Entry parses back to the exact same course seed, including leading zeroes. Retry Same Seed remains the first/default action.
 - Controls opens from both Main Menu and Pause, lists actual keyboard/mouse/gamepad bindings, and Back returns to the correct parent screen without unpausing the run.
 - While Controls, Settings or run-confirmation is layered above Pause, procedural hazard time remains frozen; returning to the run does not advance the mines through the pause interval.
 - Pause → Restart Same Seed asks before discarding the current run, retains the exact course seed after confirmation, and starts with clean score, dash, and pickup state.

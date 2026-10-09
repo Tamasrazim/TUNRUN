@@ -73,6 +73,7 @@ struct AppState {
     tunrun::RunScore runScore;
     bool newBestScore = false;
     bool newBestCombo = false;
+    bool seedCopiedNotice = false;
     std::uint64_t lastRunReward = 0U;
     std::uint64_t lastRunCoreReward = 0U;
     std::uint64_t runAetherPickupReward = 0U;
@@ -137,6 +138,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
     app.newBestScore = false;
     app.newBestCombo = false;
+    app.seedCopiedNotice = false;
     // A held confirm button may have just entered this screen. Treat it as
     // already held so entering/retrying a run never fires a surprise dash.
     app.flight.dashButtonWasDown = IsKeyDown(KEY_SPACE) ||
@@ -892,7 +894,9 @@ int main() {
     };
     const std::vector<std::string> resetSettingsItems{"CANCEL", "RESET OPTIONS"};
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
-    const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> crashItems{
+        "RETRY SAME SEED", "COPY SEED", "NEW SEED", "RETURN TO MAIN MENU"
+    };
     const std::vector<std::string> seedLabItems{
         "ENTER CUSTOM SEED", "GENERATE NEW SEED", "START THIS SEED", "BACK"
     };
@@ -1508,15 +1512,30 @@ int main() {
                                            tunrun::hazardHash(app.courseSeed, 128U))),
                             267.0F, 11, kDanger);
             }
-            const int picked = drawMenu(crashItems, crashSelection, 328, true);
+            const bool compactCrashMenu = GetScreenHeight() < 705;
+            const float crashButtonHeight = compactCrashMenu ? 36.0F : kButtonHeight;
+            const float crashButtonGap = compactCrashMenu ? 4.0F : kButtonGap;
+            const int crashMenuTop = compactCrashMenu ? 334 : 328;
+            const int picked = drawMenu(crashItems, crashSelection, crashMenuTop,
+                true, -1, true, crashButtonHeight, crashButtonGap);
+            if (app.seedCopiedNotice) {
+                const int noticeY = crashMenuTop + static_cast<int>(crashItems.size()) *
+                    static_cast<int>(crashButtonHeight + crashButtonGap) + 4;
+                drawCentred("SEED COPIED TO CLIPBOARD", static_cast<float>(noticeY),
+                            10, kAccent);
+            }
             if (picked == 0) {
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
             } else if (picked == 1) {
+                const std::string seedText = tunrun::formatHexSeed(app.courseSeed);
+                SetClipboardText(seedText.c_str());
+                app.seedCopiedNotice = true;
+            } else if (picked == 2) {
                 chooseNextSeed(app);
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
-            } else if (picked == 2) {
+            } else if (picked == 3) {
                 app.screens.reset();
             }
             if (backPressed()) app.screens.reset();
