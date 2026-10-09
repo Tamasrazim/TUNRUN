@@ -822,12 +822,11 @@ int main() {
                         311.0F, 11, kMuted);
             const auto& screenShip = tunrun::shipDefinition(
                 static_cast<std::uint32_t>(app.selectedShip));
-            drawCentred(TextFormat("REACH %s: %s   SHIFT %.2F / ENVELOPE %.2F",
+            drawCentred(TextFormat("REACH %s: %s   MAX SHIFT %.2F / MIN SLACK %.2F",
                                    screenShip.name,
                                    reachability.valid ? "PASS" : "FAIL",
                                    reachability.maximumRequiredShift,
-                                   reachability.worstTransitionReachableShift +
-                                       reachability.worstTransitionAllowance),
+                                   reachability.minimumReachableSlack),
                         334.0F, 11, reachability.valid ? kAccent : kDanger);
             const int picked = drawMenu(seedLabItems, seedLabSelection, 360, true);
             if (picked == 0) chooseNextSeed(app);
