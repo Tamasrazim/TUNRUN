@@ -39,6 +39,10 @@ Gameplay-specific mouse checks:
 
 ## 3. Procedural playability
 
+- Same seed and generator version produce the same canonical hash; a changed seed produces a different course hash.
+- Generated centerline, radius, twist, gate aperture, and gate offsets remain inside declared bounds.
+- Gate distances are strictly increasing, retain minimum reaction spacing, and leave nominal tunnel clearance for the craft.
+- Swept gate-plane tests detect obstacle contact between fixed simulation steps while a craft in the opening clears the gate.
 - Run large headless seed batches for every difficulty tier and each ship profile.
 - Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
 - Validate dynamic hazards over their full relevant timing window.

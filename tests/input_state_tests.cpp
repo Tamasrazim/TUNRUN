@@ -59,6 +59,12 @@ int main() {
 
     assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
     assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
+    const auto gate = tunrun::gateAt(seed, 3U);
+    assert(!tunrun::collidesWithGate(gate.offsetX, gate.offsetY, gate));
+    assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
+    assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
+    assert(!tunrun::crossesGatePlane(gate.distance + 0.5, gate.distance + 0.7, gate));
+    assert(tunrun::validateObstacleSet(seed, 64U).valid);
     assert(tunrun::deriveCourseSeed(seed, 0U) != tunrun::deriveCourseSeed(seed, 1U));
     const auto validation = tunrun::validateCourse(seed, 3600.0);
     assert(validation.valid && validation.samplesChecked > 4000U);
@@ -74,7 +80,9 @@ int main() {
         assert(std::abs(before.twist - after.twist) < 0.01F);
     }
     for (std::uint64_t sampleSeed = 0; sampleSeed < 24U; ++sampleSeed) {
-        assert(tunrun::validateCourse(tunrun::deriveCourseSeed(seed, sampleSeed), 1800.0).valid);
+        const auto generatedSeed = tunrun::deriveCourseSeed(seed, sampleSeed);
+        assert(tunrun::validateCourse(generatedSeed, 1800.0).valid);
+        assert(tunrun::validateObstacleSet(generatedSeed, 64U).valid);
     }
 
     tunrun::FlightState normal;

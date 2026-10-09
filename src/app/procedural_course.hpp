@@ -13,6 +13,11 @@ inline constexpr float kCourseMaxRadius = 6.15F;
 inline constexpr float kCourseMaxCenterX = 1.45F;
 inline constexpr float kCourseMaxCenterY = 1.05F;
 inline constexpr float kCourseMaxTwist = 0.38F;
+inline constexpr double kGateBaseDistance = 26.0;
+inline constexpr double kGateSpacing = 42.0;
+inline constexpr float kGateDepthHalfThickness = 0.40F;
+inline constexpr float kGateMinApertureRadius = 1.75F;
+inline constexpr float kGateMaxApertureRadius = 2.05F;
 
 struct TunnelCrossSection {
     float centerX = 0.0F;
@@ -26,6 +31,18 @@ struct CourseValidation {
     float minimumRadius = std::numeric_limits<float>::infinity();
     float maximumRadius = 0.0F;
     float maximumCenterOffset = 0.0F;
+    const char* failure = "not validated";
+};
+struct ProceduralGate {
+    std::uint32_t index = 0U;
+    double distance = 0.0;
+    float offsetX = 0.0F;
+    float offsetY = 0.0F;
+    float apertureRadius = 1.85F;
+};
+struct ObstacleValidation {
+    bool valid = false;
+    std::uint32_t gatesChecked = 0U;
     const char* failure = "not validated";
 };
 
@@ -112,6 +129,79 @@ inline std::uint64_t courseHash(std::uint64_t seed,
     }
     return hash;
 }
+inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
+    const double firstDistance = kGateBaseDistance +
+        static_cast<double>(courseUnit(seed, 0, 111U)) * 4.0;
+    return ProceduralGate{
+        index,
+        firstDistance + static_cast<double>(index) * kGateSpacing,
+        courseSigned(seed, static_cast<std::int64_t>(index), 121U) * 0.95F,
+        courseSigned(seed, static_cast<std::int64_t>(index), 122U) * 0.75F,
+        kGateMinApertureRadius +
+            courseUnit(seed, static_cast<std::int64_t>(index), 123U) *
+            (kGateMaxApertureRadius - kGateMinApertureRadius)
+    };
+}
+inline bool collidesWithGate(float x, float y, const ProceduralGate& gate,
+                             float craftRadius = 0.42F) noexcept {
+    if (!std::isfinite(x) || !std::isfinite(y) ||
+        !std::isfinite(gate.offsetX) || !std::isfinite(gate.offsetY) ||
+        !std::isfinite(gate.apertureRadius) || !std::isfinite(craftRadius)) return true;
+    const float safeRadius = gate.apertureRadius - std::max(0.0F, craftRadius);
+    if (safeRadius <= 0.0F) return true;
+    const float dx = x - gate.offsetX;
+    const float dy = y - gate.offsetY;
+    return dx * dx + dy * dy >= safeRadius * safeRadius;
+}
+inline bool crossesGatePlane(double previousDistance, double currentDistance,
+                             const ProceduralGate& gate) noexcept {
+    if (!std::isfinite(previousDistance) || !std::isfinite(currentDistance)) return true;
+    if (currentDistance < previousDistance) std::swap(previousDistance, currentDistance);
+    return previousDistance <= gate.distance + kGateDepthHalfThickness &&
+           currentDistance >= gate.distance - kGateDepthHalfThickness;
+}
+inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
+                                               std::uint32_t gateCount = 128U) noexcept {
+    ObstacleValidation result;
+    if (gateCount == 0U || gateCount > 10000U) {
+        result.failure = "invalid gate count";
+        return result;
+    }
+    double previousDistance = -1.0;
+    for (std::uint32_t i = 0; i < gateCount; ++i) {
+        const auto gate = gateAt(seed, i);
+        if (!std::isfinite(gate.distance) || gate.distance <= previousDistance) {
+            result.failure = "gate distances are not strictly increasing";
+            return result;
+        }
+        if (gate.index != i || gate.apertureRadius < kGateMinApertureRadius ||
+            gate.apertureRadius > kGateMaxApertureRadius) {
+            result.failure = "gate index/aperture outside bounds";
+            return result;
+        }
+        if (std::abs(gate.offsetX) > 0.95F || std::abs(gate.offsetY) > 0.75F) {
+            result.failure = "gate aperture offset outside bounds";
+            return result;
+        }
+        const float requiredRadius = std::sqrt(
+            gate.offsetX * gate.offsetX + gate.offsetY * gate.offsetY) +
+            gate.apertureRadius + 0.42F;
+        if (requiredRadius >= kCourseMinRadius) {
+            result.failure = "gate opening leaves nominal tunnel clearance";
+            return result;
+        }
+        if (i > 0U && gate.distance - previousDistance < kGateSpacing - 0.0001) {
+            result.failure = "gates overlap their reaction-distance budget";
+            return result;
+        }
+        previousDistance = gate.distance;
+        ++result.gatesChecked;
+    }
+    result.valid = true;
+    result.failure = "ok";
+    return result;
+}
+
 inline CourseValidation validateCourse(std::uint64_t seed, double length,
                                        double requestedStep = 0.75) noexcept {
     CourseValidation result;

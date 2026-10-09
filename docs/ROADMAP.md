@@ -39,10 +39,10 @@ Still required before M1 can pass:
 - Stable tangent-aligned local frames, taper/flare transitions, persistent user-entered seeds, and cross-platform hash fixtures remain outstanding.
 
 ## M4 — Generated obstacles and validation
-**Deliverable:** compositional procedural structures, moving geometry, clearance validator, dynamic reachability checks.
+**Status: in progress.** Generator v1 now places seed-derived aperture gates at deterministic distances, draws them in the course, sweeps craft movement through their collision planes, and validates aperture clearance and gate spacing. The Seed Lab reports course and obstacle validation.
 - Invalid candidates fail with reproducible diagnostics.
 - Batch tests cover seam continuity, obstacle clearance and reaction distances.
-- Generation runs ahead of the player without stalling a frame.
+- Moving hazards, broader reachability validation, and generation streaming remain outstanding.
 
 ## M5 — Save, resources, and hangar
 **Deliverable:** hidden local profile, backup/recovery, currency transactions, ship catalog and selection.

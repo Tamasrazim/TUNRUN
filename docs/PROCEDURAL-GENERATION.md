@@ -4,7 +4,9 @@
 
 Generator v1 uses a stateless 64-bit hash stream keyed by the run seed, control-node index, and parameter channel. Control nodes are spaced 18 normalized course units apart. Catmull-Rom interpolation produces bounded center offsets, tunnel radii, and cross-section twist without mutable global RNG state. The same analytic sampler feeds both the wireframe renderer and the tunnel-wall collision check. A canonical quantised parameter hash and bounded-range validator are available in code and surfaced in the Seed Lab.
 
-This is the first procedural geometry milestone, not the complete world generator. It does not yet create tangent-aligned 3D frames, obstacle topologies, dynamic hazard timelines, rewards, asynchronous streaming, or a reachable-state validator. The analytic centerline is currently a lateral/vertical path in a forward-aligned frame.
+The same subsystem now produces procedural aperture gates from an independent parameter channel: each gate has a deterministic distance, bounded lateral/vertical aperture offset, and bounded opening radius. Gate-plane crossing is tested using an interpolated craft position, and a gate-set validator checks spacing, parameter bounds, and nominal tunnel clearance. The Seed Lab exposes both course and gate validation.
+
+This remains an early world-generation baseline, not the complete generator. It does not yet create tangent-aligned 3D frames, multiple compositional obstacle grammars, moving hazard timelines, rewards, asynchronous streaming, or a reachable-state validator. The analytic centerline is currently a lateral/vertical path in a forward-aligned frame.
 
 ## Objective
 

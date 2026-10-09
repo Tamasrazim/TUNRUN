@@ -25,6 +25,8 @@ const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
+enum class CrashCause { Wall, Gate };
+
 struct AppState {
     tunrun::ScreenStack screens;
     int selectedShip = 0;
@@ -42,6 +44,7 @@ struct AppState {
     std::uint64_t rootSeed = 0;
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
+    CrashCause crashCause = CrashCause::Wall;
     float elapsed = 0.0F;
 };
 
@@ -199,6 +202,31 @@ Vector3 tunnelPoint(std::uint64_t seed, float distance, int ring, int side,
                    section.centerY - playerSection.centerY + std::sin(angle) * section.radius,
                    -depth};
 }
+void drawProceduralGate(std::uint64_t seed, float playerDistance,
+                        const tunrun::TunnelCrossSection& playerSection,
+                        const tunrun::ProceduralGate& gate) {
+    const float ahead = static_cast<float>(gate.distance - static_cast<double>(playerDistance));
+    if (ahead < -1.0F || ahead > 70.0F) return;
+    const auto courseAtGate = tunrun::sampleCourse(seed, gate.distance);
+    const float outerRadius = courseAtGate.radius - 0.24F;
+    const float gateCenterX = courseAtGate.centerX - playerSection.centerX + gate.offsetX;
+    const float gateCenterY = courseAtGate.centerY - playerSection.centerY + gate.offsetY;
+    const float courseCenterX = courseAtGate.centerX - playerSection.centerX;
+    const float courseCenterY = courseAtGate.centerY - playerSection.centerY;
+    constexpr int segments = 24;
+    const float z = -ahead;
+    for (int side = 0; side < segments; ++side) {
+        const float a0 = static_cast<float>(side) * 2.0F * PI / segments + courseAtGate.twist;
+        const float a1 = static_cast<float>(side + 1) * 2.0F * PI / segments + courseAtGate.twist;
+        const Vector3 outer0{courseCenterX + std::cos(a0) * outerRadius, courseCenterY + std::sin(a0) * outerRadius, z};
+        const Vector3 outer1{courseCenterX + std::cos(a1) * outerRadius, courseCenterY + std::sin(a1) * outerRadius, z};
+        const Vector3 inner0{gateCenterX + std::cos(a0) * gate.apertureRadius, gateCenterY + std::sin(a0) * gate.apertureRadius, z};
+        const Vector3 inner1{gateCenterX + std::cos(a1) * gate.apertureRadius, gateCenterY + std::sin(a1) * gate.apertureRadius, z};
+        DrawLine3D(outer0, outer1, Color{100, 130, 164, 220});
+        DrawLine3D(inner0, inner1, Color{200, 229, 255, 255});
+        if (side % 2 == 0) DrawLine3D(outer0, inner0, Color{76, 99, 125, 205});
+    }
+}
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 bool tpp, float boostEnergy) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
@@ -224,6 +252,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                            tunnelPoint(seed, distance, ring + 1, side, playerSection), Color{48, 65, 83, 125});
             }
         }
+    }
+    const auto firstGate = tunrun::gateAt(seed, 0U);
+    const int firstVisibleIndex = std::max(0, static_cast<int>(
+        std::floor((static_cast<double>(distance) - firstGate.distance) / tunrun::kGateSpacing)));
+    for (int i = firstVisibleIndex; i < firstVisibleIndex + 4; ++i) {
+        drawProceduralGate(seed, distance, playerSection,
+                           tunrun::gateAt(seed, static_cast<std::uint32_t>(i)));
     }
     if (tpp) {
         const Vector3 nose{shipX, shipY, -0.2F};
@@ -329,6 +364,9 @@ int main() {
                     steerX += padX;
                     steerY += padY;
                 }
+                const float previousX = app.flight.x;
+                const float previousY = app.flight.y;
+                const double previousDistance = app.flight.distance;
                 const tunrun::FlightInput flightInput{
                     std::clamp(steerX, -1.0F, 1.0F),
                     std::clamp(steerY, -1.0F, 1.0F),
@@ -345,9 +383,36 @@ int main() {
                 };
                 if (tunrun::collidesWithTunnelWall(
                         app.flight.x, app.flight.y, centredSection)) {
+                    app.crashCause = CrashCause::Wall;
                     app.screens.replace(tunrun::Screen::Crash);
+                } else {
+                    const auto firstGate = tunrun::gateAt(app.courseSeed, 0U);
+                    const int firstCandidate = std::max(0, static_cast<int>(
+                        std::floor((previousDistance - firstGate.distance) /
+                                   tunrun::kGateSpacing)) - 1);
+                    const int lastCandidate = std::max(firstCandidate, static_cast<int>(
+                        std::ceil((static_cast<double>(app.flight.distance) +
+                                   tunrun::kGateDepthHalfThickness - firstGate.distance) /
+                                  tunrun::kGateSpacing)) + 1);
+                    for (int gateIndex = firstCandidate; gateIndex <= lastCandidate; ++gateIndex) {
+                        const auto gate = tunrun::gateAt(app.courseSeed,
+                            static_cast<std::uint32_t>(gateIndex));
+                        if (!tunrun::crossesGatePlane(previousDistance, app.flight.distance, gate)) continue;
+                        const double travel = static_cast<double>(app.flight.distance) - previousDistance;
+                        const float fraction = travel > 1.0e-6
+                            ? static_cast<float>(std::clamp((gate.distance - previousDistance) / travel, 0.0, 1.0))
+                            : 0.0F;
+                        const float crossingX = previousX + (app.flight.x - previousX) * fraction;
+                        const float crossingY = previousY + (app.flight.y - previousY) * fraction;
+                        if (tunrun::collidesWithGate(crossingX, crossingY, gate)) {
+                            app.crashCause = CrashCause::Gate;
+                            app.screens.replace(tunrun::Screen::Crash);
+                            break;
+                        }
+                    }
                 }
-                if (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP)) tpp = !tpp;
+                if (app.screens.current() == tunrun::Screen::Preview &&
+                    (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP))) tpp = !tpp;
                 if (backPressed()) app.screens.push(tunrun::Screen::Pause);
             }
         }
@@ -458,7 +523,11 @@ int main() {
             break;
         }
         case tunrun::Screen::Crash: {
-            drawHeader("SYSTEM / FLIGHT TERMINATED", "WALL COLLISION", "Craft collision volume touched the tunnel boundary.");
+            drawHeader("SYSTEM / FLIGHT TERMINATED",
+                       app.crashCause == CrashCause::Gate ? "GATE COLLISION" : "WALL COLLISION",
+                       app.crashCause == CrashCause::Gate
+                           ? "Craft crossed an obstacle plane outside its safe aperture."
+                           : "Craft collision volume touched the tunnel boundary.");
             drawCentred(TextFormat("DISTANCE %.1f   SEED %016llX", app.flight.distance,
                                    static_cast<unsigned long long>(app.courseSeed)),
                         190.0F, 16, kAccent);
@@ -482,6 +551,7 @@ int main() {
         case tunrun::Screen::SeedLab: {
             drawHeader("03 / GENERATION", "SEED LAB", "Regenerate identical geometry from a seed; change the seed to explore another course.");
             const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
+            const auto gateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
                         175.0F, 22, kText);
             drawCentred(TextFormat("GENERATOR V%u   HASH %016llX", tunrun::kCourseGeneratorVersion,
@@ -494,7 +564,11 @@ int main() {
                                    validation.minimumRadius, validation.maximumRadius,
                                    validation.maximumCenterOffset),
                         266.0F, 13, kMuted);
-            const int picked = drawMenu(seedLabItems, seedLabSelection, 320, true);
+            drawCentred(TextFormat("OBSTACLES: %s   GATES CHECKED: %u",
+                                   gateValidation.valid ? "PASS" : "FAIL",
+                                   gateValidation.gatesChecked),
+                        288.0F, 13, gateValidation.valid ? kAccent : kDanger);
+            const int picked = drawMenu(seedLabItems, seedLabSelection, 340, true);
             if (picked == 0) chooseNextSeed(app);
             else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }
             else if (picked == 2) app.screens.pop();
