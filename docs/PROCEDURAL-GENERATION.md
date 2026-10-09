@@ -26,7 +26,7 @@ Each run has:
 - a ruleset/difficulty configuration;
 - a ship physics profile identifier.
 
-A text seed is normalised and hashed to the root seed. The course identity is the combination of root seed, generator version, ruleset, and relevant generation settings. Same identity must recreate the same canonical section parameters and underlying obstacle course.
+Text seed entry normalizes ASCII case and repeated whitespace before hashing into a root seed; a `0x`-prefixed or 16-character hexadecimal seed is parsed literally. The chosen root seed and run serial are persisted so the selected course identity can be reconstructed after restart. Course identity includes the root seed, generator version, ruleset, and relevant generation settings. The same identity must recreate the same canonical section parameters and obstacle course.
 
 Use deterministic pseudorandom streams derived independently from (root seed, generator version, section index, subsystem id). Separate streams are required for tunnel geometry, structural topology, obstacle motion, resources, and cosmetic variation. Adding a visual particle must not rearrange obstacle placement.
 

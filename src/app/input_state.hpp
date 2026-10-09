@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace tunrun {
-enum class Screen { MainMenu, Hangar, Modes, Settings, Credits, Preview, Pause, ExitConfirm, Crash, SeedLab, SaveRecovery };
+enum class Screen { MainMenu, Hangar, Modes, Settings, Credits, Preview, Pause, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
 
 // Converts a held state into one activation on the down edge.
 class ButtonEdge {

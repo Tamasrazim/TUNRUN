@@ -34,7 +34,9 @@ Gameplay-specific mouse checks:
 - Generate the same seed/version/ruleset twice and compare canonical course-data hashes.
 - Verify independent cosmetic changes do not change obstacle layouts.
 - Verify a new generator version is recorded explicitly and does not masquerade as the old course version.
-- Seed-entry parsing must reject empty/invalid input gracefully and normalise equivalent textual forms deterministically.
+- Seed-entry parsing must reject empty/invalid input gracefully, reject text over 64 characters and zero as a persisted root seed, normalize equivalent text consistently, and parse literal hexadecimal seeds without changing their numeric value.
+- Verify Seed Entry persists the root seed before transitioning into a run, restores previous in-memory profile values on save failure, and is reachable from both Seed Lab and Seed Challenge.
+- Verify keyboard typing/paste, mouse controls, and the gamepad character picker can enter a seed and apply/cancel without activating a background control.
 - A replay/ghost must reject incompatible generator or physics versions clearly.
 
 ## 3. Procedural playability

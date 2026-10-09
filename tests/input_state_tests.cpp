@@ -1,5 +1,6 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
+#include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
@@ -80,6 +81,20 @@ int main() {
     assert(stack.pop() && stack.current() == Screen::MainMenu);
     stack.reset();
     assert(stack.current() == Screen::MainMenu && stack.size() == 1U);
+    stack.push(Screen::SeedLab); stack.push(Screen::SeedEntry);
+    assert(stack.current()==Screen::SeedEntry);
+    assert(stack.pop() && stack.current()==Screen::SeedLab);
+    assert(stack.pop() && stack.current()==Screen::MainMenu);
+    const auto literal=tunrun::parseSeedText("0x0123456789abcdef");
+    assert(literal.valid && literal.hexadecimal && literal.seed==0x0123456789ABCDEFULL);
+    const auto bare=tunrun::parseSeedText("0123456789ABCDEF");
+    assert(bare.valid && bare.seed==literal.seed);
+    const auto textA=tunrun::parseSeedText("  White   Tunnel_7 ");
+    const auto textB=tunrun::parseSeedText("white tunnel_7");
+    assert(textA.valid && textB.valid && textA.seed==textB.seed && !textA.hexadecimal);
+    assert(!tunrun::parseSeedText("").valid && !tunrun::parseSeedText("0x").valid);
+    assert(!tunrun::parseSeedText("bad@seed").valid);
+    assert(!tunrun::parseSeedText(std::string(65U,'x')).valid);
 
     float mouseX = 0.0F;
     float mouseY = 0.0F;

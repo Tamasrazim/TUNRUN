@@ -1,5 +1,6 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
+#include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
@@ -35,6 +36,9 @@ struct AppState {
     int selectedShip = 0;
     int hangarPreviewShip = 0;
     std::string hangarMessage;
+    std::string seedEntryText;
+    std::string seedEntryMessage;
+    bool seedEntryHasError = false;
     int selectedMode = 0;
     bool showFps = true;
     bool reduceMotion = false;
@@ -85,7 +89,8 @@ bool rightPressed() {
     return IsKeyPressed(KEY_RIGHT) || padPressed(GAMEPAD_BUTTON_LEFT_FACE_RIGHT);
 }
 bool backPressed() {
-    return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT);
+    return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT) ||
+           padPressed(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT);
 }
 bool persistProfile(AppState& app, bool preserveBackup = false) {
     if (!app.profileWritable || app.profileRecoveryRequired) {
@@ -108,6 +113,11 @@ bool persistProfile(AppState& app, bool preserveBackup = false) {
     app.saveWarning = !result.success;
     app.saveWarningMessage = result.message;
     return result.success;
+}
+void beginSeedEntry(AppState& app) {
+    while (GetCharPressed() > 0) {}
+    app.seedEntryText = TextFormat("0x%016llX", static_cast<unsigned long long>(app.courseSeed));
+    app.seedEntryMessage.clear(); app.seedEntryHasError = false;
 }
 void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
@@ -464,7 +474,7 @@ int main() {
     }
     app.rootSeed = app.profile.rootSeed;
     app.runSerial = app.profile.runSerial;
-    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
+    app.courseSeed = app.runSerial == 0U ? app.rootSeed : tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
     app.showFps = app.profile.showFps;
     app.reduceMotion = app.profile.reduceMotion;
     app.mouseSteering = app.profile.mouseSteering;
@@ -489,7 +499,8 @@ int main() {
     }
 
     int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
-    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0, seedLabSelection = 0, recoverySelection = 0;
+    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
+        seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
         "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
@@ -497,7 +508,7 @@ int main() {
     };
     const std::vector<std::string> modes{
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
-        "SEED CHALLENGE (PLANNED)", "PRACTICE PREVIEW", "BACK"
+        "SEED CHALLENGE", "PRACTICE PREVIEW", "BACK"
     };
     const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
     const std::vector<std::string> settingsItems{
@@ -506,7 +517,10 @@ int main() {
     };
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
     const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
-    const std::vector<std::string> seedLabItems{"GENERATE NEW SEED", "START THIS SEED", "BACK"};
+    const std::vector<std::string> seedLabItems{
+        "ENTER CUSTOM SEED", "GENERATE NEW SEED", "START THIS SEED", "BACK"
+    };
+    const std::vector<std::string> seedEntryItems{"APPLY + START RUN", "CANCEL"};
     const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
@@ -719,8 +733,11 @@ int main() {
         case tunrun::Screen::Modes: {
             drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Practice opens the current seeded procedural course.");
             const int picked = drawMenu(modes, modesSelection, 192);
-            if (picked == 3) { resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); }
-            else if (picked == 4) app.screens.pop();
+            if (picked == 3) {
+                resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview);
+            } else if (picked == 2) {
+                beginSeedEntry(app); seedEntrySelection = 0; app.screens.push(tunrun::Screen::SeedEntry);
+            } else if (picked == 4) app.screens.pop();
             else if (picked >= 0) app.selectedMode = picked;
             if (backPressed()) app.screens.pop();
             break;
@@ -789,6 +806,70 @@ int main() {
             if (backPressed()) app.screens.reset();
             break;
         }
+        case tunrun::Screen::SeedEntry: {
+            drawHeader("03 / GENERATION", "SEED ENTRY",
+                       "Use reproducible text or a literal 64-bit hexadecimal seed.");
+            const bool pasteRequested = IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_V);
+            if (pasteRequested) {
+                const char* clipboard = GetClipboardText();
+                if (clipboard) for (const char* cursor=clipboard; *cursor && app.seedEntryText.size()<64U; ++cursor) {
+                    const unsigned char c=static_cast<unsigned char>(*cursor);
+                    if (c>=32U && c<=126U) app.seedEntryText.push_back(*cursor);
+                }
+                app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+            } else {
+                while (true) {
+                    const int character=GetCharPressed();
+                    if (character<=0) break;
+                    if (character>=32 && character<=126 && app.seedEntryText.size()<64U) app.seedEntryText.push_back(static_cast<char>(character));
+                    app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+                }
+            }
+            if (IsKeyPressed(KEY_BACKSPACE) && !app.seedEntryText.empty()) app.seedEntryText.pop_back();
+            if (IsKeyPressed(KEY_DELETE)) app.seedEntryText.clear();
+            static constexpr char chars[]="abcdefghijklmnopqrstuvwxyz0123456789 _-";
+            constexpr int charCount=static_cast<int>(sizeof(chars)-1U);
+            if (IsGamepadAvailable(0)) {
+                if (padPressed(GAMEPAD_BUTTON_LEFT_FACE_LEFT)) seedPickerIndex=(seedPickerIndex+charCount-1)%charCount;
+                else if (padPressed(GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) seedPickerIndex=(seedPickerIndex+1)%charCount;
+                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_LEFT) && app.seedEntryText.size()<64U) app.seedEntryText.push_back(chars[seedPickerIndex]);
+                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP) && !app.seedEntryText.empty()) app.seedEntryText.pop_back();
+            }
+            const Rectangle box{static_cast<float>(GetScreenWidth()/2-270),220.0F,540.0F,62.0F};
+            const bool hovered=CheckCollisionPointRec(GetMousePosition(),box);
+            DrawText("RUN SEED",static_cast<int>(box.x),193,14,kAccent);
+            DrawRectangleRounded(box,0.10F,8,hovered?Color{36,50,68,255}:kPanel);
+            DrawRectangleRoundedLinesEx(box,0.10F,8,1.4F,app.seedEntryHasError?kDanger:kAccent);
+            const std::string shown=app.seedEntryText.size()>30U?".."+app.seedEntryText.substr(app.seedEntryText.size()-30U):app.seedEntryText;
+            const int tx=static_cast<int>(box.x+16),ty=static_cast<int>(box.y+22);
+            DrawText(shown.c_str(),tx,ty,18,kText);
+            const int caret=std::min(static_cast<int>(box.x+box.width-14),tx+MeasureText(shown.c_str(),18)+3);
+            DrawLine(caret,ty-1,caret,ty+20,kAccent);
+            DrawText("TYPE/PASTE: 1-64 characters; case and repeated spaces are normalized.",50,300,13,kMuted);
+            DrawText("HEX: use 0x + up to 16 digits, or exactly 16 hexadecimal digits.",50,320,13,kMuted);
+            DrawText(TextFormat("CONTROLLER PICKER: [%c]  D-PAD LEFT/RIGHT, X ADD, Y DELETE",chars[seedPickerIndex]),50,340,13,kMuted);
+            if (!app.seedEntryMessage.empty()) drawCentred(app.seedEntryMessage.c_str(),363,13,app.seedEntryHasError?kDanger:kAccent);
+            const int picked=drawMenu(seedEntryItems,seedEntrySelection,390,true);
+            if (picked==0) {
+                const auto parsed=tunrun::parseSeedText(app.seedEntryText);
+                if (!parsed.valid) { app.seedEntryMessage=parsed.error; app.seedEntryHasError=true; }
+                else if (parsed.seed==0U) { app.seedEntryMessage="Seed 0 is reserved; choose a non-zero seed."; app.seedEntryHasError=true; }
+                else {
+                    const auto oldRoot=app.rootSeed, oldProfileRoot=app.profile.rootSeed;
+                    const auto oldSerial=app.runSerial, oldProfileSerial=app.profile.runSerial;
+                    app.rootSeed=parsed.seed; app.runSerial=0U;
+                    if (!persistProfile(app)) {
+                        const std::string saveError=app.saveWarningMessage;
+                        app.rootSeed=oldRoot; app.runSerial=oldSerial;
+                        app.profile.rootSeed=oldProfileRoot; app.profile.runSerial=oldProfileSerial;
+                        app.seedEntryMessage="Seed not saved: "+saveError; app.seedEntryHasError=true;
+                    } else {
+                        app.courseSeed=parsed.seed; resetFlight(app,tpp); app.screens.replace(tunrun::Screen::Preview);
+                    }
+                }
+            } else if (picked==1 || (picked<0 && backPressed())) app.screens.pop();
+            break;
+        }
         case tunrun::Screen::SeedLab: {
             drawHeader("03 / GENERATION", "SEED LAB", "Regenerate identical geometry from a seed; change the seed to explore another course.");
             const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
@@ -847,9 +928,11 @@ int main() {
                                    routeState.simulationSteps),
                         356.0F, 11, routeState.valid ? kAccent : kDanger);
             const int picked = drawMenu(seedLabItems, seedLabSelection, 384, true);
-            if (picked == 0) chooseNextSeed(app);
-            else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }
-            else if (picked == 2) app.screens.pop();
+            if (picked == 0) {
+                beginSeedEntry(app); seedEntrySelection=0; app.screens.push(tunrun::Screen::SeedEntry);
+            } else if (picked == 1) chooseNextSeed(app);
+            else if (picked == 2) { resetFlight(app,tpp); app.screens.push(tunrun::Screen::Preview); }
+            else if (picked == 3) app.screens.pop();
             if (IsKeyPressed(KEY_N)) chooseNextSeed(app);
             if (backPressed()) app.screens.pop();
             break;
