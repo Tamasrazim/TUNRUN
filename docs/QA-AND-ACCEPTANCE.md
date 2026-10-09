@@ -81,7 +81,8 @@ Gameplay-specific mouse checks:
 
 - Fresh install creates a valid profile after the first meaningful save.
 - Hidden attributes are applied on Windows where supported.
-- Restart restores settings, currency, unlocked ships, progress, and records.
+- Restart restores settings, currency, unlocked ships, progress, best distance, career-best score, and best combo.
+- Valid v1 and v2 profile fixtures migrate to v3; v2 checksum verification uses the original field set, and the legacy primary/backup is preserved during migration.
 - Corrupt primary file recovers from backup.
 - Corrupt primary and backup files trigger a recoverable UI path.
 - Interrupt the save during each write stage and verify at least one valid profile remains.
