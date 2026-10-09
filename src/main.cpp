@@ -793,6 +793,8 @@ int main() {
             drawHeader("03 / GENERATION", "SEED LAB", "Regenerate identical geometry from a seed; change the seed to explore another course.");
             const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
             const auto gateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
+            const auto reachability = tunrun::validateGateReachability(
+                app.courseSeed, 32U, static_cast<std::uint32_t>(app.selectedShip));
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
                         175.0F, 22, kText);
             drawCentred(TextFormat("GENERATOR V%u   HASH %016llX", tunrun::kCourseGeneratorVersion,
@@ -818,7 +820,16 @@ int main() {
                                    static_cast<unsigned long long>(
                                        tunrun::obstacleHash(app.courseSeed, 32U))),
                         311.0F, 11, kMuted);
-            const int picked = drawMenu(seedLabItems, seedLabSelection, 340, true);
+            const auto& screenShip = tunrun::shipDefinition(
+                static_cast<std::uint32_t>(app.selectedShip));
+            drawCentred(TextFormat("REACH %s: %s   SHIFT %.2F / ENVELOPE %.2F",
+                                   screenShip.name,
+                                   reachability.valid ? "PASS" : "FAIL",
+                                   reachability.maximumRequiredShift,
+                                   reachability.worstTransitionReachableShift +
+                                       reachability.worstTransitionAllowance),
+                        334.0F, 11, reachability.valid ? kAccent : kDanger);
+            const int picked = drawMenu(seedLabItems, seedLabSelection, 360, true);
             if (picked == 0) chooseNextSeed(app);
             else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }
             else if (picked == 2) app.screens.pop();

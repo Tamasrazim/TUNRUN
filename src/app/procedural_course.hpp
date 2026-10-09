@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "app/ship_catalog.hpp"
+
 namespace tunrun {
 inline constexpr std::uint32_t kCourseGeneratorVersion = 1U;
 inline constexpr double kCourseNodeSpacing = 18.0;
@@ -16,6 +18,7 @@ inline constexpr float kCourseMaxTwist = 0.38F;
 inline constexpr double kGateBaseDistance = 26.0;
 inline constexpr double kGateSpacing = 42.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
+inline constexpr float kCraftCollisionRadius = 0.42F;
 inline constexpr std::uint32_t kObstacleGeneratorVersion = 2U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
@@ -212,7 +215,7 @@ inline std::uint64_t obstacleHash(std::uint64_t seed,
     return hash;
 }
 inline bool collidesWithGate(float x, float y, const ProceduralGate& gate,
-                             float craftRadius = 0.42F) noexcept {
+                             float craftRadius = kCraftCollisionRadius) noexcept {
     if (!std::isfinite(x) || !std::isfinite(y) ||
         !std::isfinite(gate.offsetX) || !std::isfinite(gate.offsetY) ||
         !std::isfinite(gate.apertureRadius) || !std::isfinite(craftRadius)) return true;
@@ -285,6 +288,152 @@ inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
         }
         previousDistance = gate.distance;
         ++result.gatesChecked;
+    }
+    result.valid = true;
+    result.failure = "ok";
+    return result;
+}
+
+struct GateTransitionReachability {
+    bool valid = false;
+    double travelTime = 0.0;
+    float requiredShift = 0.0F;
+    float reachableShift = 0.0F;
+    float previousApertureAllowance = 0.0F;
+    float nextApertureAllowance = 0.0F;
+    float slack = -std::numeric_limits<float>::infinity();
+    const char* failure = "not validated";
+};
+
+struct ReachabilityValidation {
+    bool valid = false;
+    std::uint32_t gatesChecked = 0U;
+    std::uint32_t transitionsChecked = 0U;
+    std::uint32_t worstTransitionIndex = 0U;
+    float maximumRequiredShift = 0.0F;
+    float minimumReachableSlack = std::numeric_limits<float>::infinity();
+    float worstTransitionReachableShift = 0.0F;
+    float worstTransitionAllowance = 0.0F;
+    double minimumTravelTime = std::numeric_limits<double>::infinity();
+    const char* failure = "not validated";
+};
+
+// Screens each pair at the fastest forward pace (continuous boost), using the
+// ship's lateral speed and acceleration. Both aperture radii count as endpoint
+// tolerance. This is a conservative pairwise screen, not a proof for every
+// possible incoming velocity or a complete route-state simulation.
+inline GateTransitionReachability evaluateGateTransitionReachability(
+    const ProceduralGate& previous, const ProceduralGate& next,
+    std::uint32_t shipId) noexcept {
+    GateTransitionReachability result;
+    if (shipId >= kShipCatalog.size()) {
+        result.failure = "unknown ship profile";
+        return result;
+    }
+    if (!std::isfinite(previous.distance) || !std::isfinite(next.distance) ||
+        !std::isfinite(previous.offsetX) || !std::isfinite(previous.offsetY) ||
+        !std::isfinite(next.offsetX) || !std::isfinite(next.offsetY) ||
+        !std::isfinite(previous.apertureRadius) || !std::isfinite(next.apertureRadius)) {
+        result.failure = "non-finite gate parameter";
+        return result;
+    }
+
+    const double gapDistance = next.distance - previous.distance;
+    if (gapDistance < kGateSpacing - 0.0001) {
+        result.failure = "gate spacing is below the reaction budget";
+        return result;
+    }
+    result.previousApertureAllowance = previous.apertureRadius - kCraftCollisionRadius;
+    result.nextApertureAllowance = next.apertureRadius - kCraftCollisionRadius;
+    if (result.previousApertureAllowance <= 0.0F ||
+        result.nextApertureAllowance <= 0.0F) {
+        result.failure = "gate opening is smaller than the craft collision radius";
+        return result;
+    }
+
+    const auto& ship = shipDefinition(shipId);
+    const double maximumForwardSpeed = 16.0 * static_cast<double>(ship.speedMultiplier);
+    const double maximumLateralSpeed = 6.0 * static_cast<double>(ship.speedMultiplier);
+    const double lateralAcceleration = 10.0 * static_cast<double>(ship.accelerationMultiplier);
+    if (!std::isfinite(maximumForwardSpeed) || maximumForwardSpeed <= 0.0 ||
+        !std::isfinite(maximumLateralSpeed) || maximumLateralSpeed <= 0.0 ||
+        !std::isfinite(lateralAcceleration) || lateralAcceleration <= 0.0) {
+        result.failure = "ship movement profile is invalid";
+        return result;
+    }
+
+    result.travelTime = gapDistance / maximumForwardSpeed;
+    const double accelerationTime = maximumLateralSpeed / lateralAcceleration;
+    const double reachable = result.travelTime <= accelerationTime
+        ? 0.5 * lateralAcceleration * result.travelTime * result.travelTime
+        : 0.5 * lateralAcceleration * accelerationTime * accelerationTime +
+          maximumLateralSpeed * (result.travelTime - accelerationTime);
+    const double dx = static_cast<double>(next.offsetX) - previous.offsetX;
+    const double dy = static_cast<double>(next.offsetY) - previous.offsetY;
+    const double requiredShift = std::sqrt(dx * dx + dy * dy);
+    const double totalAllowance = reachable +
+        result.previousApertureAllowance + result.nextApertureAllowance;
+    if (!std::isfinite(result.travelTime) || !std::isfinite(reachable) ||
+        !std::isfinite(requiredShift) || !std::isfinite(totalAllowance)) {
+        result.failure = "non-finite reachability calculation";
+        return result;
+    }
+
+    result.requiredShift = static_cast<float>(requiredShift);
+    result.reachableShift = static_cast<float>(reachable);
+    result.slack = static_cast<float>(totalAllowance - requiredShift);
+    if (result.slack < -0.0001F) {
+        result.failure = "gate transition exceeds the ship reachable envelope";
+        return result;
+    }
+    result.valid = true;
+    result.failure = "ok";
+    return result;
+}
+
+inline ReachabilityValidation validateGateReachability(
+    std::uint64_t seed, std::uint32_t gateCount = 128U,
+    std::uint32_t shipId = kStarterShipId) noexcept {
+    ReachabilityValidation result;
+    if (gateCount == 0U || gateCount > 10000U) {
+        result.failure = "invalid gate count";
+        return result;
+    }
+    if (shipId >= kShipCatalog.size()) {
+        result.failure = "unknown ship profile";
+        return result;
+    }
+    const auto obstacles = validateObstacleSet(seed, gateCount);
+    if (!obstacles.valid) {
+        result.failure = obstacles.failure;
+        return result;
+    }
+
+    result.gatesChecked = 1U;
+    auto previous = gateAt(seed, 0U);
+    for (std::uint32_t i = 1U; i < gateCount; ++i) {
+        const auto next = gateAt(seed, i);
+        const auto transition = evaluateGateTransitionReachability(previous, next, shipId);
+        if (!transition.valid) {
+            result.worstTransitionIndex = i;
+            result.maximumRequiredShift = std::max(
+                result.maximumRequiredShift, transition.requiredShift);
+            result.failure = transition.failure;
+            return result;
+        }
+        ++result.transitionsChecked;
+        ++result.gatesChecked;
+        result.maximumRequiredShift = std::max(
+            result.maximumRequiredShift, transition.requiredShift);
+        if (transition.slack < result.minimumReachableSlack) {
+            result.minimumReachableSlack = transition.slack;
+            result.worstTransitionIndex = i;
+            result.worstTransitionReachableShift = transition.reachableShift;
+            result.worstTransitionAllowance =
+                transition.previousApertureAllowance + transition.nextApertureAllowance;
+        }
+        result.minimumTravelTime = std::min(result.minimumTravelTime, transition.travelTime);
+        previous = next;
     }
     result.valid = true;
     result.failure = "ok";

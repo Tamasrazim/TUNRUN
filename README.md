@@ -9,7 +9,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
 - **Curving 3D tunnels:** changing centerlines, cross-sections, twists, widths, entrances, and transitions.
-- **Fair unpredictability:** generated content is validated for clearance, reachability, warning time, and player movement limits.
+- **Fair unpredictability:** geometry bounds, gate clearance and reaction spacing are validated. A ship-specific pairwise kinematic reachability screen is now included; a full propagated-state proof and warning-time validation remain unfinished.
 - **FPP and TPP:** switch between first-person and third-person cameras without resetting the run.
 - **Three input families:** keyboard, mouse, and gamepad operate gameplay and every UI screen.
 - **AI pilots and drones:** bots navigate the same generated world and obey the same collision rules.

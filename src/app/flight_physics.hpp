@@ -27,7 +27,6 @@ struct FlightInput {
 };
 
 inline constexpr float kFlightLimit = 6.5F;
-inline constexpr float kCraftCollisionRadius = 0.42F;
 inline constexpr float kFlightFixedStep = 1.0F / 120.0F;
 
 inline bool collidesWithTunnelWall(float x, float y,

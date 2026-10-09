@@ -132,6 +132,33 @@ int main() {
     }
     assert(seenStandard && seenPrecision && seenOffset && seenWide);
     assert(tunrun::validateObstacleSet(seed, 64U).valid);
+
+    // Check adjacent gate transitions against every ship profile at maximum
+    // forward (boost) speed, using each ship's actual handling parameters.
+    for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
+        const auto reachability = tunrun::validateGateReachability(seed, 512U, shipId);
+        assert(reachability.valid);
+        assert(reachability.gatesChecked == 512U);
+        assert(reachability.transitionsChecked == 511U);
+        assert(reachability.minimumReachableSlack >= -0.0001F);
+        assert(reachability.minimumTravelTime > 0.0);
+    }
+    assert(!tunrun::validateGateReachability(seed, 0U).valid);
+    assert(!tunrun::validateGateReachability(seed, 10001U).valid);
+    assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
+
+    auto impossiblePrevious = tunrun::gateAt(seed, 0U);
+    auto impossibleNext = tunrun::gateAt(seed, 1U);
+    impossibleNext.offsetX = 100.0F;
+    const auto impossibleTransition = tunrun::evaluateGateTransitionReachability(
+        impossiblePrevious, impossibleNext, tunrun::kStarterShipId);
+    assert(!impossibleTransition.valid);
+    assert(impossibleTransition.failure[0] != '\\0');
+    impossibleNext = tunrun::gateAt(seed, 1U);
+    impossibleNext.distance = impossiblePrevious.distance + 0.5;
+    assert(!tunrun::evaluateGateTransitionReachability(
+        impossiblePrevious, impossibleNext, tunrun::kStarterShipId).valid);
+
     assert(tunrun::deriveCourseSeed(seed, 0U) != tunrun::deriveCourseSeed(seed, 1U));
     const auto validation = tunrun::validateCourse(seed, 3600.0);
     assert(validation.valid && validation.samplesChecked > 4000U);
@@ -150,6 +177,11 @@ int main() {
         const auto generatedSeed = tunrun::deriveCourseSeed(seed, sampleSeed);
         assert(tunrun::validateCourse(generatedSeed, 1800.0).valid);
         assert(tunrun::validateObstacleSet(generatedSeed, 64U).valid);
+        for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
+            const auto reachability =
+                tunrun::validateGateReachability(generatedSeed, 64U, shipId);
+            assert(reachability.valid && reachability.transitionsChecked == 63U);
+        }
     }
 
     tunrun::FlightState normal;
