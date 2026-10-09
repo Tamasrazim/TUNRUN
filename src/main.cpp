@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -37,6 +39,9 @@ struct AppState {
     bool exitRequested = false;
     tunrun::FlightState flight;
     float flightAccumulator = 0.0F;
+    std::uint64_t rootSeed = 0;
+    std::uint64_t courseSeed = 0;
+    std::uint64_t runSerial = 0;
     float elapsed = 0.0F;
 };
 
@@ -63,6 +68,15 @@ bool rightPressed() {
 }
 bool backPressed() {
     return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT);
+}
+void resetFlight(AppState& app, bool& tpp) {
+    app.flight = {};
+    app.flightAccumulator = 0.0F;
+    app.elapsed = 0.0F;
+    tpp = false;
+}
+void chooseNextSeed(AppState& app) {
+    app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial++);
 }
 
 void drawCentred(const char* text, float y, int fontSize, Color color) {
@@ -174,19 +188,20 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
     DrawLine(50, 143, GetScreenWidth() - 50, 143, kEdge);
 }
 
-Vector3 tunnelPoint(float time, int ring, int side) {
-    constexpr int sides = 12;
-    const float z = -static_cast<float>(ring) * 3.0F;
-    const float depth = -z;
-    const auto section = tunrun::sampleTunnel(time, depth);
-    const float angle = static_cast<float>(side) * 2.0F * PI / sides +
-                        time * 0.08F + depth * 0.012F;
-    return Vector3{section.centerX + std::cos(angle) * section.radius,
-                   section.centerY + std::sin(angle) * section.radius, z};
+Vector3 tunnelPoint(std::uint64_t seed, float distance, int ring, int side,
+                    const tunrun::TunnelCrossSection& playerSection) {
+    constexpr int sides = 16;
+    constexpr float ringSpacing = 3.0F;
+    const float depth = static_cast<float>(ring) * ringSpacing;
+    const auto section = tunrun::sampleCourse(seed, static_cast<double>(distance) + depth);
+    const float angle = static_cast<float>(side) * 2.0F * PI / sides + section.twist;
+    return Vector3{section.centerX - playerSection.centerX + std::cos(angle) * section.radius,
+                   section.centerY - playerSection.centerY + std::sin(angle) * section.radius,
+                   -depth};
 }
-
-void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedMotion, float boostEnergy) {
-    const float time = reducedMotion ? 0.0F : elapsed;
+void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
+                bool tpp, float boostEnergy) {
+    const auto playerSection = tunrun::sampleCourse(seed, distance);
     Camera3D camera{};
     camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
                            : Vector3{shipX, shipY, 1.5F};
@@ -197,16 +212,16 @@ void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedM
     ClearBackground(kBackground);
     BeginMode3D(camera);
     constexpr int ringCount = 23;
-    constexpr int sideCount = 12;
+    constexpr int sideCount = 16;
     for (int ring = 0; ring < ringCount; ++ring) {
         const Color ringColor = ring % 4 == 0
             ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
         for (int side = 0; side < sideCount; ++side) {
-            DrawLine3D(tunnelPoint(time, ring, side),
-                       tunnelPoint(time, ring, (side + 1) % sideCount), ringColor);
+            DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
+                       tunnelPoint(seed, distance, ring, (side + 1) % sideCount, playerSection), ringColor);
             if (ring + 1 < ringCount) {
-                DrawLine3D(tunnelPoint(time, ring, side),
-                           tunnelPoint(time, ring + 1, side), Color{48, 65, 83, 125});
+                DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
+                           tunnelPoint(seed, distance, ring + 1, side, playerSection), Color{48, 65, 83, 125});
             }
         }
     }
@@ -224,11 +239,12 @@ void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedM
     EndMode3D();
     DrawRectangle(22, 18, 344, 106, Color{10, 14, 21, 225});
     DrawRectangleLines(22, 18, 344, 106, kEdge);
-    DrawText("TUNRUN / M2 FLIGHT PROTOTYPE", 35, 30, 15, kAccent);
+    DrawText("TUNRUN / M3 SEEDED COURSE", 35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
-    DrawText(TextFormat("BOOST ENERGY: %3.0f%%", boostEnergy), 35, 74, 13, kText);
-    DrawRectangle(187, 78, 155, 8, Color{42, 51, 64, 255});
-    DrawRectangle(187, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
+    DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
+    DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
+    DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
+    DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 98, 12, kMuted);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -248,11 +264,16 @@ int main() {
     rawMouse.install(GetWindowHandle());
 
     AppState app;
+    const auto clockSeed = static_cast<std::uint64_t>(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    app.rootSeed = tunrun::mixCourseBits(clockSeed);
+    chooseNextSeed(app);
     int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
-    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0;
+    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0, seedLabSelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
-        "PLAY / FLIGHT TESTBED", "HANGAR", "GAME MODES", "SETTINGS", "CREDITS", "EXIT"
+        "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
+        "SETTINGS", "CREDITS", "EXIT"
     };
     const std::vector<std::string> ships{
         "DRIFTWING", "WRAITH", "BULWARK", "MANTA",
@@ -268,7 +289,8 @@ int main() {
         "MOUSE STEERING", "BACK"
     };
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
-    const std::vector<std::string> crashItems{"RETRY FLIGHT", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> seedLabItems{"GENERATE NEW SEED", "START THIS SEED", "BACK"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const float dt = std::min(GetFrameTime(), 0.05F);
@@ -316,9 +338,13 @@ int main() {
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 applyRelativeMouseSteering(app.flight.x, app.flight.y, mouseDelta,
                                            app.mouseSensitivity, tunrun::kFlightLimit);
-                const auto tunnelSection = tunrun::sampleTunnel(
-                    app.reduceMotion ? 0.0F : app.elapsed, 0.0F);
-                if (tunrun::collidesWithTunnelWall(app.flight.x, app.flight.y, tunnelSection)) {
+                const auto tunnelSection = tunrun::sampleCourse(
+                    app.courseSeed, static_cast<double>(app.flight.distance));
+                const tunrun::TunnelCrossSection centredSection{
+                    0.0F, 0.0F, tunnelSection.radius, tunnelSection.twist
+                };
+                if (tunrun::collidesWithTunnelWall(
+                        app.flight.x, app.flight.y, centredSection)) {
                     app.screens.replace(tunrun::Screen::Crash);
                 }
                 if (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP)) tpp = !tpp;
@@ -328,7 +354,7 @@ int main() {
 
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
-            drawTunnel(app.elapsed, app.flight.x, app.flight.y, tpp, app.reduceMotion, app.flight.boostEnergy);
+            drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y, tpp, app.flight.boostEnergy);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };
@@ -345,16 +371,17 @@ int main() {
         case tunrun::Screen::MainMenu: {
             drawCentred("T U N R U N", 56.0F, 54, kText);
             drawCentred("PROCEDURAL TUNNEL RUNNER", 116.0F, 16, kAccent);
-            drawCentred("APPLICATION SHELL / MILESTONE M1", 141.0F, 12, kMuted);
+            drawCentred("SEEDED PROCEDURAL FLIGHT / MILESTONE M3", 141.0F, 12, kMuted);
             const int picked = drawMenu(mainItems, mainSelection, 185);
             if (picked >= 0) {
                 switch (picked) {
-                case 0: app.flight = {}; app.flightAccumulator = 0.0F; app.elapsed = 0.0F; tpp = false; app.screens.push(tunrun::Screen::Preview); break;
+                case 0: resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); break;
                 case 1: app.screens.push(tunrun::Screen::Hangar); break;
                 case 2: app.screens.push(tunrun::Screen::Modes); break;
-                case 3: app.screens.push(tunrun::Screen::Settings); break;
-                case 4: app.screens.push(tunrun::Screen::Credits); break;
-                case 5: app.screens.push(tunrun::Screen::ExitConfirm); break;
+                case 3: app.screens.push(tunrun::Screen::SeedLab); break;
+                case 4: app.screens.push(tunrun::Screen::Settings); break;
+                case 5: app.screens.push(tunrun::Screen::Credits); break;
+                case 6: app.screens.push(tunrun::Screen::ExitConfirm); break;
                 default: break;
                 }
             }
@@ -390,9 +417,9 @@ int main() {
             break;
         }
         case tunrun::Screen::Modes: {
-            drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Only Practice Preview opens the current visual testbed.");
+            drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Practice opens the current seeded procedural course.");
             const int picked = drawMenu(modes, modesSelection, 192);
-            if (picked == 3) { app.flight = {}; app.flightAccumulator = 0.0F; app.elapsed = 0.0F; tpp = false; app.screens.push(tunrun::Screen::Preview); }
+            if (picked == 3) { resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); }
             else if (picked == 4) app.screens.pop();
             else if (picked >= 0) app.selectedMode = picked;
             if (backPressed()) app.screens.pop();
@@ -432,18 +459,47 @@ int main() {
         }
         case tunrun::Screen::Crash: {
             drawHeader("SYSTEM / FLIGHT TERMINATED", "WALL COLLISION", "Craft collision volume touched the tunnel boundary.");
-            drawCentred("Flight simulation stopped. Retry with the same input devices.", 195.0F, 16, kMuted);
-            const int picked = drawMenu(crashItems, crashSelection, 260, true);
+            drawCentred(TextFormat("DISTANCE %.1f   SEED %016llX", app.flight.distance,
+                                   static_cast<unsigned long long>(app.courseSeed)),
+                        190.0F, 16, kAccent);
+            drawCentred(TextFormat("CANONICAL COURSE HASH %016llX",
+                                   static_cast<unsigned long long>(tunrun::courseHash(app.courseSeed))),
+                        220.0F, 14, kMuted);
+            const int picked = drawMenu(crashItems, crashSelection, 265, true);
             if (picked == 0) {
-                app.flight = {};
-                app.flightAccumulator = 0.0F;
-                app.elapsed = 0.0F;
-                tpp = false;
+                resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
             } else if (picked == 1) {
+                chooseNextSeed(app);
+                resetFlight(app, tpp);
+                app.screens.replace(tunrun::Screen::Preview);
+            } else if (picked == 2) {
                 app.screens.reset();
             }
             if (backPressed()) app.screens.reset();
+            break;
+        }
+        case tunrun::Screen::SeedLab: {
+            drawHeader("03 / GENERATION", "SEED LAB", "Regenerate identical geometry from a seed; change the seed to explore another course.");
+            const auto validation = tunrun::validateCourse(app.courseSeed, 360.0);
+            drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
+                        175.0F, 22, kText);
+            drawCentred(TextFormat("GENERATOR V%u   HASH %016llX", tunrun::kCourseGeneratorVersion,
+                                   static_cast<unsigned long long>(tunrun::courseHash(app.courseSeed))),
+                        215.0F, 15, kAccent);
+            drawCentred(TextFormat("VALIDATOR: %s   SAMPLES: %u",
+                                   validation.valid ? "PASS" : "FAIL", validation.samplesChecked),
+                        243.0F, 14, validation.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("RADIUS %.2f-%.2f   MAX CENTRE OFFSET %.2f",
+                                   validation.minimumRadius, validation.maximumRadius,
+                                   validation.maximumCenterOffset),
+                        266.0F, 13, kMuted);
+            const int picked = drawMenu(seedLabItems, seedLabSelection, 320, true);
+            if (picked == 0) chooseNextSeed(app);
+            else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }
+            else if (picked == 2) app.screens.pop();
+            if (IsKeyPressed(KEY_N)) chooseNextSeed(app);
+            if (backPressed()) app.screens.pop();
             break;
         }
         case tunrun::Screen::ExitConfirm: {

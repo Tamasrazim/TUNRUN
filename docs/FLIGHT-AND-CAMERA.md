@@ -1,6 +1,6 @@
 # Flight, Physics, and Camera Specification
 
-Status: **prototype in progress**. The current M2 slice implements fixed-step lateral/vertical acceleration, boost energy, precision steering, and collision against the analytically sampled tunnel wall. Tuning and broader acceptance testing remain.
+Status: **prototype in progress**. Flight now advances along a seeded analytic course using a fixed 120 Hz lateral/vertical controller. Boost energy, precision steering, forward distance, wall collision, and a retry path are implemented. Tuning, camera-frame upgrades, and broader acceptance testing remain.
 
 ## Flight model
 
@@ -21,7 +21,7 @@ Simulation should use a fixed timestep or controlled accumulator. Render frames 
 
 Flight parameters must be data-driven by a ship profile. Do not hard-code ship identity into physics branches.
 
-The current prototype has a 120 Hz fixed-step lateral/vertical simulation. The wireframe tunnel and collision check use the same analytical cross-section function for the test course. This is a first collision proxy, not yet the final generated-world collision system.
+The current prototype has a 120 Hz fixed-step lateral/vertical simulation. The wireframe tunnel and wall check use the same seeded course sampler. The course currently bends within a forward-aligned frame; a tangent-aligned 3D frame and obstacle collision are not implemented yet.
 
 ## Initial prototype tuning targets
 

@@ -1,15 +1,11 @@
 #pragma once
 
+#include "app/procedural_course.hpp"
+
 #include <algorithm>
 #include <cmath>
 
 namespace tunrun {
-
-struct TunnelCrossSection {
-    float centerX = 0.0F;
-    float centerY = 0.0F;
-    float radius = 5.5F;
-};
 
 struct FlightState {
     float x = 0.0F;
@@ -17,6 +13,7 @@ struct FlightState {
     float velocityX = 0.0F;
     float velocityY = 0.0F;
     float boostEnergy = 100.0F;
+    float distance = 0.0F;
 };
 
 struct FlightInput {
@@ -29,18 +26,6 @@ struct FlightInput {
 inline constexpr float kFlightLimit = 6.5F;
 inline constexpr float kCraftCollisionRadius = 0.42F;
 inline constexpr float kFlightFixedStep = 1.0F / 120.0F;
-
-inline TunnelCrossSection sampleTunnel(float time, float depth = 0.0F) noexcept {
-    if (!std::isfinite(time)) time = 0.0F;
-    if (!std::isfinite(depth) || depth < 0.0F) depth = 0.0F;
-    const float centerX =
-        std::sin(time * 0.55F + depth * 0.024F) * (0.25F + depth * 0.008F);
-    const float centerY =
-        std::sin(time * 0.35F + depth * 0.017F) * depth * 0.004F;
-    const float radius =
-        5.5F + 0.65F * std::sin(time * 0.7F + depth * 0.031F);
-    return TunnelCrossSection{centerX, centerY, radius};
-}
 
 inline bool collidesWithTunnelWall(float x, float y,
                                    const TunnelCrossSection& section,
@@ -83,6 +68,8 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
                                acceleration * dt);
     state.x += state.velocityX * dt;
     state.y += state.velocityY * dt;
+    const float forwardSpeed = precision ? 8.0F : (boosting ? 16.0F : 11.0F);
+    state.distance += forwardSpeed * dt;
 
     const float energyDelta = boosting ? -38.0F * dt : 18.0F * dt;
     state.boostEnergy = std::clamp(state.boostEnergy + energyDelta, 0.0F, 100.0F);

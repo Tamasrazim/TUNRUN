@@ -3,7 +3,7 @@
 
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
-The repository has moved into native implementation. The menu/input shell is in source, and **M2 flight work is in progress**: a 120 Hz fixed-step steering prototype, boost energy, precision steering, a shared test-tunnel cross-section, wall collision, and a retry screen. Windows CI compiles, runs unit tests, and publishes a temporary development artifact. This is an early development build—not a complete game.
+The repository has moved into native implementation. **M3 procedural geometry is in progress**: seeded tunnel centerline/cross-section generation, smooth interpolated control nodes, a canonical course hash, a bounded-range validator, and an in-game Seed Lab. The 120 Hz flight prototype also has forward motion, boost energy, precision steering, wall collision, and retry controls. Windows CI compiles, runs unit tests, and publishes a temporary development artifact. This is an early development build—not a complete game.
 
 ## Core pillars
 
@@ -57,4 +57,4 @@ All changes are committed directly to `main`. The project does **not** use other
 
 ## Current status
 
-**M1 is in progress.** The native menu shell and visual tunnel input testbed exist in source. The Windows CI run is the source of truth for build/test status; check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions). Flight physics, collision, robust Windows Raw Input steering, procedural generation, real hangar assets, persistence, AI, economy, installer and updater are not complete. No finished game is claimed.
+**M3 is in progress.** The native menu shell, relative mouse steering, fixed-step flight, boost, initial wall collision, seeded course generation and Seed Lab exist in source. Course generation remains a first-stage implementation; obstacles, tangent-aligned local frames, save persistence, AI, economy, assets, installer and updater are unfinished. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.

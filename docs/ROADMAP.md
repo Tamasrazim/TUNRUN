@@ -33,9 +33,10 @@ Still required before M1 can pass:
 - Wall, obstacle, pause/resume and controller tests pass; obstacle collision and the manual hardware matrix remain outstanding.
 
 ## M3 — Deterministic procedural geometry
-**Deliverable:** seeded centerlines, stable local frames, configurable cross-sections, seamless section joins, test seed viewer.
+**Status: in progress.** Generator v1 now produces seeded centerline offsets, bounded radii and twist, Catmull-Rom joins, a canonical course hash, a bounded-parameter validator, and an in-game Seed Lab. Rendering and wall collision read the same seeded cross-section data.
 - Same seed/version/ruleset produces the same canonical course hash.
-- Curves, twist, taper, flare and cross-section variations remain inside declared bounds.
+- Curves, twist and cross-section parameters stay within generator bounds.
+- Stable tangent-aligned local frames, taper/flare transitions, persistent user-entered seeds, and cross-platform hash fixtures remain outstanding.
 
 ## M4 — Generated obstacles and validation
 **Deliverable:** compositional procedural structures, moving geometry, clearance validator, dynamic reachability checks.

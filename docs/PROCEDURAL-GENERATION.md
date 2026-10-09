@@ -1,5 +1,11 @@
 # Procedural Generation Specification
 
+## Implemented generator baseline
+
+Generator v1 uses a stateless 64-bit hash stream keyed by the run seed, control-node index, and parameter channel. Control nodes are spaced 18 normalized course units apart. Catmull-Rom interpolation produces bounded center offsets, tunnel radii, and cross-section twist without mutable global RNG state. The same analytic sampler feeds both the wireframe renderer and the tunnel-wall collision check. A canonical quantised parameter hash and bounded-range validator are available in code and surfaced in the Seed Lab.
+
+This is the first procedural geometry milestone, not the complete world generator. It does not yet create tangent-aligned 3D frames, obstacle topologies, dynamic hazard timelines, rewards, asynchronous streaming, or a reachable-state validator. The analytic centerline is currently a lateral/vertical path in a forward-aligned frame.
+
 ## Objective
 
 Generate continuously new tunnel geometry and obstacle arrangements from a run seed. This must be a genuine procedural system—not a sequence of finished obstacle prefabs selected from a small list.

@@ -49,12 +49,33 @@ int main() {
     applyRelativeMouseSteering(mouseX, mouseY, RelativeMouseDelta{1.0F, 1.0F}, -1.0F);
     assert(mouseX == 3.1F && mouseY == 3.1F);
 
-    const auto section = tunrun::sampleTunnel(1.25F, 0.0F);
-    assert(section.radius > 4.8F && section.radius < 6.2F);
-    assert(!tunrun::collidesWithTunnelWall(section.centerX, section.centerY, section));
+    constexpr std::uint64_t seed = 0x123456789ABCDEF0ULL;
+    const auto section = tunrun::sampleCourse(seed, 1.25);
+    assert(section.radius >= tunrun::kCourseMinRadius && section.radius <= tunrun::kCourseMaxRadius);
+    const tunrun::TunnelCrossSection centredSection{0.0F, 0.0F, section.radius, section.twist};
+    assert(!tunrun::collidesWithTunnelWall(0.0F, 0.0F, centredSection));
     const float safeRadius = section.radius - tunrun::kCraftCollisionRadius;
-    assert(tunrun::collidesWithTunnelWall(section.centerX + safeRadius + 0.01F,
-                                         section.centerY, section));
+    assert(tunrun::collidesWithTunnelWall(safeRadius + 0.01F, 0.0F, centredSection));
+
+    assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
+    assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
+    assert(tunrun::deriveCourseSeed(seed, 0U) != tunrun::deriveCourseSeed(seed, 1U));
+    const auto validation = tunrun::validateCourse(seed, 3600.0);
+    assert(validation.valid && validation.samplesChecked > 4000U);
+    assert(validation.minimumRadius >= tunrun::kCourseMinRadius);
+    assert(validation.maximumRadius <= tunrun::kCourseMaxRadius);
+    for (int node = 1; node < 30; ++node) {
+        const double seam = static_cast<double>(node) * tunrun::kCourseNodeSpacing;
+        const auto before = tunrun::sampleCourse(seed, seam - 0.001);
+        const auto after = tunrun::sampleCourse(seed, seam + 0.001);
+        assert(std::abs(before.centerX - after.centerX) < 0.01F);
+        assert(std::abs(before.centerY - after.centerY) < 0.01F);
+        assert(std::abs(before.radius - after.radius) < 0.01F);
+        assert(std::abs(before.twist - after.twist) < 0.01F);
+    }
+    for (std::uint64_t sampleSeed = 0; sampleSeed < 24U; ++sampleSeed) {
+        assert(tunrun::validateCourse(tunrun::deriveCourseSeed(seed, sampleSeed), 1800.0).valid);
+    }
 
     tunrun::FlightState normal;
     tunrun::FlightState precision;
@@ -93,6 +114,8 @@ int main() {
     assert(std::abs(at30.x - at120.x) < 0.01F);
     assert(std::abs(at30.y - at60.y) < 0.01F);
     assert(std::abs(at30.y - at120.y) < 0.01F);
+    assert(std::abs(at30.distance - at60.distance) < 0.01F);
+    assert(std::abs(at30.distance - at120.distance) < 0.01F);
 
-    std::cout << "TUNRUN input and flight-physics tests passed.\n";
+    std::cout << "TUNRUN input, physics, and procedural-course tests passed.\n";
 }
