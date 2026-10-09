@@ -6,6 +6,7 @@
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
+#include "app/run_results.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -1534,12 +1535,12 @@ int main() {
                                    static_cast<unsigned long long>(app.profile.bestCombo),
                                    static_cast<unsigned long long>(app.runScore.cleanPasses)),
                         298.0F, 11, kMuted);
-            if (app.newBestScore || app.newBestCombo) {
-                const char* recordMessage = app.newBestScore && app.newBestCombo
-                    ? "NEW SCORE + COMBO RECORD"
-                    : app.newBestScore ? "NEW PERSONAL SCORE RECORD"
-                                       : "NEW PERSONAL COMBO RECORD";
-                drawCentred(recordMessage, 312.0F, 11, kAccent);
+            const char* resultNotice = tunrun::runResultNoticeText(
+                tunrun::classifyRunResultNotice(
+                    app.saveWarning, app.newBestScore, app.newBestCombo));
+            if (resultNotice != nullptr) {
+                drawCentred(resultNotice, 312.0F, 11,
+                            app.saveWarning ? kDanger : kAccent);
             }
             if (app.crashCause == CrashCause::Gate) {
                 const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);

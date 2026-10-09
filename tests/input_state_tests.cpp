@@ -5,6 +5,7 @@
 #include "app/scoring.hpp"
 #include "app/seed_text.hpp"
 #include "app/game_modes.hpp"
+#include "app/run_results.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
@@ -63,6 +64,15 @@ int main() {
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::CustomSeedRun));
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::PracticePreview));
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Back));
+    using tunrun::RunResultNotice;
+    assert(tunrun::classifyRunResultNotice(false, false, false) == RunResultNotice::None);
+    assert(tunrun::classifyRunResultNotice(true, true, true) == RunResultNotice::SaveFailure);
+    assert(tunrun::classifyRunResultNotice(false, true, true) == RunResultNotice::NewScoreAndCombo);
+    assert(tunrun::classifyRunResultNotice(false, true, false) == RunResultNotice::NewScore);
+    assert(tunrun::classifyRunResultNotice(false, false, true) == RunResultNotice::NewCombo);
+    assert(std::string(tunrun::runResultNoticeText(RunResultNotice::SaveFailure)).find(
+        "MAY NOT BE SAVED") != std::string::npos);
+    assert(tunrun::runResultNoticeText(RunResultNotice::None) == nullptr);
     assert(std::string(tunrun::modeUnavailableMessage(
         tunrun::GameModeChoice::Campaign)).find("not implemented") != std::string::npos);
     assert(std::string(tunrun::modeUnavailableMessage(
