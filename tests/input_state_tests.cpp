@@ -4,6 +4,7 @@
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
 #include "app/seed_text.hpp"
+#include "app/game_modes.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
@@ -56,6 +57,16 @@ int main() {
     using tunrun::ButtonEdge;
     using tunrun::Screen;
     using tunrun::ScreenStack;
+
+    assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Campaign));
+    assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
+    assert(tunrun::isModeImplemented(tunrun::GameModeChoice::CustomSeedRun));
+    assert(tunrun::isModeImplemented(tunrun::GameModeChoice::PracticePreview));
+    assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Back));
+    assert(std::string(tunrun::modeUnavailableMessage(
+        tunrun::GameModeChoice::Campaign)).find("not implemented") != std::string::npos);
+    assert(std::string(tunrun::modeUnavailableMessage(
+        tunrun::GameModeChoice::Endless)).find("not a separate mode") != std::string::npos);
 
     assert(tunrun::targetFpsForRefreshRate(0) == tunrun::kDefaultTargetFps);
     assert(tunrun::targetFpsForRefreshRate(15) == tunrun::kDefaultTargetFps);

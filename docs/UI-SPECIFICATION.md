@@ -18,7 +18,7 @@ Play, Hangar, Modes, Seed Lab, Records / Statistics, Controls, Settings, Credits
 Rotatable ship preview, name, handling stats, selected/unlocked/locked states, unlock requirements, resource balance, purchase confirmation, cosmetic preview, and equip action.
 
 ### Mode Select
-Campaign, Endless, Seed Challenge, Daily Run, Practice, Rival Run, and Ghost Race. Disabled or unavailable modes explain why.
+The current build exposes Custom Seed Run and Practice Preview. Campaign and a separate Endless mode are explicitly marked in development; selecting either displays what is unavailable instead of silently doing nothing. Seed Challenge, Daily Run, Rival Run, and Ghost Race remain planned.
 
 ### Seed Entry
 Text input with normalization, validation, copy/share function, generator version, ruleset, and a clear random-seed option. Invalid input displays an inline error; it must not crash or silently change to a different seed.

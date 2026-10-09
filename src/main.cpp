@@ -1,6 +1,7 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
+#include "app/game_modes.hpp"
 #include "app/economy.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
@@ -43,7 +44,7 @@ struct AppState {
     std::string seedEntryText;
     std::string seedEntryMessage;
     bool seedEntryHasError = false;
-    int selectedMode = 0;
+    std::string modeMessage;
     PendingRunAction pendingRunAction = PendingRunAction::None;
     bool showFps = true;
     bool reduceMotion = false;
@@ -883,7 +884,7 @@ int main() {
         "RECORDS / STATISTICS", "CONTROLS", "SETTINGS", "CREDITS", "EXIT"
     };
     const std::vector<std::string> modes{
-        "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
+        "CAMPAIGN (IN DEVELOPMENT)", "ENDLESS MODE (IN DEVELOPMENT)",
         "CUSTOM SEED RUN", "PRACTICE PREVIEW", "BACK"
     };
     const std::vector<std::string> pauseItems{
@@ -1111,7 +1112,7 @@ int main() {
                 switch (picked) {
                 case 0: resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); break;
                 case 1: app.screens.push(tunrun::Screen::Hangar); break;
-                case 2: app.screens.push(tunrun::Screen::Modes); break;
+                case 2: app.modeMessage.clear(); app.screens.push(tunrun::Screen::Modes); break;
                 case 3: app.screens.push(tunrun::Screen::SeedLab); break;
                 case 4: app.screens.push(tunrun::Screen::Records); break;
                 case 5: app.screens.push(tunrun::Screen::Controls); break;
@@ -1247,15 +1248,40 @@ int main() {
             break;
         }
         case tunrun::Screen::Modes: {
-            drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Practice opens the current seeded procedural course.");
+            drawHeader("02 / FLIGHT PLAN", "GAME MODES",
+                       "Available modes start a run; unfinished modes explain their status.");
             const int picked = drawMenu(modes, modesSelection, 192);
-            if (picked == 3) {
-                resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview);
-            } else if (picked == 2) {
-                beginSeedEntry(app); seedEntrySelection = 0; app.screens.push(tunrun::Screen::SeedEntry);
-            } else if (picked == 4) app.screens.pop();
-            else if (picked >= 0) app.selectedMode = picked;
-            if (backPressed()) app.screens.pop();
+            if (picked >= 0) {
+                const auto choice = static_cast<tunrun::GameModeChoice>(picked);
+                switch (choice) {
+                case tunrun::GameModeChoice::Campaign:
+                case tunrun::GameModeChoice::Endless:
+                    app.modeMessage = tunrun::modeUnavailableMessage(choice);
+                    break;
+                case tunrun::GameModeChoice::CustomSeedRun:
+                    app.modeMessage.clear();
+                    beginSeedEntry(app);
+                    seedEntrySelection = 0;
+                    app.screens.push(tunrun::Screen::SeedEntry);
+                    break;
+                case tunrun::GameModeChoice::PracticePreview:
+                    app.modeMessage.clear();
+                    resetFlight(app, tpp);
+                    chooseNextSeed(app);
+                    app.screens.push(tunrun::Screen::Preview);
+                    break;
+                case tunrun::GameModeChoice::Back:
+                    app.modeMessage.clear();
+                    app.screens.pop();
+                    break;
+                }
+            } else if (backPressed()) {
+                app.modeMessage.clear();
+                app.screens.pop();
+            }
+            if (!app.modeMessage.empty()) {
+                drawCentred(app.modeMessage.c_str(), 492.0F, 11, kMuted);
+            }
             break;
         }
         case tunrun::Screen::Settings: {
