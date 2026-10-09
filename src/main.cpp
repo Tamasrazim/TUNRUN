@@ -3,6 +3,7 @@
 #include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/rewards.hpp"
+#include "app/hazards.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -30,7 +31,7 @@ const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
-enum class CrashCause { Wall, Gate };
+enum class CrashCause { Wall, Gate, Hazard };
 
 struct AppState {
     tunrun::ScreenStack screens;
@@ -416,9 +417,32 @@ void drawProceduralReward(std::uint64_t seed, float playerDistance,
     DrawLine3D(left, back, color);
 }
 
+void drawProceduralHazard(std::uint64_t seed, float playerDistance,
+                           float elapsedSeconds,
+                           const tunrun::TunnelCrossSection& playerSection,
+                           const tunrun::ProceduralHazard& hazard) {
+    const float ahead = static_cast<float>(hazard.distance - static_cast<double>(playerDistance));
+    if (ahead < -1.5F || ahead > 76.0F) return;
+    const auto courseAtHazard = tunrun::sampleCourse(seed, hazard.distance);
+    const auto movingCenter = tunrun::hazardCenterAt(hazard, elapsedSeconds);
+    const Vector3 center{
+        courseAtHazard.centerX - playerSection.centerX + movingCenter.x,
+        courseAtHazard.centerY - playerSection.centerY + movingCenter.y,
+        -ahead
+    };
+    const Color color{255, 103, 91, 255};
+    DrawSphereWires(center, hazard.radius, 8, 12, color);
+    DrawLine3D(Vector3{center.x - hazard.radius * 1.35F, center.y, center.z},
+               Vector3{center.x + hazard.radius * 1.35F, center.y, center.z},
+               Color{255, 167, 119, 230});
+    DrawLine3D(Vector3{center.x, center.y - hazard.radius * 1.35F, center.z},
+               Vector3{center.x, center.y + hazard.radius * 1.35F, center.z},
+               Color{255, 167, 119, 230});
+}
+
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                bool tpp, float boostEnergy, std::uint64_t aetherPickedUp,
-                std::uint64_t coresPickedUp) {
+                bool tpp, float boostEnergy, float elapsedSeconds,
+                std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     Camera3D camera{};
     camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
@@ -461,6 +485,14 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawProceduralReward(seed, distance, playerSection,
             tunrun::rewardAt(seed, static_cast<std::uint32_t>(i)));
     }
+    const auto firstHazard = tunrun::hazardAt(seed, 0U);
+    const int firstHazardIndex = std::max(0, static_cast<int>(std::floor(
+        (static_cast<double>(distance) - firstHazard.distance) /
+        tunrun::kHazardSpacing)));
+    for (int i = firstHazardIndex; i < firstHazardIndex + 4; ++i) {
+        drawProceduralHazard(seed, distance, elapsedSeconds, playerSection,
+            tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
+    }
     if (tpp) {
         const Vector3 nose{shipX, shipY, -0.2F};
         const Vector3 left{shipX - 0.75F, shipY - 0.28F, 0.65F};
@@ -473,8 +505,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawLine3D(left, right, kAccent);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 150, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 150, kEdge);
+    DrawRectangle(22, 18, 344, 174, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 174, kEdge);
     DrawText("TUNRUN / M4 PROCEDURAL", 35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
@@ -482,9 +514,18 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
+    const auto firstHazardForHud = tunrun::hazardAt(seed, 0U);
+    const int nextHazardIndex = std::max(0, static_cast<int>(std::ceil(
+        (static_cast<double>(distance) - firstHazardForHud.distance) /
+        tunrun::kHazardSpacing)));
+    const auto nextHazardForHud = tunrun::hazardAt(
+        seed, static_cast<std::uint32_t>(nextHazardIndex));
+    DrawText(TextFormat("NEXT HAZARD: %.1f UNITS",
+             std::max(0.0, nextHazardForHud.distance - static_cast<double>(distance))),
+             35, 137, 10, Color{255, 153, 125, 255});
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 137, 10, kMuted);
+             static_cast<unsigned long long>(coresPickedUp)), 35, 157, 10, kMuted);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -623,6 +664,7 @@ int main() {
                     steerX += padX;
                     steerY += padY;
                 }
+                const float previousElapsed = std::max(0.0F, app.elapsed - dt);
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
                 const double previousDistance = app.flight.distance;
@@ -677,6 +719,39 @@ int main() {
                     }
                 }
                 if (app.screens.current() == tunrun::Screen::Preview) {
+                    const auto firstHazard = tunrun::hazardAt(app.courseSeed, 0U);
+                    const int firstCandidate = std::max(0, static_cast<int>(std::floor(
+                        (previousDistance - firstHazard.distance) /
+                        tunrun::kHazardSpacing)) - 1);
+                    const int lastCandidate = std::max(firstCandidate, static_cast<int>(std::ceil(
+                        (static_cast<double>(app.flight.distance) -
+                         firstHazard.distance) / tunrun::kHazardSpacing)) + 1);
+                    for (int hazardIndex = firstCandidate;
+                         hazardIndex <= lastCandidate; ++hazardIndex) {
+                        const auto hazard = tunrun::hazardAt(app.courseSeed,
+                            static_cast<std::uint32_t>(hazardIndex));
+                        if (!tunrun::crossesHazardPlane(previousDistance,
+                                app.flight.distance, hazard)) continue;
+                        const double travel = static_cast<double>(app.flight.distance) -
+                                              previousDistance;
+                        const float fraction = travel > 1.0e-6
+                            ? static_cast<float>(std::clamp(
+                                (hazard.distance - previousDistance) / travel, 0.0, 1.0))
+                            : 0.0F;
+                        const float crossingX = previousX + (app.flight.x - previousX) * fraction;
+                        const float crossingY = previousY + (app.flight.y - previousY) * fraction;
+                        const double crossingTime = static_cast<double>(previousElapsed) +
+                            static_cast<double>(app.elapsed - previousElapsed) * fraction;
+                        if (tunrun::collidesWithHazard(crossingX, crossingY,
+                                hazard, crossingTime)) {
+                            app.crashCause = CrashCause::Hazard;
+                            finishRun(app);
+                            app.screens.replace(tunrun::Screen::Crash);
+                            break;
+                        }
+                    }
+                }
+                if (app.screens.current() == tunrun::Screen::Preview) {
                     const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
                         (previousDistance - tunrun::kRewardStartDistance) /
                         tunrun::kRewardSpacing)) - 1);
@@ -720,8 +795,8 @@ int main() {
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
-                       tpp, app.flight.boostEnergy, app.runAetherPickupReward,
-                       app.runSingularityCorePickupReward);
+                       tpp, app.flight.boostEnergy, app.elapsed,
+                       app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };
@@ -877,10 +952,14 @@ int main() {
         }
         case tunrun::Screen::Crash: {
             drawHeader("SYSTEM / FLIGHT TERMINATED",
-                       app.crashCause == CrashCause::Gate ? "GATE COLLISION" : "WALL COLLISION",
+                       app.crashCause == CrashCause::Gate ? "GATE COLLISION" :
+                           app.crashCause == CrashCause::Hazard ? "MOVING HAZARD IMPACT" :
+                           "WALL COLLISION",
                        app.crashCause == CrashCause::Gate
                            ? "Craft crossed an obstacle plane outside its safe aperture."
-                           : "Craft collision volume touched the tunnel boundary.");
+                           : app.crashCause == CrashCause::Hazard
+                               ? "Craft intersected a moving procedural mine."
+                               : "Craft collision volume touched the tunnel boundary.");
             drawCentred(TextFormat("DISTANCE %.1f   SEED %016llX", app.flight.distance,
                                    static_cast<unsigned long long>(app.courseSeed)),
                         190.0F, 16, kAccent);

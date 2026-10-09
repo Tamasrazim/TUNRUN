@@ -50,9 +50,13 @@ Gameplay-specific mouse checks:
 - Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
 - Verify reward hashes and pickup order are seed-deterministic, Aether Shard values remain 4–8, every eighth pickup is a Singularity Core, and pickup collision happens only on a forward plane crossing.
 - Verify pickup render positions and collision offsets use the same course-relative frame as the tunnel while it curves/twists; non-finite collision inputs must be rejected.
-- Validate dynamic hazards over their full relevant timing window.
+- Verify moving-mine generation and hashes are seed-deterministic, motion is repeatable for equal run-clock times, motion stays within the declared envelope, and hazard planes maintain the minimum spacing from gate reaction windows.
+- Verify hazard collision uses interpolated lateral position and run-clock time on a forward plane crossing; include exact contact, near miss, reverse travel, and non-finite input fixtures.
+- Run multi-seed gameplay simulations for all eight ships and confirm mine warning distance gives the player enough time to evade. Parameter bounds alone are not proof of avoidability.
+- Validate any additional dynamic hazard families over their full relevant timing windows.
 - Detect unavoidable obstacle intersections and insufficient warning distance.
 - Confirm optional pickup placement never narrows or blocks the required route; do not make pickups mandatory until route-reachability validation includes them.
+- Ensure moving mines stay separate from gate reaction windows and log seed, mine index, ship, run-clock time, and collision coordinates for any unavoidable encounter.
 - Confirm a failed candidate regenerates with a finite retry limit and useful diagnostic output.
 - Record each failure by seed, generator version, section index, ship, subsystem, and invariant.
 - Keep regression seeds for every previously discovered generator bug.

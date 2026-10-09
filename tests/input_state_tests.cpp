@@ -1,6 +1,7 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
+#include "app/hazards.hpp"
 #include "app/seed_text.hpp"
 #include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
@@ -163,6 +164,46 @@ int main() {
             assert(reward.shardValue == 0U);
         }
     }
+
+    // Moving hazards are seeded and their positions are deterministic at a
+    // given run-clock time; plane crossing and contact reject invalid inputs.
+    const auto hazard = tunrun::hazardAt(seed, 0U);
+    const auto hazardAgain = tunrun::hazardAt(seed, 0U);
+    assert(hazard.index == hazardAgain.index);
+    assert(hazard.distance == hazardAgain.distance);
+    assert(hazard.baseX == hazardAgain.baseX);
+    assert(hazard.amplitudeX == hazardAgain.amplitudeX);
+    assert(hazard.phaseX == hazardAgain.phaseX);
+    const auto hazardCenter = tunrun::hazardCenterAt(hazard, 1.25);
+    const auto hazardCenterAgain = tunrun::hazardCenterAt(hazardAgain, 1.25);
+    assert(hazardCenter.x == hazardCenterAgain.x &&
+           hazardCenter.y == hazardCenterAgain.y);
+    assert(tunrun::collidesWithHazard(hazardCenter.x, hazardCenter.y,
+                                      hazard, 1.25));
+    assert(!tunrun::collidesWithHazard(hazardCenter.x + hazard.radius +
+                                      tunrun::kHazardCraftCollisionRadius + 0.2F,
+                                      hazardCenter.y, hazard, 1.25));
+    assert(tunrun::crossesHazardPlane(hazard.distance - 0.1,
+                                      hazard.distance + 0.1, hazard));
+    assert(!tunrun::crossesHazardPlane(hazard.distance + 0.1,
+                                       hazard.distance - 0.1, hazard));
+    assert(!tunrun::crossesHazardPlane(hazard.distance + 0.1,
+                                       hazard.distance + 0.2, hazard));
+    assert(!tunrun::crossesHazardPlane(
+        std::numeric_limits<double>::quiet_NaN(), hazard.distance + 0.1, hazard));
+    assert(tunrun::hazardHash(seed) == tunrun::hazardHash(seed));
+    assert(tunrun::hazardHash(seed) != tunrun::hazardHash(seed + 1U));
+    assert(tunrun::hazardHash(seed, 0U) == 0U);
+    const auto hazardValidation = tunrun::validateHazardSet(seed, 512U);
+    assert(hazardValidation.valid && hazardValidation.hazardsChecked == 512U);
+    assert(hazardValidation.maximumHorizontalExtent <= 2.401F);
+    assert(hazardValidation.maximumVerticalExtent <= 1.551F);
+    assert(hazardValidation.minimumGateSeparation >=
+           tunrun::kHazardMinimumGateSeparation);
+    assert(!tunrun::validateHazardSet(seed, 0U).valid);
+    assert(!tunrun::validateHazardSet(seed, 10001U).valid);
+    assert(tunrun::collidesWithHazard(std::numeric_limits<float>::quiet_NaN(),
+                                      0.0F, hazard, 0.0));
 
     // Obstacle layout has its own deterministic versioned fingerprint.
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
