@@ -64,8 +64,8 @@ def check_workflow_policy(errors: list[str]) -> None:
         return
 
     forbidden_write_permissions = re.compile(
-        r"^\\s*(?:contents|actions|checks|statuses|pull-requests|issues|"
-        r"deployments|packages|id-token)\\s*:\\s*(?:write|write-all)\\b",
+        r"^[ \t]*(?:contents|actions|checks|statuses|pull-requests|issues|"
+        r"deployments|packages|id-token)[ \t]*:[ \t]*(?:write|write-all)\b",
         re.IGNORECASE | re.MULTILINE,
     )
     forbidden_commit_actions = re.compile(
@@ -74,8 +74,8 @@ def check_workflow_policy(errors: list[str]) -> None:
         re.IGNORECASE,
     )
     forbidden_commands = re.compile(
-        r"^\\s*(?:run:\\s*)?(?:git\\s+(?:commit|push|tag)\\b|"
-        r"gh\\s+(?:pr|release)\\s+create\\b)",
+        r"^[ \t]*(?:run:[ \t]*)?(?:git[ \t]+(?:commit|push|tag)\b|"
+        r"gh[ \t]+(?:pr|release)[ \t]+create\b)",
         re.IGNORECASE | re.MULTILINE,
     )
 
@@ -83,7 +83,7 @@ def check_workflow_policy(errors: list[str]) -> None:
         relative = workflow.relative_to(ROOT)
         content = workflow.read_text(encoding="utf-8")
 
-        if re.search(r"^\\s*pull_request(?:_target)?\\s*:", content, re.MULTILINE):
+        if re.search(r"^[ \t]*pull_request(?:_target)?[ \t]*:", content, re.MULTILINE):
             errors.append(
                 f"{relative}: pull-request trigger violates main-only workflow policy"
             )
@@ -91,14 +91,14 @@ def check_workflow_policy(errors: list[str]) -> None:
         # Every workflow gets an explicitly read-only token. Do not rely on
         # repository defaults, and do not give an automation run write scopes.
         permission_block = re.search(
-            r"^permissions:\\s*\\n(?P<body>(?:^[ \\t]+[^\\n]*\\n)+)",
+            r"^permissions:[ \t]*\n(?P<body>(?:^[ \t]+[^\n]*\n)+)",
             content,
             re.MULTILINE,
         )
         permission_values = []
         if permission_block:
             permission_values = re.findall(
-                r"^\\s{2}([A-Za-z0-9_-]+)\\s*:\\s*([^\\s#]+)",
+                r"^[ \t]{2}([A-Za-z0-9_-]+)[ \t]*:[ \t]*([^\s#]+)",
                 permission_block.group("body"),
                 re.MULTILINE,
             )
@@ -109,7 +109,7 @@ def check_workflow_policy(errors: list[str]) -> None:
             )
 
         if forbidden_write_permissions.search(content) or re.search(
-            r"^permissions:\\s*write-all\\s*$", content, re.MULTILINE
+            r"^permissions:[ \t]*write-all[ \t]*$", content, re.MULTILINE
         ):
             errors.append(f"{relative}: write-capable GitHub Actions permission is forbidden")
 
@@ -117,15 +117,23 @@ def check_workflow_policy(errors: list[str]) -> None:
         # persisted credentials is the second. Require it on every checkout step.
         checkout_positions = [
             match.start()
-            for match in re.finditer(r"^\\s*uses:\\s*actions/checkout@", content, re.MULTILINE)
+            for match in re.finditer(
+                r"^[ \t]*uses:[ \t]*actions/checkout@", content, re.MULTILINE
+            )
         ]
         for position in checkout_positions:
-            prior_steps = list(re.finditer(r"^\\s*-\\s*(?:name|uses):", content[:position], re.MULTILINE))
+            prior_steps = list(re.finditer(
+                r"^[ \t]*-[ \t]*(?:name|uses):", content[:position], re.MULTILINE
+            ))
             step_start = prior_steps[-1].start() if prior_steps else position
-            next_step = re.search(r"^\\s*-\\s*(?:name|uses):", content[position:], re.MULTILINE)
+            next_step = re.search(
+                r"^[ \t]*-[ \t]*(?:name|uses):", content[position:], re.MULTILINE
+            )
             step_end = position + next_step.start() if next_step else len(content)
             step = content[step_start:step_end]
-            if not re.search(r"^\\s+persist-credentials:\\s*false\\s*$", step, re.MULTILINE):
+            if not re.search(
+                r"^[ \t]+persist-credentials:[ \t]*false[ \t]*$", step, re.MULTILINE
+            ):
                 errors.append(
                     f"{relative}: every actions/checkout step must use persist-credentials: false"
                 )
@@ -138,11 +146,14 @@ def check_workflow_policy(errors: list[str]) -> None:
             errors.append(
                 f"{relative}: workflow must not commit, push, tag, or create a PR/release"
             )
-        if re.search(r"github-actions\\[bot\\]", content, re.IGNORECASE):
+        if re.search(r"github-actions\[bot\]", content, re.IGNORECASE):
             errors.append(
                 f"{relative}: the GitHub Actions bot must never be configured as commit author/committer"
             )
-
+        if re.search(r"secrets\.(?!GITHUB_TOKEN\b)[A-Z_][A-Z0-9_]*", content):
+            errors.append(
+                f"{relative}: custom secrets/tokens are forbidden in workflows; use the read-only GITHUB_TOKEN only"
+            )
 
 def main() -> int:
     errors: list[str] = []
