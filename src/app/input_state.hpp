@@ -11,6 +11,16 @@ namespace tunrun {
 } // namespace tunrun
 
 namespace tunrun {
+inline constexpr int kDefaultTargetFps = 144;
+inline constexpr int kMaximumTargetFps = 240;
+
+// Follow the monitor's reported refresh rate while bounding renderer load.
+// A zero/implausibly low query falls back to the stable default target.
+[[nodiscard]] constexpr int targetFpsForRefreshRate(int refreshRate) noexcept {
+    if (refreshRate < 30) return kDefaultTargetFps;
+    return refreshRate > kMaximumTargetFps ? kMaximumTargetFps : refreshRate;
+}
+
 enum class Screen { MainMenu, Hangar, Records, Controls, Modes, Settings, SettingsResetConfirm, Credits, Preview, Pause, RunConfirm, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
 
 // Converts a held state into one activation on the down edge.

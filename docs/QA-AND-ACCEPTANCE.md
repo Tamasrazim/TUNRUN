@@ -18,6 +18,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Pause → Return to Main Menu asks before discarding the current run; Cancel returns to Pause without changing the run.
 - On the minimum-height window, the first menu button does not overlap the currency row.
 - At the minimum supported window size, all nine Main Menu actions remain visible and clickable without overlap.
+- The renderer selects the reported monitor refresh rate up to 240 FPS, falls back to 144 for invalid reports, and leaves fixed-step physics independent of the render cap.
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.

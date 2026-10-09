@@ -809,7 +809,8 @@ int main() {
     InitWindow(1280, 800, "TUNRUN | Procedural Tunnel Runner");
     SetWindowMinSize(800, 560);
     SetExitKey(KEY_NULL);
-    SetTargetFPS(144);
+    const int monitorRefreshRate = GetMonitorRefreshRate(GetCurrentMonitor());
+    SetTargetFPS(tunrun::targetFpsForRefreshRate(monitorRefreshRate));
     SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
     RawMouse rawMouse;

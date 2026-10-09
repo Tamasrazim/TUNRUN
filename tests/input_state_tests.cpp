@@ -57,6 +57,15 @@ int main() {
     using tunrun::Screen;
     using tunrun::ScreenStack;
 
+    assert(tunrun::targetFpsForRefreshRate(0) == tunrun::kDefaultTargetFps);
+    assert(tunrun::targetFpsForRefreshRate(15) == tunrun::kDefaultTargetFps);
+    assert(tunrun::targetFpsForRefreshRate(30) == 30);
+    assert(tunrun::targetFpsForRefreshRate(60) == 60);
+    assert(tunrun::targetFpsForRefreshRate(144) == 144);
+    assert(tunrun::targetFpsForRefreshRate(180) == 180);
+    assert(tunrun::targetFpsForRefreshRate(240) == 240);
+    assert(tunrun::targetFpsForRefreshRate(360) == tunrun::kMaximumTargetFps);
+
     assert(!tunrun::triggerPressed(-1.0F));
     assert(!tunrun::triggerPressed(0.0F));
     assert(!tunrun::triggerPressed(-0.01F));
