@@ -1266,6 +1266,14 @@ int main() {
                 145, std::min(205, GetScreenHeight() - 404));
             const int picked = drawMenu(labels, settingsSelection, settingsMenuY);
             const bool settingsBackRequested = backPressed();
+            bool pointerSensitivityCommit = false;
+            // A lost focus can suppress the native mouse-button release event.
+            // End any drag explicitly so pointer state never leaks across Alt+Tab.
+            if (!IsWindowFocused() && app.mouseSensitivityPointerDragging) {
+                pointerSensitivityCommit = app.mouseSensitivityPointerDirty;
+                app.mouseSensitivityPointerDragging = false;
+                app.mouseSensitivityPointerDirty = false;
+            }
             const Rectangle sensitivityBounds{
                 (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
                 static_cast<float>(settingsMenuY +
@@ -1292,14 +1300,14 @@ int main() {
             DrawCircle(sensitivityTrack.x + sensitivityTrack.width * normalizedSensitivity,
                        sensitivityTrack.y + sensitivityTrack.height * 0.5F,
                        4.0F, kText);
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+            if (IsWindowFocused() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
                 CheckCollisionPointRec(GetMousePosition(), sensitivityBounds)) {
                 app.mouseSensitivityPointerDragging = true;
                 app.mouseSensitivityPointerDirty = false;
             }
 
-            bool pointerSensitivityCommit = false;
-            if (app.mouseSensitivityPointerDragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            if (IsWindowFocused() && app.mouseSensitivityPointerDragging &&
+                IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                 const float normalizedPosition =
                     (GetMousePosition().x - sensitivityTrack.x) / sensitivityTrack.width;
                 const float nextSensitivity = mouseSensitivityFromSlider(normalizedPosition);

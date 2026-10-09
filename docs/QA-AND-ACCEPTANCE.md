@@ -20,7 +20,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
-- Mouse sensitivity renders a visible track and thumb; click/drag adjusts it, while keyboard arrows and gamepad D-pad/left stick also work. It clamps to the supported range, writes once when a pointer drag ends, and persists across restart.
+- Mouse sensitivity renders a visible track and thumb; click/drag adjusts it, while keyboard arrows and gamepad D-pad/left stick also work. It clamps to the supported range, writes once when a pointer drag ends (including focus loss), and persists across restart.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
