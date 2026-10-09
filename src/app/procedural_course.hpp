@@ -10,11 +10,11 @@
 namespace tunrun {
 inline constexpr std::uint32_t kCourseGeneratorVersion = 1U;
 inline constexpr double kCourseNodeSpacing = 18.0;
-inline constexpr float kCourseMinRadius = 5.35F;
+inline constexpr float kCourseMinRadius = 4.65F;
 inline constexpr float kCourseMaxRadius = 6.15F;
-inline constexpr float kCourseMaxCenterX = 1.45F;
-inline constexpr float kCourseMaxCenterY = 1.05F;
-inline constexpr float kCourseMaxTwist = 0.38F;
+inline constexpr float kCourseMaxCenterX = 2.10F;
+inline constexpr float kCourseMaxCenterY = 1.55F;
+inline constexpr float kCourseMaxTwist = 0.58F;
 inline constexpr double kGateBaseDistance = 26.0;
 inline constexpr double kGateSpacing = 42.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
@@ -87,7 +87,7 @@ inline TunnelCrossSection courseControlNode(std::uint64_t seed,
     return TunnelCrossSection{
         courseSigned(seed, node, 1U) * kCourseMaxCenterX,
         courseSigned(seed, node, 2U) * kCourseMaxCenterY,
-        5.55F + courseUnit(seed, node, 3U) * 0.55F,
+        4.75F + courseUnit(seed, node, 3U) * 1.40F,
         courseSigned(seed, node, 4U) * kCourseMaxTwist
     };
 }
@@ -164,7 +164,7 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
     GateKind kind = GateKind::Standard;
     float radiusMin = 1.75F, radiusMax = 2.05F;
     float offsetScaleX = 0.70F, offsetScaleY = 0.50F;
-    if (kindRoll < 0.22F) {
+    if (kindRoll < 0.30F) {
         kind = GateKind::Precision;
         radiusMin = 1.35F; radiusMax = 1.55F;
         offsetScaleX = 0.36F; offsetScaleY = 0.28F;
@@ -172,7 +172,7 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
         kind = GateKind::Wide;
         radiusMin = 2.20F; radiusMax = 2.45F;
         offsetScaleX = 0.25F; offsetScaleY = 0.22F;
-    } else if (kindRoll < 0.72F) {
+    } else if (kindRoll < 0.76F) {
         kind = GateKind::Offset;
         radiusMin = 1.70F; radiusMax = 1.95F;
         offsetScaleX = 1.10F; offsetScaleY = 0.80F;

@@ -20,15 +20,24 @@ struct FlightState {
     float dashRemaining = 0.0F;
     float dashCooldownRemaining = 0.0F;
     bool dashButtonWasDown = false;
+    float pitch = 0.0F;
+    float yaw = 0.0F;
+    float roll = 0.0F;
+    float pitchRate = 0.0F;
+    float yawRate = 0.0F;
+    float rollRate = 0.0F;
 };
 
 struct FlightInput {
-    float steerX = 0.0F; // -1 left, +1 right
-    float steerY = 0.0F; // -1 down, +1 up
+    float steerX = 0.0F; // lateral translation: -1 left, +1 right
+    float steerY = 0.0F; // lateral translation: -1 down, +1 up
     bool boost = false;
     bool precision = false;
     std::uint32_t shipId = kStarterShipId;
     bool dash = false;
+    float rotateYaw = 0.0F;
+    float rotatePitch = 0.0F;
+    float roll = 0.0F;
 };
 
 inline constexpr float kFlightLimit = 6.5F;
@@ -61,6 +70,22 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         ? std::clamp(input.steerX, -1.0F, 1.0F) : 0.0F;
     input.steerY = std::isfinite(input.steerY)
         ? std::clamp(input.steerY, -1.0F, 1.0F) : 0.0F;
+    input.rotateYaw = std::isfinite(input.rotateYaw)
+        ? std::clamp(input.rotateYaw, -1.0F, 1.0F) : 0.0F;
+    input.rotatePitch = std::isfinite(input.rotatePitch)
+        ? std::clamp(input.rotatePitch, -1.0F, 1.0F) : 0.0F;
+    input.roll = std::isfinite(input.roll)
+        ? std::clamp(input.roll, -1.0F, 1.0F) : 0.0F;
+
+    state.yawRate = approach(state.yawRate, input.rotateYaw * 1.8F, 6.0F * dt);
+    state.pitchRate = approach(state.pitchRate, input.rotatePitch * 1.45F, 5.0F * dt);
+    state.rollRate = approach(state.rollRate, input.roll * 2.8F, 8.0F * dt);
+    state.yaw = std::remainder(state.yaw + state.yawRate * dt,
+                               2.0F * 3.14159265358979323846F);
+    state.pitch = std::clamp(state.pitch + state.pitchRate * dt, -1.05F, 1.05F);
+    state.roll = std::remainder(state.roll + state.rollRate * dt,
+                               2.0F * 3.14159265358979323846F);
+
     const float intentLength = std::sqrt(
         input.steerX * input.steerX + input.steerY * input.steerY);
     if (intentLength > 1.0F) {
@@ -86,10 +111,14 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         (precision ? 2.0F : (boosting ? 6.0F : 4.0F)) * ship.speedMultiplier;
     const float acceleration =
         (precision ? 16.0F : 10.0F) * ship.accelerationMultiplier;
-    state.velocityX = approach(state.velocityX, input.steerX * maximumSpeed,
-                               acceleration * dt);
-    state.velocityY = approach(state.velocityY, input.steerY * maximumSpeed,
-                               acceleration * dt);
+    // The ship's heading now contributes to its drift vector: rotating the
+    // nose changes flight instead of being a cosmetic-only animation.
+    const float headingDriftX = std::sin(state.yaw) * maximumSpeed * 0.28F;
+    const float headingDriftY = -std::sin(state.pitch) * maximumSpeed * 0.22F;
+    state.velocityX = approach(state.velocityX,
+        input.steerX * maximumSpeed + headingDriftX, acceleration * dt);
+    state.velocityY = approach(state.velocityY,
+        input.steerY * maximumSpeed + headingDriftY, acceleration * dt);
     state.x += state.velocityX * dt;
     state.y += state.velocityY * dt;
     const float forwardSpeed = (precision ? 8.0F

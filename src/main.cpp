@@ -7,7 +7,6 @@
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
 #include "app/run_results.hpp"
-#include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
 
@@ -50,10 +49,6 @@ struct AppState {
     bool showFps = true;
     bool reduceMotion = false;
     bool fullscreen = false;
-    bool mouseSteering = true;
-    float mouseSensitivity = kMouseSensitivityDefault;
-    bool mouseSensitivityPointerDragging = false;
-    bool mouseSensitivityPointerDirty = false;
     bool hangarAxisLeftHeld = false;
     bool hangarAxisRightHeld = false;
     bool exitRequested = false;
@@ -118,9 +113,7 @@ bool persistProfile(AppState& app, bool preserveBackup = false) {
     }
     app.profile.showFps = app.showFps;
     app.profile.reduceMotion = app.reduceMotion;
-    app.profile.mouseSteering = app.mouseSteering;
     app.profile.fullscreen = app.fullscreen;
-    app.profile.mouseSensitivity = app.mouseSensitivity;
     app.profile.selectedShip = static_cast<std::uint32_t>(
         std::clamp(app.selectedShip, 0, static_cast<int>(tunrun::kProfileShipCount) - 1));
     app.profile.rootSeed = app.rootSeed;
@@ -379,7 +372,7 @@ void drawProceduralGate(std::uint64_t seed, float playerDistance,
                         const tunrun::TunnelCrossSection& playerSection,
                         const tunrun::ProceduralGate& gate) {
     const float ahead = static_cast<float>(gate.distance - static_cast<double>(playerDistance));
-    if (ahead < -1.0F || ahead > 70.0F) return;
+    if (ahead < -1.0F || ahead > 108.0F) return;
     const auto courseAtGate = tunrun::sampleCourse(seed, gate.distance);
     const float outerRadius = courseAtGate.radius - 0.24F;
     const float gateCenterX = courseAtGate.centerX - playerSection.centerX + gate.offsetX;
@@ -422,7 +415,7 @@ void drawProceduralReward(std::uint64_t seed, float playerDistance,
                           const tunrun::TunnelCrossSection& playerSection,
                           const tunrun::ProceduralReward& reward) {
     const float ahead = static_cast<float>(reward.distance - static_cast<double>(playerDistance));
-    if (ahead < 0.0F || ahead > 72.0F) return;
+    if (ahead < 0.0F || ahead > 108.0F) return;
     const auto section = tunrun::sampleCourse(seed, reward.distance);
     const float x = section.centerX - playerSection.centerX + reward.offsetX;
     const float y = section.centerY - playerSection.centerY + reward.offsetY;
@@ -450,7 +443,8 @@ void drawProceduralReward(std::uint64_t seed, float playerDistance,
     DrawLine3D(left, back, color);
 }
 
-void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY) {
+void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
+                    float pitch, float yaw, float roll) {
     const Color hullColors[] = {
         kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
         Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
@@ -458,8 +452,17 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY) {
         Color{165, 190, 218, 255}
     };
     const Color color = hullColors[shipId < 8U ? shipId : 0U];
-    const auto v = [shipX, shipY](float x, float y, float z) {
-        return Vector3{shipX + x, shipY + y, z};
+    const float cp = std::cos(pitch), sp = std::sin(pitch);
+    const float cy = std::cos(yaw), sy = std::sin(yaw);
+    const float cr = std::cos(roll), sr = std::sin(roll);
+    const auto v = [shipX, shipY, cp, sp, cy, sy, cr, sr](float x, float y, float z) {
+        const float pitchedY = y * cp - z * sp;
+        const float pitchedZ = y * sp + z * cp;
+        const float yawedX = x * cy + pitchedZ * sy;
+        const float yawedZ = -x * sy + pitchedZ * cy;
+        const float rolledX = yawedX * cr - pitchedY * sr;
+        const float rolledY = yawedX * sr + pitchedY * cr;
+        return Vector3{shipX + rolledX, shipY + rolledY, yawedZ};
     };
     const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
     switch (shipId) {
@@ -574,91 +577,36 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY) {
     }
 }
 
-void drawHangarShipPreview(std::uint32_t shipId, int centerX, int centerY) {
-    const Color hullColors[] = {
-        kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
-        Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
-        Color{187, 166, 255, 255}, Color{255, 218, 130, 255},
-        Color{165, 190, 218, 255}
-    };
-    const Color color = hullColors[shipId < 8U ? shipId : 0U];
-    const auto line = [centerX, centerY, color](float x1, float y1, float x2, float y2) {
-        DrawLine(centerX + static_cast<int>(x1), centerY + static_cast<int>(y1),
-                 centerX + static_cast<int>(x2), centerY + static_cast<int>(y2), color);
-    };
-    DrawLine(centerX - 64, centerY + 29, centerX + 64, centerY + 29,
-             Color{46, 58, 73, 255});
-    switch (shipId) {
-    case 0U: { // DRIFTWING: delta-wing profile.
-        line(0, -23, -53, 18); line(0, -23, 53, 18);
-        line(-53, 18, 0, 11); line(0, 11, 53, 18);
-        line(0, -23, 0, 24); line(-53, 18, 0, 24); line(0, 24, 53, 18);
-        break;
-    }
-    case 1U: { // WRAITH: long spear with forked tail.
-        line(0, -26, 0, 18); line(0, -26, -20, 4); line(0, -26, 20, 4);
-        line(-20, 4, -44, 21); line(-44, 21, -12, 15);
-        line(12, 15, 44, 21); line(44, 21, 20, 4);
-        line(-12, 15, 0, 25); line(0, 25, 12, 15); line(0, 18, 0, 25);
-        break;
-    }
-    case 2U: { // BULWARK: wide armored hull.
-        line(0, -20, -29, -4); line(0, -20, 29, -4);
-        line(-29, -4, -55, 16); line(55, 16, 29, -4);
-        line(-55, 16, -22, 20); line(-22, 20, 0, 25);
-        line(0, 25, 22, 20); line(22, 20, 55, 16);
-        line(-29, -4, 29, -4); line(-22, 20, 22, 20);
-        break;
-    }
-    case 3U: { // MANTA: broad swept wings.
-        line(0, -22, -62, 8); line(-62, 8, -40, 12);
-        line(-40, 12, -20, 22); line(-20, 22, 0, 14);
-        line(0, 14, 20, 22); line(20, 22, 40, 12);
-        line(40, 12, 62, 8); line(62, 8, 0, -22);
-        line(-62, 8, 62, 8); line(0, -22, 0, 24);
-        break;
-    }
-    case 4U: { // COMET: needle craft with stabilizer rails.
-        line(0, -28, 0, 22); line(0, -28, -12, 8);
-        line(-12, 8, -20, 22); line(0, -28, 12, 8);
-        line(12, 8, 20, 22); line(-30, 15, -20, 22);
-        line(30, 15, 20, 22); line(-30, 15, -22, 5);
-        line(22, 5, 30, 15); line(-22, 5, 22, 5);
-        break;
-    }
-    case 5U: { // SPECTRE: split twin prongs.
-        line(-14, -23, -22, 14); line(-22, 14, -52, 5);
-        line(-52, 5, -35, 22); line(-35, 22, -8, 12);
-        line(-8, 12, -14, -23);
-        line(14, -23, 22, 14); line(22, 14, 52, 5);
-        line(52, 5, 35, 22); line(35, 22, 8, 12);
-        line(8, 12, 14, -23); line(-8, 12, 8, 12);
-        line(-22, 14, 0, 24); line(0, 24, 22, 14);
-        break;
-    }
-    case 6U: { // VORTEX: nested diamond rails.
-        line(0, -25, -47, 0); line(-47, 0, 0, 25);
-        line(0, 25, 47, 0); line(47, 0, 0, -25);
-        line(0, -15, -28, 0); line(-28, 0, 0, 15);
-        line(0, 15, 28, 0); line(28, 0, 0, -15);
-        line(-47, 0, 47, 0); line(0, -25, 0, 25);
-        break;
-    }
-    case 7U: { // OBSIDIAN: angular heavy interceptor.
-        line(0, -22, -24, -5); line(-24, -5, -60, 8);
-        line(-60, 8, -43, 19); line(-43, 19, -21, 13);
-        line(-21, 13, -11, 23); line(-11, 23, 0, 17);
-        line(0, 17, 11, 23); line(11, 23, 21, 13);
-        line(21, 13, 43, 19); line(43, 19, 60, 8);
-        line(60, 8, 24, -5); line(24, -5, 0, -22);
-        line(-24, -5, 24, -5); line(-43, 19, 43, 19);
-        line(-21, 13, 21, 13);
-        break;
-    }
-    default:
-        break;
-    }
-    DrawText("SHIP PREVIEW", centerX - 43, centerY + 34, 10, kMuted);
+void drawHangarShipPreview3D(std::uint32_t shipId, int centerX, int centerY,
+                              double elapsedSeconds) {
+    const Rectangle bounds{static_cast<float>(centerX - 150),
+                           static_cast<float>(centerY - 92), 300.0F, 184.0F};
+    DrawRectangleRounded(bounds, 0.06F, 8, Color{10, 14, 21, 245});
+    DrawRectangleRoundedLinesEx(bounds, 0.06F, 8, 1.0F, kEdge);
+    BeginScissorMode(static_cast<int>(bounds.x), static_cast<int>(bounds.y),
+                     static_cast<int>(bounds.width), static_cast<int>(bounds.height));
+    Camera3D camera{};
+    camera.position = Vector3{2.8F, 2.0F, 4.8F};
+    camera.target = Vector3{0.0F, 0.0F, 0.0F};
+    camera.up = Vector3{0.0F, 1.0F, 0.0F};
+    camera.fovy = 38.0F;
+    camera.projection = CAMERA_PERSPECTIVE;
+    BeginMode3D(camera);
+    DrawLine3D(Vector3{-1.6F, -0.85F, -1.2F}, Vector3{1.6F, -0.85F, -1.2F},
+               Color{42, 58, 74, 255});
+    DrawLine3D(Vector3{-1.6F, -0.85F, 1.2F}, Vector3{1.6F, -0.85F, 1.2F},
+               Color{42, 58, 74, 255});
+    DrawLine3D(Vector3{-1.6F, -0.85F, -1.2F}, Vector3{-1.6F, -0.85F, 1.2F},
+               Color{42, 58, 74, 255});
+    DrawLine3D(Vector3{1.6F, -0.85F, -1.2F}, Vector3{1.6F, -0.85F, 1.2F},
+               Color{42, 58, 74, 255});
+    const float turn = static_cast<float>(elapsedSeconds);
+    drawPlayerShip(shipId, 0.0F, 0.0F, 0.20F + std::sin(turn * 0.7F) * 0.12F,
+                   turn * 0.65F, std::sin(turn * 0.4F) * 0.18F);
+    EndMode3D();
+    EndScissorMode();
+    DrawText("LIVE 3D HOLOGRAM", static_cast<int>(bounds.x) + 12,
+             static_cast<int>(bounds.y) + 10, 10, kAccent);
 }
 
 void drawProceduralHazard(std::uint64_t seed, float playerDistance,
@@ -666,7 +614,7 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
                            const tunrun::TunnelCrossSection& playerSection,
                            const tunrun::ProceduralHazard& hazard) {
     const float ahead = static_cast<float>(hazard.distance - static_cast<double>(playerDistance));
-    if (ahead < -1.5F || ahead > 76.0F) return;
+    if (ahead < -1.5F || ahead > 108.0F) return;
     const auto courseAtHazard = tunrun::sampleCourse(seed, hazard.distance);
     const auto movingCenter = tunrun::hazardCenterAt(hazard, elapsedSeconds);
     const Vector3 center{
@@ -675,40 +623,112 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
         -ahead
     };
     const Color color{255, 103, 91, 255};
-    DrawSphereWires(center, hazard.radius, 8, 12, color);
-    DrawLine3D(Vector3{center.x - hazard.radius * 1.35F, center.y, center.z},
-               Vector3{center.x + hazard.radius * 1.35F, center.y, center.z},
-               Color{255, 167, 119, 230});
-    DrawLine3D(Vector3{center.x, center.y - hazard.radius * 1.35F, center.z},
-               Vector3{center.x, center.y + hazard.radius * 1.35F, center.z},
-               Color{255, 167, 119, 230});
+    const float phase = elapsedSeconds * (1.1F + hazard.frequency * 0.4F) +
+                        static_cast<float>(hazard.index) * 0.73F;
+    const Color bladeColor{255, 167, 119, 230};
+    switch (hazard.index % 4U) {
+    case 0U:
+        DrawSphereWires(center, hazard.radius, 8, 12, color);
+        DrawLine3D(Vector3{center.x - hazard.radius, center.y, center.z},
+                   Vector3{center.x + hazard.radius, center.y, center.z}, bladeColor);
+        DrawLine3D(Vector3{center.x, center.y - hazard.radius, center.z},
+                   Vector3{center.x, center.y + hazard.radius, center.z}, bladeColor);
+        break;
+    case 1U: {
+        const Vector3 top{center.x, center.y + hazard.radius, center.z};
+        const Vector3 right{center.x + hazard.radius * 0.78F, center.y, center.z};
+        const Vector3 bottom{center.x, center.y - hazard.radius, center.z};
+        const Vector3 left{center.x - hazard.radius * 0.78F, center.y, center.z};
+        DrawLine3D(top, right, color); DrawLine3D(right, bottom, color);
+        DrawLine3D(bottom, left, color); DrawLine3D(left, top, color);
+        DrawLine3D(top, bottom, bladeColor); DrawLine3D(left, right, bladeColor);
+        DrawSphereWires(center, hazard.radius * 0.34F, 6, 8, color);
+        break;
+    }
+    case 2U: {
+        for (int blade = 0; blade < 3; ++blade) {
+            const float angle = phase + static_cast<float>(blade) * 2.0F * PI / 3.0F;
+            const Vector3 tip{center.x + std::cos(angle) * hazard.radius,
+                              center.y + std::sin(angle) * hazard.radius, center.z};
+            const Vector3 shoulder{center.x - std::cos(angle) * hazard.radius * 0.55F,
+                                   center.y - std::sin(angle) * hazard.radius * 0.55F,
+                                   center.z + std::sin(phase) * hazard.radius * 0.28F};
+            DrawLine3D(center, tip, color);
+            DrawLine3D(tip, shoulder, bladeColor);
+            DrawLine3D(shoulder, center, color);
+        }
+        DrawSphereWires(center, hazard.radius * 0.24F, 6, 8, bladeColor);
+        break;
+    }
+    default: {
+        const float cs = std::cos(phase), sn = std::sin(phase);
+        const Vector3 a{center.x + cs * hazard.radius, center.y + sn * hazard.radius, center.z};
+        const Vector3 b{center.x - cs * hazard.radius, center.y - sn * hazard.radius, center.z};
+        const Vector3 c{center.x - sn * hazard.radius, center.y + cs * hazard.radius, center.z};
+        const Vector3 d{center.x + sn * hazard.radius, center.y - cs * hazard.radius, center.z};
+        DrawLine3D(a, c, color); DrawLine3D(c, b, bladeColor);
+        DrawLine3D(b, d, color); DrawLine3D(d, a, bladeColor);
+        DrawSphereWires(center, hazard.radius * 0.42F, 6, 8, color);
+        break;
+    }
+    }
 }
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, bool tpp, bool reduceMotion,
+                float pitch, float yaw, float roll,
                 float boostEnergy, float dashCooldownRemaining,
                 float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
+    const auto rearSection = tunrun::sampleCourse(seed, static_cast<double>(distance) - 6.0);
+    const auto forwardSection = tunrun::sampleCourse(seed, static_cast<double>(distance) + 24.0);
+    const float forwardX = std::sin(yaw) * std::cos(pitch);
+    const float forwardY = std::sin(pitch);
+    const float forwardZ = -std::cos(yaw) * std::cos(pitch);
     Camera3D camera{};
-    camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
-                           : Vector3{shipX, shipY, 1.5F};
-    camera.target = Vector3{shipX * 0.3F, shipY * 0.3F, -24.0F};
-    camera.up = Vector3{0.0F, 1.0F, 0.0F};
+    if (tpp) {
+        const float rearCenterX = rearSection.centerX - playerSection.centerX;
+        const float rearCenterY = rearSection.centerY - playerSection.centerY;
+        float cameraLocalX = shipX - forwardX * 6.0F;
+        float cameraLocalY = shipY - forwardY * 6.0F + 0.25F;
+        const float safeCameraRadius = std::max(0.75F, rearSection.radius - 1.0F);
+        const float cameraOffsetLength = std::sqrt(
+            cameraLocalX * cameraLocalX + cameraLocalY * cameraLocalY);
+        if (cameraOffsetLength > safeCameraRadius) {
+            const float scale = safeCameraRadius / cameraOffsetLength;
+            cameraLocalX *= scale;
+            cameraLocalY *= scale;
+        }
+        camera.position = Vector3{rearCenterX + cameraLocalX,
+                                  rearCenterY + cameraLocalY, -forwardZ * 6.0F};
+        camera.target = Vector3{
+            forwardSection.centerX - playerSection.centerX + shipX + forwardX * 8.0F,
+            forwardSection.centerY - playerSection.centerY + shipY + forwardY * 8.0F,
+            -22.0F};
+    } else {
+        camera.position = Vector3{shipX, shipY, 1.25F};
+        camera.target = Vector3{
+            forwardSection.centerX - playerSection.centerX + shipX + forwardX * 24.0F,
+            forwardSection.centerY - playerSection.centerY + shipY + forwardY * 24.0F,
+            1.25F + forwardZ * 24.0F};
+    }
+    camera.up = Vector3{-std::sin(roll), std::cos(roll), 0.0F};
     camera.fovy = 70.0F;
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
     BeginMode3D(camera);
-    constexpr int ringCount = 23;
-    constexpr int sideCount = 16;
-    for (int ring = 0; ring < ringCount; ++ring) {
+    constexpr int firstRing = -5;
+    constexpr int lastRing = 37;
+    constexpr int sideCount = 20;
+    for (int ring = firstRing; ring < lastRing; ++ring) {
         const Color ringColor = ring % 4 == 0
             ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
         for (int side = 0; side < sideCount; ++side) {
             DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
                        tunnelPoint(seed, distance, ring, (side + 1) % sideCount, playerSection), ringColor);
-            if (ring + 1 < ringCount) {
+            if (ring + 1 < lastRing) {
                 DrawLine3D(tunnelPoint(seed, distance, ring, side, playerSection),
                            tunnelPoint(seed, distance, ring + 1, side, playerSection), Color{48, 65, 83, 125});
             }
@@ -760,7 +780,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
     if (tpp) {
-        drawPlayerShip(shipId, shipX, shipY);
+        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll);
     }
     EndMode3D();
     DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});
@@ -823,9 +843,6 @@ int main() {
     SetTargetFPS(tunrun::targetFpsForRefreshRate(monitorRefreshRate));
     SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
-    RawMouse rawMouse;
-    rawMouse.install(GetWindowHandle());
-
     AppState app;
     app.profileStore = tunrun::ProfileStore::forCurrentUser();
     const auto clockSeed = static_cast<std::uint64_t>(
@@ -863,9 +880,7 @@ int main() {
     app.courseSeed = app.runSerial == 0U ? app.rootSeed : tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
     app.showFps = app.profile.showFps;
     app.reduceMotion = app.profile.reduceMotion;
-    app.mouseSteering = app.profile.mouseSteering;
     app.fullscreen = app.profile.fullscreen;
-    app.mouseSensitivity = app.profile.mouseSensitivity;
     app.selectedShip = static_cast<int>(std::min<std::uint32_t>(
         app.profile.selectedShip, static_cast<std::uint32_t>(tunrun::kProfileShipCount - 1U)));
     if (!app.profile.unlockedShips[static_cast<std::size_t>(app.selectedShip)]) {
@@ -874,7 +889,12 @@ int main() {
         initializeProfile = true;
     }
     app.hangarPreviewShip = app.selectedShip;
-    if (app.fullscreen) ToggleFullscreen();
+    // Always launch fullscreen. Windowed mode can be selected in Settings for
+    // the current session; the next launch returns to fullscreen.
+    ToggleFullscreen();
+    app.fullscreen = true;
+    app.profile.fullscreen = true;
+    initializeProfile = true;
 
     if (app.profileRecoveryRequired) {
         app.screens.replace(tunrun::Screen::SaveRecovery);
@@ -907,7 +927,7 @@ int main() {
     };
     const std::vector<std::string> settingsItems{
         "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
-        "MOUSE STEERING", "MOUSE SENSITIVITY", "RESET OPTIONS", "BACK"
+        "RESET OPTIONS", "BACK"
     };
     const std::vector<std::string> resetSettingsItems{"CANCEL", "RESET OPTIONS"};
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
@@ -922,15 +942,6 @@ int main() {
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const float dt = std::min(GetFrameTime(), 0.05F);
-        const bool wantsMouseCapture =
-            app.screens.current() == tunrun::Screen::Preview &&
-            app.mouseSteering && IsWindowFocused();
-        rawMouse.setActive(wantsMouseCapture);
-        RelativeMouseDelta mouseDelta = rawMouse.consume();
-        if (!rawMouse.installed() && wantsMouseCapture) {
-            const Vector2 fallbackDelta = GetMouseDelta();
-            mouseDelta = RelativeMouseDelta{fallbackDelta.x, fallbackDelta.y};
-        }
         if (tunrun::shouldAdvanceRunClock(app.screens)) app.elapsed += dt;
 
         if (app.screens.current() == tunrun::Screen::Preview) {
@@ -941,10 +952,12 @@ int main() {
                                (IsKeyDown(KEY_A) ? 1.0F : 0.0F);
                 float steerY = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
                                (IsKeyDown(KEY_S) ? 1.0F : 0.0F);
-                if (IsKeyDown(KEY_RIGHT)) steerX += 1.0F;
-                if (IsKeyDown(KEY_LEFT)) steerX -= 1.0F;
-                if (IsKeyDown(KEY_UP)) steerY += 1.0F;
-                if (IsKeyDown(KEY_DOWN)) steerY -= 1.0F;
+                float rotateYaw = (IsKeyDown(KEY_RIGHT) ? 1.0F : 0.0F) -
+                                  (IsKeyDown(KEY_LEFT) ? 1.0F : 0.0F);
+                float rotatePitch = (IsKeyDown(KEY_UP) ? 1.0F : 0.0F) -
+                                    (IsKeyDown(KEY_DOWN) ? 1.0F : 0.0F);
+                float rollInput = (IsKeyDown(KEY_E) ? 1.0F : 0.0F) -
+                                  (IsKeyDown(KEY_Q) ? 1.0F : 0.0F);
                 if (IsGamepadAvailable(0)) {
                     float padX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
                     float padY = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
@@ -954,6 +967,10 @@ int main() {
                     else padY = std::copysign((std::abs(padY) - 0.18F) / 0.82F, padY);
                     steerX += padX;
                     steerY += padY;
+                    rotateYaw = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+                    rotatePitch = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+                    if (std::abs(rotateYaw) < 0.16F) rotateYaw = 0.0F;
+                    if (std::abs(rotatePitch) < 0.16F) rotatePitch = 0.0F;
                 }
                 const float previousElapsed = std::max(0.0F, app.elapsed - dt);
                 const float previousX = app.flight.x;
@@ -973,11 +990,10 @@ int main() {
                     IsKeyDown(KEY_LEFT_SHIFT) || padBoost,
                     IsKeyDown(KEY_LEFT_CONTROL) || padPrecision,
                     static_cast<std::uint32_t>(app.selectedShip),
-                    IsKeyDown(KEY_SPACE) || padDash
+                    IsKeyDown(KEY_SPACE) || padDash,
+                    rotateYaw, rotatePitch, rollInput
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
-                applyRelativeMouseSteering(app.flight.x, app.flight.y, mouseDelta,
-                                           app.mouseSensitivity, tunrun::kFlightLimit);
                 const auto tunnelSection = tunrun::sampleCourse(
                     app.courseSeed, static_cast<double>(app.flight.distance));
                 const tunrun::TunnelCrossSection centredSection{
@@ -1083,8 +1099,9 @@ int main() {
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
-                       static_cast<std::uint32_t>(app.selectedShip), tpp,
-                       app.reduceMotion, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       static_cast<std::uint32_t>(app.selectedShip), tpp, app.reduceMotion,
+                       app.flight.pitch, app.flight.yaw, app.flight.roll,
+                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
@@ -1139,19 +1156,20 @@ int main() {
             const auto& definition = tunrun::shipDefinition(static_cast<std::uint32_t>(previewShip));
             const bool unlocked = app.profile.unlockedShips[static_cast<std::size_t>(previewShip)];
             const bool active = app.selectedShip == previewShip;
-            drawHeader("01 / COLLECTION", "HANGAR", "Unlock and equip ships with local, save-before-confirm economy transactions.");
-            drawCentred("SHIP", 195.0F, 15, kAccent);
-            drawCentred(definition.name, 230.0F, 32, kText);
+            drawHeader("01 / COLLECTION", "HANGAR", "3D ship showroom / unlocks use local saved progression.");
+            DrawText("SELECTED SHIP", 66, 190, 13, kAccent);
+            DrawText(definition.name, 66, 218, 30, kText);
             const std::string status = unlocked
                 ? (active ? "STATUS: ACTIVE / UNLOCKED" : "STATUS: UNLOCKED / NOT ACTIVE")
                 : "STATUS: LOCKED";
-            drawCentred(status.c_str(), 270.0F, 15, unlocked ? kAccent : kMuted);
-            drawCentred(TextFormat("SPEED %.2fx   ACCELERATION %.2fx   BOOST DRAIN %.2fx",
-                                   definition.speedMultiplier, definition.accelerationMultiplier,
-                                   definition.boostDrainMultiplier),
-                        300.0F, 14, kText);
-            drawHangarShipPreview(static_cast<std::uint32_t>(previewShip),
-                                  GetScreenWidth() / 2, 350);
+            DrawText(status.c_str(), 66, 255, 14, unlocked ? kAccent : kMuted);
+            DrawText(TextFormat("SPEED %.2fx", definition.speedMultiplier), 66, 292, 14, kText);
+            DrawText(TextFormat("ACCELERATION %.2fx", definition.accelerationMultiplier), 66, 316, 14, kText);
+            DrawText(TextFormat("BOOST DRAIN %.2fx", definition.boostDrainMultiplier), 66, 340, 14, kText);
+            DrawText(TextFormat("ENERGY RECOVERY %.2fx", definition.energyRegenerationMultiplier),
+                     66, 364, 14, kText);
+            drawHangarShipPreview3D(static_cast<std::uint32_t>(previewShip),
+                                    GetScreenWidth() - 210, 315, app.elapsed);
 
             std::string actionLabel;
             if (unlocked) {
@@ -1161,18 +1179,16 @@ int main() {
             } else {
                 actionLabel = "UNLOCK FOR " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
             }
-            const Rectangle actionBounds{
-                static_cast<float>(GetScreenWidth() / 2 - 190), 405.0F, 380.0F, 45.0F
-            };
+            const Rectangle actionBounds{66.0F, 405.0F, 385.0F, 45.0F};
             const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), false);
             const bool actionConfirmed = confirmPressed();
             if (actionClicked || actionConfirmed) {
                 activateHangarShip(app, static_cast<std::uint32_t>(previewShip));
             }
 
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 - 180), 350, 70, 45}, "<", false))
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 365), 390, 48, 36}, "<", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 + 110), 350, 70, 45}, ">", false))
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 55), 390, 48, 36}, ">", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
@@ -1195,12 +1211,12 @@ int main() {
             DrawText(TextFormat("AETHER SHARDS %llu  |  SINGULARITY CORES %llu",
                                 static_cast<unsigned long long>(app.profile.aetherShards),
                                 static_cast<unsigned long long>(app.profile.singularityCores)),
-                     50, 462, 13, kAccent);
+                     66, 466, 13, kAccent);
             if (!app.hangarMessage.empty()) {
                 const std::string visibleMessage = app.hangarMessage.substr(0, 88);
-                drawCentred(visibleMessage.c_str(), 480.0F, 13, app.saveWarning ? kDanger : kMuted);
+                DrawText(visibleMessage.c_str(), 66, 489, 12, app.saveWarning ? kDanger : kMuted);
             }
-            if (drawMenu({"BACK"}, hangarSelection, std::max(485, GetScreenHeight() - 100),
+            if (drawMenu({"BACK"}, hangarSelection, GetScreenHeight() - 86,
                          !actionConfirmed) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
@@ -1228,28 +1244,26 @@ int main() {
         }
         case tunrun::Screen::Controls: {
             drawHeader("SYSTEM / CONTROLS", "CONTROLS",
-                       "Keyboard, relative mouse and gamepad input reference.");
-            DrawText("KEYBOARD + MOUSE", 70, 184, 15, kAccent);
-            DrawText("STEER  W / A / S / D OR ARROW KEYS", 78, 218, 13, kText);
-            DrawText("BOOST  LEFT SHIFT", 78, 246, 13, kText);
-            DrawText("PRECISION  LEFT CTRL", 78, 274, 13, kText);
-            DrawText("DASH  SPACE (EDGE-TRIGGERED)", 78, 302, 13, kText);
-            DrawText("CAMERA  V", 78, 330, 13, kText);
-            DrawText("PAUSE / BACK  ESC", 78, 358, 13, kText);
-            DrawText("MOUSE STEERING IS TOGGLEABLE", 78, 402, 12, kMuted);
-            DrawText("SENSITIVITY IS ADJUSTABLE IN SETTINGS", 78, 426, 12, kMuted);
+                       "Keyboard/gamepad control flight; mouse is UI-only.");
+            DrawText("KEYBOARD", 70, 184, 15, kAccent);
+            DrawText("MOVE  W / A / S / D", 78, 218, 13, kText);
+            DrawText("ROTATE  ARROW KEYS", 78, 246, 13, kText);
+            DrawText("BARREL ROLL  Q / E", 78, 274, 13, kText);
+            DrawText("BOOST  LEFT SHIFT", 78, 302, 13, kText);
+            DrawText("PRECISION  LEFT CTRL", 78, 330, 13, kText);
+            DrawText("DASH  SPACE  /  CAMERA  V", 78, 358, 13, kText);
+            DrawText("MOUSE: UI POINTER ONLY", 78, 402, 12, kAccent);
+            DrawText("PAUSE / BACK  ESC", 78, 426, 12, kMuted);
             DrawLine(402, 184, 402, 448, kEdge);
             DrawText("GAMEPAD", 432, 184, 15, kAccent);
-            DrawText("LEFT STICK  STEER", 440, 218, 13, kText);
-            DrawText("RT  BOOST", 440, 246, 13, kText);
-            DrawText("LT  PRECISION", 440, 274, 13, kText);
-            DrawText("A  DASH", 440, 302, 13, kText);
-            DrawText("Y  CAMERA", 440, 330, 13, kText);
-            DrawText("START / B  PAUSE / BACK", 440, 358, 13, kText);
-            DrawText(TextFormat("DASH COST  %.0f ENERGY", tunrun::kDashEnergyCost),
-                     440, 402, 12, kMuted);
-            DrawText(TextFormat("BURST %.2fs  /  COOLDOWN %.2fs",
-                     tunrun::kDashDuration, tunrun::kDashCooldown), 440, 426, 12, kMuted);
+            DrawText("LEFT STICK  MOVE", 440, 218, 13, kText);
+            DrawText("RIGHT STICK  ROTATE", 440, 246, 13, kText);
+            DrawText("RT  BOOST  /  LT  PRECISION", 440, 274, 13, kText);
+            DrawText("A  DASH  /  Y  CAMERA", 440, 302, 13, kText);
+            DrawText("START / B  PAUSE / BACK", 440, 330, 13, kText);
+            DrawText("ROTATION HAS INERTIA; Q/E BARREL ROLLS", 440, 380, 12, kMuted);
+            DrawText(TextFormat("DASH %.2fs  /  COOLDOWN %.2fs",
+                     tunrun::kDashDuration, tunrun::kDashCooldown), 440, 408, 12, kMuted);
             if (drawMenu({"BACK"}, controlsSelection, GetScreenHeight() - 86) == 0) {
                 app.screens.pop();
             }
@@ -1294,139 +1308,31 @@ int main() {
             break;
         }
         case tunrun::Screen::Settings: {
-            drawHeader("03 / CONFIGURATION", "SETTINGS", "Settings are saved to the local TUNRUN profile.");
+            drawHeader("03 / CONFIGURATION", "SETTINGS",
+                       "Mouse is reserved for UI navigation; flight uses keyboard/gamepad.");
             auto labels = settingsItems;
             labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
             labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
-            labels[3] = std::string("MOUSE STEERING: ") + (app.mouseSteering ? "ON" : "OFF");
-            labels[4] = std::string("MOUSE SENSITIVITY: ") +
-                        TextFormat("%.4f", app.mouseSensitivity);
-            // Seven settings actions must remain visible at the minimum
-            // supported height (800 x 560), including the Back button.
             const int settingsMenuY = std::max(
-                145, std::min(205, GetScreenHeight() - 404));
+                145, std::min(205, GetScreenHeight() - 320));
             const int picked = drawMenu(labels, settingsSelection, settingsMenuY);
             const bool settingsBackRequested = backPressed();
-            bool pointerSensitivityCommit = false;
-            // A lost focus can suppress the native mouse-button release event.
-            // End any drag explicitly so pointer state never leaks across Alt+Tab.
-            if (!IsWindowFocused() && app.mouseSensitivityPointerDragging) {
-                pointerSensitivityCommit = app.mouseSensitivityPointerDirty;
-                app.mouseSensitivityPointerDragging = false;
-                app.mouseSensitivityPointerDirty = false;
-            }
-            const Rectangle sensitivityBounds{
-                (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
-                static_cast<float>(settingsMenuY +
-                    4 * static_cast<int>(kButtonHeight + kButtonGap)),
-                kPanelWidth, kButtonHeight
-            };
-            constexpr float sensitivityTrackInset = 30.0F;
-            const Rectangle sensitivityTrack{
-                sensitivityBounds.x + sensitivityTrackInset,
-                sensitivityBounds.y + sensitivityBounds.height - 7.0F,
-                sensitivityBounds.width - 2.0F * sensitivityTrackInset,
-                3.0F
-            };
-            const float normalizedSensitivity =
-                mouseSensitivitySliderPosition(app.mouseSensitivity);
-            DrawRectangleRounded(sensitivityTrack, 0.8F, 6, kEdge);
-            DrawRectangleRounded(Rectangle{
-                sensitivityTrack.x, sensitivityTrack.y,
-                sensitivityTrack.width * normalizedSensitivity,
-                sensitivityTrack.height
-            }, 0.8F, 6, kAccent);
-            DrawCircle(sensitivityTrack.x + sensitivityTrack.width * normalizedSensitivity,
-                       sensitivityTrack.y + sensitivityTrack.height * 0.5F,
-                       4.0F, kText);
-            if (IsWindowFocused() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-                CheckCollisionPointRec(GetMousePosition(), sensitivityBounds)) {
-                app.mouseSensitivityPointerDragging = true;
-                app.mouseSensitivityPointerDirty = false;
-            }
-
-            if (IsWindowFocused() && app.mouseSensitivityPointerDragging &&
-                IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                const float normalizedPosition =
-                    (GetMousePosition().x - sensitivityTrack.x) / sensitivityTrack.width;
-                const float nextSensitivity = mouseSensitivityFromSlider(normalizedPosition);
-                if (nextSensitivity != app.mouseSensitivity) {
-                    app.mouseSensitivity = nextSensitivity;
-                    app.mouseSensitivityPointerDirty = true;
-                }
-            }
-            if (app.mouseSensitivityPointerDragging &&
-                IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                app.mouseSensitivityPointerDragging = false;
-                pointerSensitivityCommit = app.mouseSensitivityPointerDirty;
-                app.mouseSensitivityPointerDirty = false;
-            }
-            // Leaving Settings mid-drag still commits the last visible value and
-            // clears pointer state, so a later visit cannot inherit a stale drag.
-            if ((picked == 6 || settingsBackRequested) &&
-                app.mouseSensitivityPointerDragging) {
-                pointerSensitivityCommit =
-                    pointerSensitivityCommit || app.mouseSensitivityPointerDirty;
-                app.mouseSensitivityPointerDragging = false;
-                app.mouseSensitivityPointerDirty = false;
-            }
-
-            bool sensitivityChanged = false;
-            int sensitivityDirection = leftPressed() ? -1 : rightPressed() ? 1 : 0;
-            // Left-stick changes use a delayed repeat so one deliberate nudge
-            // does not race the slider to its minimum/maximum.
-            static int previousSensitivityStick = 0;
-            static float sensitivityRepeatDelay = 0.0F;
-            if (sensitivityDirection != 0) {
-                previousSensitivityStick = 0;
-                sensitivityRepeatDelay = 0.0F;
-            } else {
-                float horizontalAxis = 0.0F;
-                if (IsGamepadAvailable(0)) {
-                    horizontalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-                }
-                const int stickDirection = horizontalAxis < -0.65F ? -1
-                    : horizontalAxis > 0.65F ? 1 : 0;
-                if (stickDirection == 0 || settingsSelection != 4) {
-                    previousSensitivityStick = 0;
-                    sensitivityRepeatDelay = 0.0F;
-                } else if (stickDirection != previousSensitivityStick) {
-                    sensitivityDirection = stickDirection;
-                    previousSensitivityStick = stickDirection;
-                    sensitivityRepeatDelay = 0.24F;
-                } else {
-                    sensitivityRepeatDelay -= GetFrameTime();
-                    if (sensitivityRepeatDelay <= 0.0F) {
-                        sensitivityDirection = stickDirection;
-                        sensitivityRepeatDelay = 0.12F;
-                    }
-                }
-            }
-            if (settingsSelection == 4 && sensitivityDirection != 0 && picked < 0 &&
-                !app.mouseSensitivityPointerDragging) {
-                const float nextSensitivity = adjustMouseSensitivity(
-                    app.mouseSensitivity, sensitivityDirection);
-                sensitivityChanged = nextSensitivity != app.mouseSensitivity;
-                app.mouseSensitivity = nextSensitivity;
-                labels[4] = std::string("MOUSE SENSITIVITY: ") +
-                            TextFormat("%.4f", app.mouseSensitivity);
-            }
-
-            if (picked == 0) { app.fullscreen = !app.fullscreen; ToggleFullscreen(); }
-            else if (picked == 1) app.showFps = !app.showFps;
-            else if (picked == 2) app.reduceMotion = !app.reduceMotion;
-            else if (picked == 3) app.mouseSteering = !app.mouseSteering;
-            else if (picked == 5) {
+            if (picked == 0) {
+                app.fullscreen = !app.fullscreen;
+                ToggleFullscreen();
+            } else if (picked == 1) {
+                app.showFps = !app.showFps;
+            } else if (picked == 2) {
+                app.reduceMotion = !app.reduceMotion;
+            } else if (picked == 3) {
                 settingsResetSelection = 0;
                 app.screens.push(tunrun::Screen::SettingsResetConfirm);
-            } else if (picked == 6) app.screens.pop();
-
-            if ((picked >= 0 && picked <= 3) || sensitivityChanged ||
-                pointerSensitivityCommit) {
-                (void)persistProfile(app);
+            } else if (picked == 4) {
+                app.screens.pop();
             }
-            if (settingsBackRequested && picked != 6) app.screens.pop();
+            if (picked >= 0 && picked <= 2) (void)persistProfile(app);
+            if (settingsBackRequested && picked != 4) app.screens.pop();
             break;
         }
         case tunrun::Screen::SettingsResetConfirm: {
@@ -1441,10 +1347,6 @@ int main() {
                 app.fullscreen = false;
                 app.showFps = true;
                 app.reduceMotion = false;
-                app.mouseSteering = true;
-                app.mouseSensitivity = kMouseSensitivityDefault;
-                app.mouseSensitivityPointerDragging = false;
-                app.mouseSensitivityPointerDirty = false;
                 (void)persistProfile(app);
                 app.screens.pop();
             }
@@ -1789,9 +1691,7 @@ case tunrun::Screen::SaveRecovery: {
                     app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
                     app.showFps = defaults.showFps;
                     app.reduceMotion = defaults.reduceMotion;
-                    app.mouseSteering = defaults.mouseSteering;
                     app.fullscreen = defaults.fullscreen;
-                    app.mouseSensitivity = defaults.mouseSensitivity;
                     app.selectedShip = static_cast<int>(defaults.selectedShip);
                     app.saveWarning = false;
                     app.saveWarningMessage.clear();
@@ -1826,7 +1726,6 @@ case tunrun::Screen::SaveRecovery: {
         EndDrawing();
     }
     if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
-    rawMouse.uninstall();
     CloseWindow();
     return 0;
 }

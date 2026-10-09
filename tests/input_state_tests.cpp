@@ -539,6 +539,13 @@ int main() {
 
     // The ship catalog is shared by the hangar, renderer, and physics model.
     assert(tunrun::kShipCatalog.size() == 8U);
+    assert(tunrun::shipDefinition(1U).aetherShardCost == 800U);
+    assert(tunrun::shipDefinition(2U).aetherShardCost == 1500U);
+    assert(tunrun::shipDefinition(3U).aetherShardCost == 2500U);
+    assert(tunrun::shipDefinition(4U).aetherShardCost == 3800U);
+    assert(tunrun::shipDefinition(5U).singularityCoreCost == 20U);
+    assert(tunrun::shipDefinition(6U).singularityCoreCost == 40U);
+    assert(tunrun::shipDefinition(7U).singularityCoreCost == 80U);
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
         const auto& ship = tunrun::shipDefinition(shipId);
         assert(ship.name != nullptr && std::string_view(ship.name).size() > 0U);
@@ -732,6 +739,21 @@ int main() {
 
     assert(tunrun::shipDefinition(4U).speedMultiplier >
            tunrun::shipDefinition(0U).speedMultiplier);
+    tunrun::FlightState rotationState;
+    const tunrun::FlightInput rotationInput{
+        0.0F, 0.0F, false, false, tunrun::kStarterShipId, false,
+        1.0F, 0.6F, 1.0F
+    };
+    for (int frame = 0; frame < 30; ++frame) {
+        tunrun::updateFlight(rotationState, rotationInput, 1.0F / 60.0F);
+    }
+    assert(rotationState.yaw > 0.0F);
+    assert(rotationState.pitch > 0.0F);
+    assert(rotationState.roll > 0.0F);
+    assert(rotationState.x > 0.0F || rotationState.y < 0.0F);
+    assert(std::isfinite(rotationState.yaw) &&
+           std::isfinite(rotationState.pitch) &&
+           std::isfinite(rotationState.roll));
     assert(tunrun::shipDefinition(4U).boostDrainMultiplier >
            tunrun::shipDefinition(2U).boostDrainMultiplier);
     tunrun::FlightState driftwingFlight;
@@ -917,13 +939,13 @@ int main() {
     assert(afterReset.profile.rootSeed == defaults.rootSeed);
     tunrun::Profile economyProfile;
     economyProfile.rootSeed = 99U;
-    economyProfile.aetherShards = 100U;
+    economyProfile.aetherShards = 1000U;
     const auto purchase = tunrun::purchaseShip(economyProfile, 1U);
     assert(purchase == tunrun::ShipTransactionStatus::Purchased);
-    assert(economyProfile.aetherShards == 20U && economyProfile.unlockedShips[1U]);
+    assert(economyProfile.aetherShards == 200U && economyProfile.unlockedShips[1U]);
     assert(tunrun::purchaseShip(economyProfile, 1U) ==
            tunrun::ShipTransactionStatus::AlreadyUnlocked);
-    assert(economyProfile.aetherShards == 20U); // duplicate activation cannot charge twice
+    assert(economyProfile.aetherShards == 200U); // duplicate activation cannot charge twice
     assert(tunrun::equipShip(economyProfile, 1U) == tunrun::ShipTransactionStatus::Equipped);
     assert(economyProfile.selectedShip == 1U);
     const auto shardsBeforeFailedBuy = economyProfile.aetherShards;
@@ -932,7 +954,7 @@ int main() {
     assert(economyProfile.aetherShards == shardsBeforeFailedBuy);
     assert(!economyProfile.unlockedShips[2U]);
     assert(tunrun::equipShip(economyProfile, 2U) == tunrun::ShipTransactionStatus::ShipLocked);
-    economyProfile.singularityCores = 2U;
+    economyProfile.singularityCores = 20U;
     assert(tunrun::purchaseShip(economyProfile, 5U) == tunrun::ShipTransactionStatus::Purchased);
     assert(economyProfile.singularityCores == 0U && economyProfile.unlockedShips[5U]);
     assert(tunrun::purchaseShip(economyProfile, 6U) ==

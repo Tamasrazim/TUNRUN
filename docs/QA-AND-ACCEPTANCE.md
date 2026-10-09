@@ -19,14 +19,15 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Pause → Return to Main Menu asks before discarding the current run; Cancel returns to Pause without changing the run.
 - On the minimum-height window, the first menu button does not overlap the currency row.
 - At the minimum supported window size, all nine Main Menu actions remain visible and clickable without overlap.
+- Every launch starts fullscreen even if the last session exited windowed; the in-session fullscreen toggle remains functional.
 - The renderer selects the reported monitor refresh rate up to 240 FPS, falls back to 144 for invalid reports, and leaves fixed-step physics independent of the render cap.
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
-- Mouse sensitivity renders a visible logarithmic track and thumb; click/drag adjusts it, while keyboard arrows and gamepad D-pad/left stick also work. It clamps to the supported range, writes once when a pointer drag ends (including focus loss), and persists across restart. The default sensitivity maps back to itself, and slider positions increase monotonically.
+- Mouse input is confined to UI navigation and never changes flight position. Keyboard and gamepad separately control translation, yaw/pitch rotation, and roll; angular state remains finite under sustained input.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
-- Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
+- Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, and reduced-motion defaults without changing wallet balances, ship unlocks, or run history.
 - Reduced Motion suppresses nonessential animated dash streaks while preserving dash physics, collision timing and the textual DASH ACTIVE / recharge indicator.
 - Dropdowns open, select an item, and close.
 - A modal blocks clicks behind it.
@@ -36,7 +37,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Keyboard and gamepad can operate the same screen.
 
 Gameplay-specific mouse checks:
-- Entering a run captures/hides the cursor only when configured for mouse steering.
+- Entering a run never captures the mouse for flight steering; the pointer remains available for on-screen UI only.
 - Relative movement steers in the intended direction; inversion and sensitivity settings work.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.
@@ -66,7 +67,7 @@ Gameplay-specific mouse checks:
 - Swept gate-plane tests detect obstacle contact between fixed simulation steps while a craft in the opening clears the gate.
 - Run large headless seed batches for every difficulty tier and each ship profile. The automated suite checks 512 gates for all eight ship profiles and 64-gate batches across 24 deterministic derived seeds.
 - Run the fixed-step route probe across every ship profile and a deterministic multi-seed subset. It must carry position and lateral velocity between gate crossings, use gameplay flight physics and crossing interpolation, remain inside the conservative tunnel clearance, and report non-negative aperture clearance. This proves only the tested controller trajectory, not exhaustive reachable-state coverage.
-- Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
+- Check tunnel seam continuity, minimum aperture, stronger left/right bends, visible narrowing/expansion, variable twist, and collision/render agreement.
 - Verify reward hashes and pickup order are seed-deterministic, Aether Shard values remain 4–8, every eighth pickup is a Singularity Core, and pickup collision happens only on a forward plane crossing.
 - Verify gate collision and scoring consume one computed course-relative crossing point per crossing; outside-aperture points collide and earn nothing, invalid points fail closed, and combo multipliers, clean-pass thresholds, reset behaviour and saturating score arithmetic are deterministic.
 - A run that sets a new career-best score or combo announces exactly which record improved; tied or lower results do not show a new-record banner. A failed profile write takes priority over the new-record banner and explicitly warns that this run's results may not be saved.
@@ -118,7 +119,7 @@ Gameplay-specific mouse checks:
 
 - FPP/TPP switch works while moving and while using boost.
 - Dash activation requires a press edge, deducts energy once, ends after the configured duration, respects cooldown, and cannot auto-repeat while held.
-- Camera switching changes presentation only; it does not alter craft transform, collision, seed, or obstacle phase.
+- Camera switching changes presentation only; it does not alter craft position, collision rules, seed, or obstacle phase. TPP's camera stays within the tunnel on the rear centerline; the rear tube geometry must enclose it at all times.
 - TPP camera collision prevents clipping through tunnel geometry.
 - FPP/TPP both show the upcoming route clearly enough for fair reaction.
 - Pausing freezes run simulation and moving hazards according to the chosen pause rule.

@@ -11,16 +11,16 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **Seeded rewards:** Aether Shards and rarer Singularity Core pickups appear in the tunnel, use swept crossing checks, and contribute to the run payout.
 - **Moving hazards:** seed-derived mines oscillate over time, appear in the 3D tunnel with distance and player-relative bearing cues, and can end a run on contact.
 - **Skill scoring and records:** clean gate passes earn accuracy bonuses, gate families have different base scores, and consecutive passes raise the in-run combo multiplier. Career-best score and combo persist in profile v3, the Records / Statistics screen displays them, and the crash/results screen distinguishes new personal records from failed saves.
-- **Input and pause safety:** the Controls screen documents current keyboard, relative mouse and gamepad bindings. Mouse sensitivity supports click-and-drag as well as keyboard/controller adjustment. Crash and Seed Lab seeds can be copied in exact round-trippable hexadecimal form. Restarting/leaving a run and resetting settings ask for confirmation; settings reset preserves wallet and ship progression.
+- **Input and pause safety:** mouse is UI-only. WASD and the gamepad left stick move laterally; arrow keys and the right stick control yaw/pitch, and Q/E continuously roll the ship. Crash and Seed Lab seeds can be copied in exact round-trippable hexadecimal form. Destructive pause actions and settings reset ask for confirmation.
 - **Refresh-aware frame pacing:** the renderer follows the monitor refresh rate up to 240 FPS, falls back to 144 FPS when the monitor query is invalid, and keeps flight physics on its separate fixed timestep.
 - **Curving 3D tunnels:** changing centerlines, cross-sections, twists, widths, entrances, and transitions.
 - **Fair unpredictability:** geometry bounds, gate clearance and reaction spacing are validated. A ship-specific pairwise kinematic reachability screen is now included; a full propagated-state proof and warning-time validation remain unfinished.
-- **FPP and TPP:** switch between first-person and third-person cameras without resetting the run. All eight ships have distinct procedural wireframe silhouettes in TPP and a matching 2D hangar preview, alongside separate handling parameters.
+- **FPP and TPP:** switch between first-person and third-person cameras without resetting the run. TPP keeps the camera inside the tunnel, and the hangar uses a live 3D turntable preview. All eight ships have distinct wireframe silhouettes and different handling parameters.
 - **Three input families:** keyboard, mouse, and gamepad operate gameplay and UI navigation; Seed Entry includes keyboard/paste and a gamepad character picker.
 - **AI pilots and drones:** bots navigate the same generated world and obey the same collision rules.
 - **Persistent progression (in progress):** settings, active ship, seed sequence, run/crash records, best distance, Aether Shards, and Singularity Cores persist locally. Ship purchase/unlock transactions are implemented; campaign progression remains unfinished.
 - **Offline-first save:** versioned local save with atomic writes, backup, recovery, and a hidden Windows file/folder attribute.
-- **Configurable mouse steering:** sensitivity uses a logarithmic Settings slider with pointer drag, keyboard and gamepad adjustment; it persists in the local profile, and confirmed Reset Options preserves progression.
+- **Ship progression:** unlock prices are ten times the previous values; handling parameters are unchanged. Harder procedural courses have stronger bends/twist, tighter minimum tunnel sections, more precision/offset gates, and four mine silhouettes.
 - **Native Windows release:** C++20, CMake and raylib are the selected prototype stack; the full game, save system, installer and updater remain unfinished.
 
 ## Game outline
@@ -65,4 +65,8 @@ All changes are committed directly to `main`. The project does **not** use other
 
 ## Current status
 
-**M3/M4 geometry and obstacle work, and M5 persistence, are in progress.** Profile v3 stores settings, active ship, seed progression, wallets, best distance, career-best score and best combo. Atomic writes, an accidental-corruption checksum, v1/v2 migration, backup recovery, and explicit non-destructive recovery are implemented and covered by automated tests. Campaign checkpoints, a separate Endless mode, additional hazard families/generation streaming, AI, assets, installer and updater remain unfinished; the current build's moving mine hazards are implemented and validated. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.
+**M3/M4 geometry and obstacle work, and M5 persistence, are in progress.** Profile v3 stores settings, active ship, seed progression, wallets, best distance, career-best score and best combo. Atomic writes, an accidental-corruption checksum, v1/v2 migration, backup recovery, and explicit non-destructive recovery are implemented and covered by automated tests. Campaign checkpoints, a separate Endless mode, additional physical hazard families/generation streaming, AI, imported production assets, installer and updater remain unfinished; four distinct procedural mine silhouettes and a longer section of the course are now shown at once. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.
+
+
+### Windows package size
+This is still a code-driven prototype and has no production model, texture, or audio packs. A future 300–400 MB Windows package should earn its size through licensed models, materials, animations, music/SFX, and bundled runtime assets—not empty padding, duplicate files, or filler. No package at that size is claimed yet.

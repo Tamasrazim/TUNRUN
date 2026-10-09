@@ -33,10 +33,10 @@ Speed, hull, energy, current score/multiplier, next mine distance, and its playe
 Resume, Restart Same Seed, Controls, Settings, and Return to Main Menu. Restart and leaving the run both require explicit confirmation because the current score and unbanked pickups are discarded. Opening Controls or Settings keeps the run paused; Back returns to Pause.
 
 ### Controls
-A dedicated input reference is reachable from the main menu and Pause. It lists keyboard steering, boost, precision, dash, camera and pause controls; relative mouse steering and sensitivity; and controller stick/trigger/button mappings. Returning from Pause keeps the run paused.
+A dedicated input reference is reachable from the main menu and Pause. WASD moves laterally, arrow keys independently rotate yaw/pitch, Q/E applies continuous roll, and the gamepad's left/right sticks separately move and rotate. The mouse pointer is for UI navigation only. Returning from Pause keeps the run paused.
 
 ### Settings
-Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/response curve, FOV, FPP/TPP camera distance, audio, graphics, motion/comfort options, UI scale, language-ready text layout, and reset-to-defaults confirmation. Mouse sensitivity has a visible logarithmic track/thumb and supports click or drag.
+Fullscreen, FPS counter, reduced-motion option, and confirmed option reset. Advanced controller curves, camera tuning, audio, and graphics controls remain future work.
 
 ### Results
 Run seed (copyable as a fixed-width hexadecimal value), generator version, final distance and elapsed in-run time, score, collision summary, course hash, resources earned, a precise new-personal-record notice when score or combo improves, a clear save-failure warning if local persistence fails, rewards, replay/ghost save option, retry seed, new random run, and return to Hangar. Seed Lab also offers Copy Seed and confirms when the clipboard has been updated.
