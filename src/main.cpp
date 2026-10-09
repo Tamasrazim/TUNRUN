@@ -411,6 +411,52 @@ void drawProceduralGate(std::uint64_t seed, float playerDistance,
         DrawLine3D(inner0, inner1, innerColor);
         if (side % 2 == 0) DrawLine3D(outer0, inner0, Color{76, 99, 125, 205});
     }
+
+    // Gate families share the same circular collision aperture but use
+    // distinct physical supports, so they read differently at a distance.
+    const auto gatePoint = [&](float angle, float radius) {
+        const float twistedAngle = angle + courseAtGate.twist;
+        return Vector3{
+            gateCenterX + std::cos(twistedAngle) * radius,
+            gateCenterY + std::sin(twistedAngle) * radius, z
+        };
+    };
+    const auto drawHalo = [&](float radius, Color haloColor) {
+        for (int side = 0; side < segments; ++side) {
+            const float a0 = static_cast<float>(side) * 2.0F * PI / segments;
+            const float a1 = static_cast<float>(side + 1) * 2.0F * PI / segments;
+            DrawLine3D(gatePoint(a0, radius), gatePoint(a1, radius), haloColor);
+        }
+    };
+    if (gate.kind == tunrun::GateKind::Precision) {
+        const Color safetyRing{255, 171, 131, 180};
+        drawHalo(gate.apertureRadius + 0.22F, safetyRing);
+        for (int side = 0; side < segments; side += 3) {
+            const float angle = static_cast<float>(side) * 2.0F * PI / segments;
+            DrawLine3D(gatePoint(angle, gate.apertureRadius),
+                       gatePoint(angle, gate.apertureRadius + 0.22F), safetyRing);
+        }
+    } else if (gate.kind == tunrun::GateKind::Wide) {
+        const Color haloColor{150, 245, 213, 180};
+        drawHalo(gate.apertureRadius + 0.34F, haloColor);
+        for (int side = 0; side < segments; side += 6) {
+            const float angle = static_cast<float>(side) * 2.0F * PI / segments;
+            DrawLine3D(gatePoint(angle, gate.apertureRadius),
+                       gatePoint(angle, gate.apertureRadius + 0.34F), haloColor);
+        }
+    } else if (gate.kind == tunrun::GateKind::Offset) {
+        const Color markerColor{194, 172, 255, 235};
+        for (int marker = 0; marker < 4; ++marker) {
+            const float angle = static_cast<float>(marker) * PI * 0.5F;
+            const Vector3 tip = gatePoint(angle, gate.apertureRadius + 0.48F);
+            const Vector3 base = gatePoint(angle, gate.apertureRadius + 0.12F);
+            const Vector3 wingA = gatePoint(angle + 0.27F, gate.apertureRadius + 0.22F);
+            const Vector3 wingB = gatePoint(angle - 0.27F, gate.apertureRadius + 0.22F);
+            DrawLine3D(base, tip, markerColor);
+            DrawLine3D(wingA, tip, markerColor);
+            DrawLine3D(wingB, tip, markerColor);
+        }
+    }
 }
 void drawProceduralReward(std::uint64_t seed, float playerDistance,
                           const tunrun::TunnelCrossSection& playerSection,

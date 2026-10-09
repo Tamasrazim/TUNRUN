@@ -11,6 +11,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
 - Campaign and Endless mode selections clearly state that they are not available in this build and do not start a run; Custom Seed Run and Practice Preview still perform their documented actions. Back exits the Mode Select screen exactly once.
 - Crash/results view shows final distance, active seed, elapsed in-run time, course hash, score, rewards and the applicable gate/mine contact index without overlapping the action menu.
+- Standard, Precision, Offset and Wide gate families have distinct ring/support details while preserving the same circular collision aperture used by physics.
 - Copy Seed in Crash and Seed Lab writes the exact lowercase fixed-width `0x`-prefixed 64-bit seed to the OS clipboard; pasting it into Seed Entry starts the exact same course, including leading zeroes. Generating another Seed Lab seed clears the previous copied notice. Retry Same Seed remains the first/default crash action.
 - Seed Lab's five actions remain visible and clickable at the minimum supported window height without overlap.
 - Controls opens from both Main Menu and Pause, lists actual keyboard/mouse/gamepad bindings, and Back returns to the correct parent screen without unpausing the run.
