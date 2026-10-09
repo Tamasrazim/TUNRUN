@@ -69,7 +69,8 @@ Networking is disabled by default in the design. If an updater, online feature o
 - Do not enable an automated dependency service that opens pull requests unless the repository workflow is deliberately changed; review dependencies manually and update them with commits on `main`.
 - Keep a third-party register for code, fonts, music, sound effects, models and textures. Record origin, version, license, redistribution rights and modifications.
 - Publish checksums for release downloads. Sign releases when a suitable signing identity is available.
-- GitHub secret scanning, Dependabot alerts, private vulnerability reporting and rulesets are repository settings; documentation alone does not enable them. Verify settings separately in GitHub.
+- This repository also runs a pinned Gitleaks Action against the full Git history on pushes to `main` and on a schedule. It complements, but does not replace, GitHub's native secret scanning and push-protection controls. Verify native settings separately in GitHub.
+- Dependabot pull requests are intentionally not configured because this project uses direct commits to `main`; dependency updates must be reviewed and committed manually.
 
 ## Minimum security acceptance gate
 
