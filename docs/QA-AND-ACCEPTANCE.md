@@ -58,7 +58,7 @@ Gameplay-specific mouse checks:
 - Confirm optional pickup placement never narrows or blocks the required route; do not make pickups mandatory until route-reachability validation includes them.
 - Ensure moving mines stay separate from gate reaction windows and log seed, mine index, ship, run-clock time, and collision coordinates for any unavoidable encounter.
 - Confirm a failed candidate regenerates with a finite retry limit and useful diagnostic output.
-- Record each failure by seed, generator version, section index, ship, subsystem, and invariant.
+- Record each failure by seed, generator version, section index, ship, subsystem, and invariant; gate/mine crash screens should expose the deterministic obstacle index and distance.
 - Keep regression seeds for every previously discovered generator bug.
 
 ## 4. Performance and streaming

@@ -56,6 +56,7 @@ struct AppState {
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
     CrashCause crashCause = CrashCause::Wall;
+    std::uint32_t lastHitObjectIndex = 0U;
     tunrun::ProfileStore profileStore;
     tunrun::Profile profile;
     bool profileRecoveryRequired = false;
@@ -132,6 +133,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.runGatesCleared = 0U;
     app.lastRunReward = 0U;
     app.lastRunCoreReward = 0U;
+    app.lastHitObjectIndex = 0U;
     app.runAetherPickupReward = 0U;
     app.runSingularityCorePickupReward = 0U;
     tpp = false;
@@ -705,6 +707,7 @@ int main() {
                                 app.courseSeed, previousX, previousY, previousDistance,
                                 app.flight.x, app.flight.y, app.flight.distance, gate)) {
                             app.crashCause = CrashCause::Gate;
+                            app.lastHitObjectIndex = gate.index;
                             finishRun(app);
                             app.screens.replace(tunrun::Screen::Crash);
                             break;
@@ -734,6 +737,7 @@ int main() {
                                 app.flight.x, app.flight.y, app.flight.distance, app.elapsed,
                                 hazard)) {
                             app.crashCause = CrashCause::Hazard;
+                            app.lastHitObjectIndex = hazard.index;
                             finishRun(app);
                             app.screens.replace(tunrun::Screen::Crash);
                             break;
@@ -952,6 +956,20 @@ int main() {
                                    static_cast<unsigned long long>(app.lastRunReward),
                                    static_cast<unsigned long long>(app.lastRunCoreReward)),
                         246.0F, 14, kAccent);
+            if (app.crashCause == CrashCause::Gate) {
+                const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);
+                drawCentred(TextFormat("GATE #%u   DISTANCE %.1f   TYPE %s",
+                                       app.lastHitObjectIndex, hitGate.distance,
+                                       tunrun::gateKindName(hitGate.kind)),
+                            267.0F, 11, kDanger);
+            } else if (app.crashCause == CrashCause::Hazard) {
+                const auto hitMine = tunrun::hazardAt(app.courseSeed, app.lastHitObjectIndex);
+                drawCentred(TextFormat("MINE #%u   DISTANCE %.1f   HASH %016llX",
+                                       app.lastHitObjectIndex, hitMine.distance,
+                                       static_cast<unsigned long long>(
+                                           tunrun::hazardHash(app.courseSeed, hitMine.index + 1U))),
+                            267.0F, 11, kDanger);
+            }
             const int picked = drawMenu(crashItems, crashSelection, 285, true);
             if (picked == 0) {
                 resetFlight(app, tpp);
