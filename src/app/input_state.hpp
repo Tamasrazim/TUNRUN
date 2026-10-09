@@ -11,7 +11,7 @@ namespace tunrun {
 } // namespace tunrun
 
 namespace tunrun {
-enum class Screen { MainMenu, Hangar, Records, Controls, Modes, Settings, Credits, Preview, Pause, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
+enum class Screen { MainMenu, Hangar, Records, Controls, Modes, Settings, Credits, Preview, Pause, RunConfirm, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
 
 // Converts a held state into one activation on the down edge.
 class ButtonEdge {

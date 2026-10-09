@@ -33,6 +33,7 @@ const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
 enum class CrashCause { Wall, Gate, Hazard };
+enum class PendingRunAction { None, RestartSameSeed, ReturnToMainMenu };
 
 struct AppState {
     tunrun::ScreenStack screens;
@@ -43,6 +44,7 @@ struct AppState {
     std::string seedEntryMessage;
     bool seedEntryHasError = false;
     int selectedMode = 0;
+    PendingRunAction pendingRunAction = PendingRunAction::None;
     bool showFps = true;
     bool reduceMotion = false;
     bool fullscreen = false;
@@ -861,7 +863,7 @@ int main() {
         (void)persistProfile(app);
     }
 
-    int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, controlsSelection = 0, modesSelection = 0;
+    int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, controlsSelection = 0, runConfirmSelection = 0, modesSelection = 0;
     int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
         seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
@@ -873,7 +875,15 @@ int main() {
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
         "CUSTOM SEED RUN", "PRACTICE PREVIEW", "BACK"
     };
-    const std::vector<std::string> pauseItems{"RESUME", "CONTROLS", "SETTINGS", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> pauseItems{
+        "RESUME", "RESTART SAME SEED", "CONTROLS", "SETTINGS", "RETURN TO MAIN MENU"
+    };
+    const std::vector<std::string> confirmRestartItems{
+        "CANCEL", "DISCARD + RESTART SAME SEED"
+    };
+    const std::vector<std::string> confirmReturnItems{
+        "CANCEL", "DISCARD + RETURN TO MENU"
+    };
     const std::vector<std::string> settingsItems{
         "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
         "MOUSE STEERING", "MOUSE SENSITIVITY", "RESET OPTIONS", "BACK"
@@ -1319,12 +1329,51 @@ int main() {
             break;
         case tunrun::Screen::Pause: {
             drawHeader("SYSTEM / PAUSED", "PAUSED", "Preview input is frozen while this screen is open.");
-            const int picked = drawMenu(pauseItems, pauseSelection, 245);
+            const int picked = drawMenu(pauseItems, pauseSelection, 215);
             if (picked == 0) app.screens.pop();
-            else if (picked == 1) app.screens.push(tunrun::Screen::Controls);
-            else if (picked == 2) app.screens.push(tunrun::Screen::Settings);
-            else if (picked == 3) app.screens.reset();
+            else if (picked == 1) {
+                app.pendingRunAction = PendingRunAction::RestartSameSeed;
+                runConfirmSelection = 0;
+                app.screens.push(tunrun::Screen::RunConfirm);
+            } else if (picked == 2) app.screens.push(tunrun::Screen::Controls);
+            else if (picked == 3) app.screens.push(tunrun::Screen::Settings);
+            else if (picked == 4) {
+                app.pendingRunAction = PendingRunAction::ReturnToMainMenu;
+                runConfirmSelection = 0;
+                app.screens.push(tunrun::Screen::RunConfirm);
+            }
             if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::RunConfirm: {
+            if (app.pendingRunAction == PendingRunAction::None) {
+                if (drawMenu({"BACK"}, runConfirmSelection, 320) == 0 || backPressed()) {
+                    app.screens.pop();
+                }
+                break;
+            }
+            drawHeader("FLIGHT / CONFIRMATION", "DISCARD CURRENT RUN?",
+                       "Unbanked rewards and the in-run score are not saved yet.");
+            drawCentred("YOUR CURRENT RUN PROGRESS WILL BE LOST.", 196.0F, 13, kDanger);
+            const auto& confirmRunItems =
+                app.pendingRunAction == PendingRunAction::RestartSameSeed
+                    ? confirmRestartItems : confirmReturnItems;
+            const int picked = drawMenu(confirmRunItems, runConfirmSelection, 276, true, 1);
+            if (picked == 0 || (picked < 0 && backPressed())) {
+                app.pendingRunAction = PendingRunAction::None;
+                app.screens.pop();
+            } else if (picked == 1) {
+                const auto action = app.pendingRunAction;
+                app.pendingRunAction = PendingRunAction::None;
+                app.screens.pop(); // Return to Pause before applying the choice.
+                if (action == PendingRunAction::RestartSameSeed) {
+                    if (app.screens.current() == tunrun::Screen::Pause) app.screens.pop();
+                    resetFlight(app, tpp);
+                    app.screens.replace(tunrun::Screen::Preview);
+                } else {
+                    app.screens.reset();
+                }
+            }
             break;
         }
         case tunrun::Screen::Crash: {

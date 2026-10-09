@@ -30,7 +30,7 @@ Shows generation progress and a status message. CPU generation is asynchronous; 
 Speed, hull, energy, current score/multiplier, nearby hazard cues, pause prompt, optional distance/time, and minimal contextual warning. All HUD elements respect UI scale and safe margins.
 
 ### Pause
-Resume, Restart Run (with confirmation where progress is lost), Settings, Controls, Return to Hangar, and Quit. Opening settings keeps the run paused; closing settings returns to Pause.
+Resume, Restart Same Seed, Controls, Settings, and Return to Main Menu. Restart and leaving the run both require explicit confirmation because the current score and unbanked pickups are discarded. Opening Controls or Settings keeps the run paused; Back returns to Pause.
 
 ### Controls
 A dedicated input reference is reachable from the main menu and Pause. It lists keyboard steering, boost, precision, dash, camera and pause controls; relative mouse steering and sensitivity; and controller stick/trigger/button mappings. Returning from Pause keeps the run paused.
