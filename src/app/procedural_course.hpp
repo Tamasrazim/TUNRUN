@@ -277,36 +277,27 @@ inline GateCrossingPoint gatePointAtCourseCrossing(
     return point;
 }
 
-// The ship's x/y values are relative to the current tunnel cross-section,
-// while gate offsets are relative to the cross-section at the gate. Interpolate
-// the ship's world-space lateral point before comparing it with the gate.
+// Collision and scoring use the identical crossing point. An invalid point
+// after a reported forward crossing fails closed; a non-crossing is harmless.
+inline bool collidesWithGateAtCrossingPoint(
+    const GateCrossingPoint& point, const ProceduralGate& gate,
+    float craftRadius = kCraftCollisionRadius) noexcept {
+    if (!point.crossedPlane) return false;
+    if (!point.valid) return true;
+    return collidesWithGate(point.x, point.y, gate, craftRadius);
+}
+
+// Compatibility wrapper for callers that provide the swept flight segment.
+// The main loop computes the point itself so it can share it with scoring.
 inline bool collidesWithGateAtCourseCrossing(
     std::uint64_t seed, float previousX, float previousY,
     double previousDistance, float currentX, float currentY,
     double currentDistance, const ProceduralGate& gate,
     float craftRadius = kCraftCollisionRadius) noexcept {
-    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
-        !std::isfinite(currentX) || !std::isfinite(currentY) ||
-        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
-        !std::isfinite(gate.distance)) return true;
-    if (!crossesGatePlane(previousDistance, currentDistance, gate)) return false;
-
-    const double travel = currentDistance - previousDistance;
-    if (travel <= 1.0e-9) return true;
-    const double fraction = std::clamp(
-        (gate.distance - previousDistance) / travel, 0.0, 1.0);
-    const auto previousSection = sampleCourse(seed, previousDistance);
-    const auto currentSection = sampleCourse(seed, currentDistance);
-    const auto gateSection = sampleCourse(seed, gate.distance);
-    const double worldX0 = static_cast<double>(previousX) + previousSection.centerX;
-    const double worldY0 = static_cast<double>(previousY) + previousSection.centerY;
-    const double worldX1 = static_cast<double>(currentX) + currentSection.centerX;
-    const double worldY1 = static_cast<double>(currentY) + currentSection.centerY;
-    const float gateRelativeX = static_cast<float>(
-        worldX0 + (worldX1 - worldX0) * fraction - gateSection.centerX);
-    const float gateRelativeY = static_cast<float>(
-        worldY0 + (worldY1 - worldY0) * fraction - gateSection.centerY);
-    return collidesWithGate(gateRelativeX, gateRelativeY, gate, craftRadius);
+    const auto point = gatePointAtCourseCrossing(
+        seed, previousX, previousY, previousDistance,
+        currentX, currentY, currentDistance, gate);
+    return collidesWithGateAtCrossingPoint(point, gate, craftRadius);
 }
 inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
                                                std::uint32_t gateCount = 128U) noexcept {

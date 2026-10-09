@@ -968,10 +968,11 @@ int main() {
                     for (int gateIndex = firstCandidate; gateIndex <= lastCandidate; ++gateIndex) {
                         const auto gate = tunrun::gateAt(app.courseSeed,
                             static_cast<std::uint32_t>(gateIndex));
-                        if (!tunrun::crossesGatePlane(previousDistance, app.flight.distance, gate)) continue;
-                        if (tunrun::collidesWithGateAtCourseCrossing(
-                                app.courseSeed, previousX, previousY, previousDistance,
-                                app.flight.x, app.flight.y, app.flight.distance, gate)) {
+                        const auto gateCrossing = tunrun::gatePointAtCourseCrossing(
+                            app.courseSeed, previousX, previousY, previousDistance,
+                            app.flight.x, app.flight.y, app.flight.distance, gate);
+                        if (!gateCrossing.crossedPlane) continue;
+                        if (tunrun::collidesWithGateAtCrossingPoint(gateCrossing, gate)) {
                             app.crashCause = CrashCause::Gate;
                             app.lastHitObjectIndex = gate.index;
                             finishRun(app);
@@ -981,12 +982,9 @@ int main() {
                         if (app.runGatesCleared < std::numeric_limits<std::uint64_t>::max()) {
                             ++app.runGatesCleared;
                         }
-                        const auto scorePoint = tunrun::gatePointAtCourseCrossing(
-                            app.courseSeed, previousX, previousY, previousDistance,
-                            app.flight.x, app.flight.y, app.flight.distance, gate);
-                        if (scorePoint.crossedPlane && scorePoint.valid) {
+                        if (gateCrossing.valid) {
                             (void)tunrun::awardGatePass(
-                                app.runScore, gate, scorePoint.x, scorePoint.y);
+                                app.runScore, gate, gateCrossing.x, gateCrossing.y);
                         }
                     }
                 }

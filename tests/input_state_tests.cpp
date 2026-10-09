@@ -221,6 +221,16 @@ int main() {
     assert(scoredCrossing.crossedPlane && scoredCrossing.valid);
     assert(std::abs(scoredCrossing.x - gate.offsetX) < 0.001F);
     assert(std::abs(scoredCrossing.y - gate.offsetY) < 0.001F);
+    assert(!tunrun::collidesWithGateAtCrossingPoint(scoredCrossing, gate));
+
+    auto outsideCrossing = scoredCrossing;
+    outsideCrossing.x = gate.offsetX + gate.apertureRadius;
+    assert(tunrun::collidesWithGateAtCrossingPoint(outsideCrossing, gate));
+    tunrun::GateCrossingPoint notCrossed;
+    assert(!tunrun::collidesWithGateAtCrossingPoint(notCrossed, gate));
+    tunrun::GateCrossingPoint invalidCrossing;
+    invalidCrossing.crossedPlane = true;
+    assert(tunrun::collidesWithGateAtCrossingPoint(invalidCrossing, gate));
 
     // Reward placement is seeded, separately versioned, and independent from
     // the obstacle layout. Swept plane checks prevent missed high-speed pickups.
