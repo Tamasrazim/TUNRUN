@@ -8,6 +8,7 @@ Test on Windows at normal DPI and scaled DPI, windowed, borderless, fullscreen, 
 
 For each screen (Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Results, confirmation dialogs):
 - Every button is mouse-clickable at its visible position.
+- The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
 - Dropdowns open, select an item, and close.

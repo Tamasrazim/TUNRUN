@@ -12,7 +12,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **Moving hazards:** seed-derived mines oscillate over time, appear in the 3D tunnel with a HUD distance cue, and can end a run on contact.
 - **Curving 3D tunnels:** changing centerlines, cross-sections, twists, widths, entrances, and transitions.
 - **Fair unpredictability:** geometry bounds, gate clearance and reaction spacing are validated. A ship-specific pairwise kinematic reachability screen is now included; a full propagated-state proof and warning-time validation remain unfinished.
-- **FPP and TPP:** switch between first-person and third-person cameras without resetting the run. All eight ships have distinct procedural wireframe silhouettes in TPP, alongside separate handling parameters.
+- **FPP and TPP:** switch between first-person and third-person cameras without resetting the run. All eight ships have distinct procedural wireframe silhouettes in TPP and a matching 2D hangar preview, alongside separate handling parameters.
 - **Three input families:** keyboard, mouse, and gamepad operate gameplay and UI navigation; Seed Entry includes keyboard/paste and a gamepad character picker.
 - **AI pilots and drones:** bots navigate the same generated world and obey the same collision rules.
 - **Persistent progression (in progress):** settings, active ship, seed sequence, run/crash records, best distance, Aether Shards, and Singularity Cores persist locally. Ship purchase/unlock transactions are implemented; campaign progression remains unfinished.

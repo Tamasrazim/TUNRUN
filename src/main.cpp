@@ -543,6 +543,93 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY) {
     }
 }
 
+void drawHangarShipPreview(std::uint32_t shipId, int centerX, int centerY) {
+    const Color hullColors[] = {
+        kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
+        Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
+        Color{187, 166, 255, 255}, Color{255, 218, 130, 255},
+        Color{165, 190, 218, 255}
+    };
+    const Color color = hullColors[shipId < 8U ? shipId : 0U];
+    const auto line = [centerX, centerY, color](float x1, float y1, float x2, float y2) {
+        DrawLine(centerX + static_cast<int>(x1), centerY + static_cast<int>(y1),
+                 centerX + static_cast<int>(x2), centerY + static_cast<int>(y2), color);
+    };
+    DrawLine(centerX - 64, centerY + 29, centerX + 64, centerY + 29,
+             Color{46, 58, 73, 255});
+    switch (shipId) {
+    case 0U: { // DRIFTWING: delta-wing profile.
+        line(0, -23, -53, 18); line(0, -23, 53, 18);
+        line(-53, 18, 0, 11); line(0, 11, 53, 18);
+        line(0, -23, 0, 24); line(-53, 18, 0, 24); line(0, 24, 53, 18);
+        break;
+    }
+    case 1U: { // WRAITH: long spear with forked tail.
+        line(0, -26, 0, 18); line(0, -26, -20, 4); line(0, -26, 20, 4);
+        line(-20, 4, -44, 21); line(-44, 21, -12, 15);
+        line(12, 15, 44, 21); line(44, 21, 20, 4);
+        line(-12, 15, 0, 25); line(0, 25, 12, 15); line(0, 18, 0, 25);
+        break;
+    }
+    case 2U: { // BULWARK: wide armored hull.
+        line(0, -20, -29, -4); line(0, -20, 29, -4);
+        line(-29, -4, -55, 16); line(55, 16, 29, -4);
+        line(-55, 16, -22, 20); line(-22, 20, 0, 25);
+        line(0, 25, 22, 20); line(22, 20, 55, 16);
+        line(-29, -4, 29, -4); line(-22, 20, 22, 20);
+        break;
+    }
+    case 3U: { // MANTA: broad swept wings.
+        line(0, -22, -62, 8); line(-62, 8, -40, 12);
+        line(-40, 12, -20, 22); line(-20, 22, 0, 14);
+        line(0, 14, 20, 22); line(20, 22, 40, 12);
+        line(40, 12, 62, 8); line(62, 8, 0, -22);
+        line(-62, 8, 62, 8); line(0, -22, 0, 24);
+        break;
+    }
+    case 4U: { // COMET: needle craft with stabilizer rails.
+        line(0, -28, 0, 22); line(0, -28, -12, 8);
+        line(-12, 8, -20, 22); line(0, -28, 12, 8);
+        line(12, 8, 20, 22); line(-30, 15, -20, 22);
+        line(30, 15, 20, 22); line(-30, 15, -22, 5);
+        line(22, 5, 30, 15); line(-22, 5, 22, 5);
+        break;
+    }
+    case 5U: { // SPECTRE: split twin prongs.
+        line(-14, -23, -22, 14); line(-22, 14, -52, 5);
+        line(-52, 5, -35, 22); line(-35, 22, -8, 12);
+        line(-8, 12, -14, -23);
+        line(14, -23, 22, 14); line(22, 14, 52, 5);
+        line(52, 5, 35, 22); line(35, 22, 8, 12);
+        line(8, 12, 14, -23); line(-8, 12, 8, 12);
+        line(-22, 14, 0, 24); line(0, 24, 22, 14);
+        break;
+    }
+    case 6U: { // VORTEX: nested diamond rails.
+        line(0, -25, -47, 0); line(-47, 0, 0, 25);
+        line(0, 25, 47, 0); line(47, 0, 0, -25);
+        line(0, -15, -28, 0); line(-28, 0, 0, 15);
+        line(0, 15, 28, 0); line(28, 0, 0, -15);
+        line(-47, 0, 47, 0); line(0, -25, 0, 25);
+        break;
+    }
+    case 7U: { // OBSIDIAN: angular heavy interceptor.
+        line(0, -22, -24, -5); line(-24, -5, -60, 8);
+        line(-60, 8, -43, 19); line(-43, 19, -21, 13);
+        line(-21, 13, -11, 23); line(-11, 23, 0, 17);
+        line(0, 17, 11, 23); line(11, 23, 21, 13);
+        line(21, 13, 43, 19); line(43, 19, 60, 8);
+        line(60, 8, 24, -5); line(24, -5, 0, -22);
+        line(-24, -5, 24, -5); line(-43, 19, 43, 19);
+        line(-21, 13, 21, 13);
+        break;
+    }
+    default:
+        break;
+    }
+    DrawText("SHIP PREVIEW", centerX - 43, centerY + 34, 10, kMuted);
+}
+
 void drawProceduralHazard(std::uint64_t seed, float playerDistance,
                            float elapsedSeconds,
                            const tunrun::TunnelCrossSection& playerSection,
@@ -955,6 +1042,8 @@ int main() {
                                    definition.speedMultiplier, definition.accelerationMultiplier,
                                    definition.boostDrainMultiplier),
                         300.0F, 14, kText);
+            drawHangarShipPreview(static_cast<std::uint32_t>(previewShip),
+                                  GetScreenWidth() / 2, 340);
 
             std::string actionLabel;
             if (unlocked) {
