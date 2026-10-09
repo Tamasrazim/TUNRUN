@@ -5,6 +5,20 @@
 #include <cmath>
 #include <cstdint>
 
+inline constexpr float kMouseSensitivityDefault = 0.004F;
+inline constexpr float kMouseSensitivityMin = 0.0001F;
+inline constexpr float kMouseSensitivityMax = 0.05F;
+inline constexpr float kMouseSensitivityStep = 0.0005F;
+
+[[nodiscard]] inline float adjustMouseSensitivity(float current,
+                                                  int direction) noexcept {
+    if (!std::isfinite(current)) current = kMouseSensitivityDefault;
+    current = std::clamp(current, kMouseSensitivityMin, kMouseSensitivityMax);
+    if (direction < 0) current -= kMouseSensitivityStep;
+    else if (direction > 0) current += kMouseSensitivityStep;
+    return std::clamp(current, kMouseSensitivityMin, kMouseSensitivityMax);
+}
+
 struct RelativeMouseDelta {
     float x = 0.0F;
     float y = 0.0F;

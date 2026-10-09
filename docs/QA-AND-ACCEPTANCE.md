@@ -11,6 +11,8 @@ For each screen (Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Re
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
+- Mouse sensitivity can be adjusted with keyboard arrows and gamepad D-pad/left stick, clamps to the profile's supported range, and persists across restart.
+- Reset Options restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
 - Dropdowns open, select an item, and close.
 - A modal blocks clicks behind it.
 - Clicking one control cannot activate a second control.

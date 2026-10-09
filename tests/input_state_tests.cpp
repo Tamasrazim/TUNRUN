@@ -109,6 +109,19 @@ int main() {
     applyRelativeMouseSteering(mouseX, mouseY, RelativeMouseDelta{1.0F, 1.0F}, -1.0F);
     assert(mouseX == 3.1F && mouseY == 3.1F);
 
+    assert(adjustMouseSensitivity(kMouseSensitivityDefault, 1) ==
+           kMouseSensitivityDefault + kMouseSensitivityStep);
+    assert(adjustMouseSensitivity(kMouseSensitivityDefault, -1) ==
+           kMouseSensitivityDefault - kMouseSensitivityStep);
+    assert(adjustMouseSensitivity(kMouseSensitivityMin, -1) ==
+           kMouseSensitivityMin);
+    assert(adjustMouseSensitivity(kMouseSensitivityMax, 1) ==
+           kMouseSensitivityMax);
+    assert(adjustMouseSensitivity(
+        std::numeric_limits<float>::quiet_NaN(), 0) == kMouseSensitivityDefault);
+    assert(adjustMouseSensitivity(-100.0F, 1) >= kMouseSensitivityMin);
+    assert(adjustMouseSensitivity(100.0F, -1) <= kMouseSensitivityMax);
+
     constexpr std::uint64_t seed = 0x123456789ABCDEF0ULL;
     const auto section = tunrun::sampleCourse(seed, 1.25);
     assert(section.radius >= tunrun::kCourseMinRadius && section.radius <= tunrun::kCourseMaxRadius);

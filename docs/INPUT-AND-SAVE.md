@@ -25,9 +25,9 @@ Mappings are defaults and must be remappable later.
 | Confirm / interact | Enter / E | Left click | A / Cross |
 | Back / cancel | Esc / Backspace | Right click only within a UI context | B / Circle |
 | UI navigation | Arrows / Tab | Pointer and click | D-pad / left stick |
-| Settings slider | Arrows / +/- | Drag/click slider | D-pad / stick with focus |
+| Mouse sensitivity | Left/right arrows | Select the sensitivity row; no captured-pointer adjustment | D-pad left/right or left stick with rate-limited repeat |
 
-All bindings must be configurable with conflict detection, reset-to-defaults, and clear labels for the currently active device. Platform-specific face-button labels should be rendered correctly where supported.
+All bindings must be configurable with conflict detection, reset-to-defaults, and clear labels for the currently active device. The current mouse-sensitivity setting can be adjusted in bounded steps, persists to the local profile, and has a reset-options action that does not erase ships or progression. Platform-specific face-button labels should be rendered correctly where supported.
 
 ## Mouse implementation requirements
 

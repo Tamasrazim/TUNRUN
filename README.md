@@ -17,6 +17,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **AI pilots and drones:** bots navigate the same generated world and obey the same collision rules.
 - **Persistent progression (in progress):** settings, active ship, seed sequence, run/crash records, best distance, Aether Shards, and Singularity Cores persist locally. Ship purchase/unlock transactions are implemented; campaign progression remains unfinished.
 - **Offline-first save:** versioned local save with atomic writes, backup, recovery, and a hidden Windows file/folder attribute.
+- **Configurable mouse steering:** sensitivity is adjustable in the Settings screen with keyboard and gamepad controls and persists in the local profile; Reset Options preserves progression.
 - **Native Windows release:** C++20, CMake and raylib are the selected prototype stack; the full game, save system, installer and updater remain unfinished.
 
 ## Game outline

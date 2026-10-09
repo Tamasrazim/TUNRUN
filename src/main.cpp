@@ -46,7 +46,7 @@ struct AppState {
     bool reduceMotion = false;
     bool fullscreen = false;
     bool mouseSteering = true;
-    float mouseSensitivity = 0.004F;
+    float mouseSensitivity = kMouseSensitivityDefault;
     bool hangarAxisLeftHeld = false;
     bool hangarAxisRightHeld = false;
     bool exitRequested = false;
@@ -823,7 +823,7 @@ int main() {
     const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
     const std::vector<std::string> settingsItems{
         "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
-        "MOUSE STEERING", "BACK"
+        "MOUSE STEERING", "MOUSE SENSITIVITY", "RESET OPTIONS", "BACK"
     };
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
     const std::vector<std::string> crashItems{"RETRY SAME SEED", "NEW SEED", "RETURN TO MAIN MENU"};
@@ -1043,7 +1043,7 @@ int main() {
                                    definition.boostDrainMultiplier),
                         300.0F, 14, kText);
             drawHangarShipPreview(static_cast<std::uint32_t>(previewShip),
-                                  GetScreenWidth() / 2, 340);
+                                  GetScreenWidth() / 2, 350);
 
             std::string actionLabel;
             if (unlocked) {
@@ -1116,13 +1116,66 @@ int main() {
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
             labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
             labels[3] = std::string("MOUSE STEERING: ") + (app.mouseSteering ? "ON" : "OFF");
-            const int picked = drawMenu(labels, settingsSelection, 225);
+            labels[4] = std::string("MOUSE SENSITIVITY: ") +
+                        TextFormat("%.4f", app.mouseSensitivity);
+            const int picked = drawMenu(labels, settingsSelection, 205);
+
+            bool sensitivityChanged = false;
+            int sensitivityDirection = leftPressed() ? -1 : rightPressed() ? 1 : 0;
+            // Left-stick changes use a delayed repeat so one deliberate nudge
+            // does not race the slider to its minimum/maximum.
+            static int previousSensitivityStick = 0;
+            static float sensitivityRepeatDelay = 0.0F;
+            if (sensitivityDirection != 0) {
+                previousSensitivityStick = 0;
+                sensitivityRepeatDelay = 0.0F;
+            } else {
+                float horizontalAxis = 0.0F;
+                if (IsGamepadAvailable(0)) {
+                    horizontalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+                }
+                const int stickDirection = horizontalAxis < -0.65F ? -1
+                    : horizontalAxis > 0.65F ? 1 : 0;
+                if (stickDirection == 0 || settingsSelection != 4) {
+                    previousSensitivityStick = 0;
+                    sensitivityRepeatDelay = 0.0F;
+                } else if (stickDirection != previousSensitivityStick) {
+                    sensitivityDirection = stickDirection;
+                    previousSensitivityStick = stickDirection;
+                    sensitivityRepeatDelay = 0.24F;
+                } else {
+                    sensitivityRepeatDelay -= GetFrameTime();
+                    if (sensitivityRepeatDelay <= 0.0F) {
+                        sensitivityDirection = stickDirection;
+                        sensitivityRepeatDelay = 0.12F;
+                    }
+                }
+            }
+            if (settingsSelection == 4 && sensitivityDirection != 0 && picked < 0) {
+                const float nextSensitivity = adjustMouseSensitivity(
+                    app.mouseSensitivity, sensitivityDirection);
+                sensitivityChanged = nextSensitivity != app.mouseSensitivity;
+                app.mouseSensitivity = nextSensitivity;
+                labels[4] = std::string("MOUSE SENSITIVITY: ") +
+                            TextFormat("%.4f", app.mouseSensitivity);
+            }
+
             if (picked == 0) { app.fullscreen = !app.fullscreen; ToggleFullscreen(); }
             else if (picked == 1) app.showFps = !app.showFps;
             else if (picked == 2) app.reduceMotion = !app.reduceMotion;
             else if (picked == 3) app.mouseSteering = !app.mouseSteering;
-            else if (picked == 4) app.screens.pop();
-            if (picked >= 0 && picked <= 3) (void)persistProfile(app);
+            else if (picked == 5) {
+                if (app.fullscreen) ToggleFullscreen();
+                app.fullscreen = false;
+                app.showFps = true;
+                app.reduceMotion = false;
+                app.mouseSteering = true;
+                app.mouseSensitivity = kMouseSensitivityDefault;
+            } else if (picked == 6) app.screens.pop();
+
+            if ((picked >= 0 && picked <= 3) || picked == 5 || sensitivityChanged) {
+                (void)persistProfile(app);
+            }
             if (backPressed()) app.screens.pop();
             break;
         }
