@@ -43,12 +43,14 @@ This repository is in the **planning and architecture stage**. These documents d
 8. [Bot AI](docs/BOT-AI.md) — rival navigation, drones, difficulty profiles and ghost recordings.
 9. [Input and Save](docs/INPUT-AND-SAVE.md) — device actions, mouse-capture state rules, save behavior.
 10. [Save Schema](docs/SAVE-SCHEMA.md) — profile fields, validation, safe writes, migration.
-11. [Build and Release](docs/BUILD-AND-RELEASE.md) — planned layout, CI gates, packaging and release checklist.
+11. [Build and Release](docs/BUILD-AND-RELEASE.md) — planned layout, main-branch checks, packaging and release checklist.
+12. [Security and Privacy](docs/SECURITY-AND-PRIVACY.md) — threat boundaries, save/input safety, update integrity and privacy.
+13. [Third-Party and Licenses](docs/THIRD-PARTY-AND-LICENSES.md) — dependency and asset provenance requirements.
 
 ### Project management and quality
-12. [Decision Log](docs/DECISIONS.md) — confirmed requirements versus proposals still needing validation.
-13. [Roadmap](docs/ROADMAP.md) — milestones and exit criteria.
-14. [QA and Acceptance](docs/QA-AND-ACCEPTANCE.md) — input regressions, determinism, fairness, saves, AI and release tests.
+14. [Decision Log](docs/DECISIONS.md) — confirmed requirements versus proposals still needing validation.
+15. [Roadmap](docs/ROADMAP.md) — milestones and exit criteria.
+16. [QA and Acceptance](docs/QA-AND-ACCEPTANCE.md) — input regressions, determinism, fairness, security, saves, AI and release tests.
 
 ## Non-negotiable requirements
 
@@ -61,6 +63,13 @@ This repository is in the **planning and architecture stage**. These documents d
 - Bots obey world geometry and collision rules rather than teleporting through obstacles.
 - Currency transactions and unlocks save consistently and cannot charge/grant twice.
 - A feature is not complete just because its screen exists; acceptance checks must pass.
+
+## Security and repository policy
+
+- [Security Policy](SECURITY.md) explains private vulnerability reporting.
+- [Contributing](CONTRIBUTING.md) records the project workflow: commits go directly to `main`; there are no extra branches or pull requests.
+- [Security and Privacy](docs/SECURITY-AND-PRIVACY.md) defines implementation safeguards. GitHub-hosted checks run on `main`; repository-level security features that require owner settings are not claimed to be enabled until verified.
+- [Third-Party and Licenses](docs/THIRD-PARTY-AND-LICENSES.md) records asset/dependency review rules. A project-wide reuse license has not yet been selected.
 
 ## Current status
 

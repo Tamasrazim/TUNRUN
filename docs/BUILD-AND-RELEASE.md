@@ -69,16 +69,27 @@ A release preset should produce a distributable configuration without absolute m
 
 ## Continuous integration gates
 
-Each pull request should run:
-1. Configure and compile with warnings enabled.
-2. Formatting/static checks.
+Every push to `main` must run the repository integrity workflow. The workflow currently validates local Markdown links and required policy files; it does not claim to compile a game that has not been implemented. When source code lands, extend the `main`-only CI to run:
+1. Configure and compile with warnings enabled and security-relevant compiler checks.
+2. Formatting and static analysis.
 3. Unit tests for input mapping, save validation/migration, economy transactions, and deterministic random streams.
 4. Procedural regression seeds and boundary cases.
 5. Headless section/seed batch validator where possible.
-6. Artifact and asset-path audit.
+6. Artifact, asset-path, dependency and license audits.
 7. Windows packaging checks after packaging exists.
 
+No workflow is triggered by pull requests. Direct pushes to `main`, manual runs, and scheduled maintenance are the intended workflow. Give write access only to trusted maintainers; direct-to-main is not a reason to skip tests or review.
+
 Long-running random-seed soak tests can run on a scheduled workflow or a release-candidate workflow, while deterministic regression seeds run for every change.
+
+## Security gates before implementation and release
+
+- Never commit access tokens, passwords, private keys, signing keys, personal save files, crash dumps, or machine-specific paths.
+- Keep the runtime offline by default. Any later network/update feature requires an explicit threat review, HTTPS, authenticated metadata, signature verification, rollback protection, and a safe failure path before it ships.
+- Treat saves, seed strings, replay/ghost files, imported content, and archive entries as untrusted input. Bound sizes and counts, validate schemas and numeric ranges, and reject path traversal.
+- Build from pinned/reviewed dependencies and maintain a dependency/asset license inventory.
+- Build release executables with supported compiler mitigations; sign release artifacts when a signing identity is established, and publish cryptographic checksums.
+- Run automated security analysis when source code exists. Do not mark scanning as active merely because it is documented; inspect the workflow results and repository security settings.
 
 ## Release artifacts
 

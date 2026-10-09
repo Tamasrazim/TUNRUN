@@ -87,7 +87,19 @@ Gameplay-specific mouse checks:
 - Pausing freezes run simulation and moving hazards according to the chosen pause rule.
 - Restarting a seed run reproduces the same underlying course.
 
-## 8. Build and distribution
+## 8. Security and privacy
+
+- Malformed, oversized, truncated, and schema-incompatible save files fail safely without a crash or unbounded allocation.
+- Save, replay, seed and imported-asset paths cannot escape their designated directories; archive extraction rejects absolute paths and `..` traversal.
+- JSON numbers, arrays, strings, nesting depth, entity counts and replay durations have explicit limits.
+- Corrupted primary and backup saves produce a recoverable error and never silently reset progression.
+- No credentials, signing keys, personal profile data, or local build paths are present in tracked files or release packages.
+- No update, asset-download, or telemetry code runs without explicit documented approval and a security review.
+- Any later updater verifies authenticated release metadata and artifact signatures before replacing files; invalid, stale, or rolled-back packages are rejected.
+- Dependencies, fonts, music, sound effects, textures, models and other redistributables have recorded licenses and provenance.
+- Security checks run on pushes to `main`; review the actual workflow result rather than treating a configured workflow as proof of safety.
+
+## 9. Build and distribution
 
 - Clean Windows x64 build from documented commands.
 - Automated tests and procedural validators pass in CI.

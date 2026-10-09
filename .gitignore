@@ -1,0 +1,58 @@
+# Build outputs
+/build/
+/cmake-build-*/
+/out/
+/dist/
+/artifacts/
+CMakeUserPresets.json
+
+# Visual Studio and IDE state
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+*.sdf
+*.opensdf
+.vscode/*.local.json
+
+# Compiled output and debug symbols
+*.obj
+*.o
+*.a
+*.lib
+*.exp
+*.ilk
+*.pdb
+*.idb
+*.pch
+*.ipch
+*.exe
+*.dll
+*.so
+*.dylib
+*.app
+
+# Crash dumps and generated logs
+*.dmp
+*.mdmp
+*.crash
+*.stackdump
+*.log
+
+# Local credentials and environment configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# OS noise
+.DS_Store
+Thumbs.db
+Desktop.ini
