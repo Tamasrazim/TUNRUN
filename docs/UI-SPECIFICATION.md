@@ -63,7 +63,7 @@ One action event can activate at most one control. Button state transitions are 
 - Keep important controls inside safe margins.
 - Text must support wrapping without clipping and use a tested minimum readable size.
 - Focus indicators must not rely on colour alone.
-- Reduced motion disables nonessential animation and camera shake.
+- Reduced motion disables nonessential animation and camera shake, including the animated dash streak effect. It never changes gameplay physics or obstacle timing.
 - Use clear labels and avoid icon-only controls without accessible labels/tooltips.
 
 ## Input-device prompts

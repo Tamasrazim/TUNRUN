@@ -685,8 +685,9 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
 }
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                std::uint32_t shipId, bool tpp, float boostEnergy,
-                float dashCooldownRemaining, float dashRemaining, float elapsedSeconds,
+                std::uint32_t shipId, bool tpp, bool reduceMotion,
+                float boostEnergy, float dashCooldownRemaining,
+                float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
@@ -713,7 +714,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             }
         }
     }
-    if (dashRemaining > 0.0F) {
+    if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {
         const float intensity = std::clamp(
             dashRemaining / tunrun::kDashDuration, 0.0F, 1.0F);
         const auto alpha = static_cast<unsigned char>(
@@ -1083,7 +1084,7 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp,
-                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       app.reduceMotion, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{

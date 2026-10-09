@@ -27,6 +27,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, reduced-motion, mouse steering and mouse sensitivity defaults without changing wallet balances, ship unlocks, or run history.
+- Reduced Motion suppresses nonessential animated dash streaks while preserving dash physics, collision timing and the textual DASH ACTIVE / recharge indicator.
 - Dropdowns open, select an item, and close.
 - A modal blocks clicks behind it.
 - Clicking one control cannot activate a second control.

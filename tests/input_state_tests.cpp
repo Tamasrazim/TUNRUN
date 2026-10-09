@@ -128,6 +128,13 @@ int main() {
     stack.replace(Screen::Preview);
     assert(tunrun::shouldAdvanceRunClock(stack));
     stack.reset();
+
+    assert(tunrun::shouldDrawDashStreaks(false, 0.1F));
+    assert(!tunrun::shouldDrawDashStreaks(true, 0.1F));
+    assert(!tunrun::shouldDrawDashStreaks(false, 0.0F));
+    assert(!tunrun::shouldDrawDashStreaks(false, -0.1F));
+    assert(!tunrun::shouldDrawDashStreaks(false,
+        std::numeric_limits<float>::quiet_NaN()));
     stack.push(Screen::Records);
     assert(stack.current() == Screen::Records);
     assert(stack.pop() && stack.current() == Screen::MainMenu);

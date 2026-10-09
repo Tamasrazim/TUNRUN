@@ -71,4 +71,11 @@ private:
            screens.current() != Screen::Settings &&
            screens.current() != Screen::Crash;
 }
+
+// Nonessential dash streaks are suppressed by Reduced Motion; physics and
+// the textual dash-status indicator remain unchanged.
+[[nodiscard]] inline bool shouldDrawDashStreaks(bool reduceMotion,
+                                                float dashRemaining) noexcept {
+    return !reduceMotion && std::isfinite(dashRemaining) && dashRemaining > 0.0F;
+}
 } // namespace tunrun
