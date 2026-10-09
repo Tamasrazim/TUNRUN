@@ -6,6 +6,8 @@ TUNRUN intentionally uses **one branch: `main`**. Changes are committed directly
 
 Only the repository owner and explicitly trusted maintainers should have write access. Anyone without write access can use issues for non-sensitive bug reports and feature discussion. Never post vulnerability details in a public issue; follow [SECURITY.md](SECURITY.md).
 
+**GitHub Actions must never become a repository contributor.** Workflows are read-only and may build, test, scan, and upload temporary workflow artifacts only. They must not create commits, push branches, create tags, open pull requests, or publish GitHub Releases. Commits are authored by the repository owner, directly on `main`. The integrity check rejects write permissions, persisted checkout credentials, and auto-commit/push steps.
+
 Direct-to-main does not mean untested. Before committing a change:
 1. Run the relevant checks locally.
 2. Inspect the diff for secrets, generated files, unrelated changes, and license/provenance problems.

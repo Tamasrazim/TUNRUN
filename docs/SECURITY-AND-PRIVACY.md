@@ -65,7 +65,9 @@ Networking is disabled by default in the design. If an updater, online feature o
 
 - Never commit tokens, passwords, private keys, signing keys, private save files, dumps or unreviewed binaries.
 - Pin third-party GitHub Actions to full commit SHAs where practical; grant workflows only the permissions they require.
-- Workflow tokens should be read-only unless a job explicitly requires writes.
+- All TUNRUN GitHub Actions workflows must use exactly `contents: read`; no workflow may have repository write permissions or use a personal access token to bypass that boundary.
+- Every `actions/checkout` step must set `persist-credentials: false`. Workflows may compile, test, scan, and upload temporary workflow artifacts, but must never commit, push, tag, open pull requests, create releases, or set `github-actions[bot]` as author/committer.
+- The repository integrity workflow enforces this rule on every push to `main`; changes that introduce write-capable permissions or automated commit/push mechanisms fail the check.
 - Do not enable an automated dependency service that opens pull requests unless the repository workflow is deliberately changed; review dependencies manually and update them with commits on `main`.
 - Keep a third-party register for code, fonts, music, sound effects, models and textures. Record origin, version, license, redistribution rights and modifications.
 - Publish checksums for release downloads. Sign releases when a suitable signing identity is available.
