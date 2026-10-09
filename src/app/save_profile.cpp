@@ -475,7 +475,8 @@ std::string serializeProfile(const Profile& profile) {
     const std::size_t closing = payload.rfind("}\n");
     if (closing == std::string::npos) return payload;
     std::string output = payload.substr(0U, closing);
-    output += "  \"checksum\": \"" + profileChecksumHex(payload) + "\"\n}\n";
+    if (!output.empty() && output.back() == '\n') output.pop_back();
+    output += ",\n  \"checksum\": \"" + profileChecksumHex(payload) + "\"\n}\n";
     return output;
 }
 
