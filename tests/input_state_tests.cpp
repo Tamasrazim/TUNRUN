@@ -147,6 +147,20 @@ int main() {
     assert(!tunrun::validateGateReachability(seed, 10001U).valid);
     assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
 
+    // The fixed-step probe carries lateral position and velocity across gate
+    // crossings using the actual gameplay physics for every ship profile.
+    for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
+        const auto route = tunrun::validateSimulatedRouteReachability(seed, 256U, shipId);
+        assert(route.valid);
+        assert(route.gatesChecked == 256U);
+        assert(route.transitionsChecked == 255U);
+        assert(route.simulationSteps > 0U);
+        assert(route.minimumGateClearance >= 0.0F);
+        assert(route.maximumLateralOffset < tunrun::kFlightLimit);
+    }
+    assert(!tunrun::validateSimulatedRouteReachability(seed, 0U).valid);
+    assert(!tunrun::validateSimulatedRouteReachability(seed, 32U, 999U).valid);
+
     auto impossiblePrevious = tunrun::gateAt(seed, 0U);
     auto impossibleNext = tunrun::gateAt(seed, 1U);
     impossibleNext.offsetX = 100.0F;
@@ -181,6 +195,15 @@ int main() {
             const auto reachability =
                 tunrun::validateGateReachability(generatedSeed, 64U, shipId);
             assert(reachability.valid && reachability.transitionsChecked == 63U);
+            // Route simulation is more expensive than the pairwise envelope;
+            // run it across a deterministic subset of the broader seed corpus.
+            if (sampleSeed < 4U) {
+                const auto route =
+                    tunrun::validateSimulatedRouteReachability(generatedSeed, 64U, shipId);
+                assert(route.valid && route.gatesChecked == 64U);
+                assert(route.transitionsChecked == 63U);
+                assert(route.minimumGateClearance >= 0.0F);
+            }
         }
     }
 

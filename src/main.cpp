@@ -795,6 +795,19 @@ int main() {
             const auto gateValidation = tunrun::validateObstacleSet(app.courseSeed, 32U);
             const auto reachability = tunrun::validateGateReachability(
                 app.courseSeed, 32U, static_cast<std::uint32_t>(app.selectedShip));
+            static bool routeCacheValid = false;
+            static std::uint64_t routeCacheSeed = 0U;
+            static std::uint32_t routeCacheShip = 0U;
+            static tunrun::SimulatedRouteValidation routeState;
+            const auto currentShipId = static_cast<std::uint32_t>(app.selectedShip);
+            if (!routeCacheValid || routeCacheSeed != app.courseSeed ||
+                routeCacheShip != currentShipId) {
+                routeState = tunrun::validateSimulatedRouteReachability(
+                    app.courseSeed, 32U, currentShipId);
+                routeCacheSeed = app.courseSeed;
+                routeCacheShip = currentShipId;
+                routeCacheValid = true;
+            }
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
                         175.0F, 22, kText);
             drawCentred(TextFormat("GENERATOR V%u   HASH %016llX", tunrun::kCourseGeneratorVersion,
@@ -822,13 +835,18 @@ int main() {
                         311.0F, 11, kMuted);
             const auto& screenShip = tunrun::shipDefinition(
                 static_cast<std::uint32_t>(app.selectedShip));
-            drawCentred(TextFormat("REACH %s: %s   MAX SHIFT %.2F / MIN SLACK %.2F",
+            drawCentred(TextFormat("PAIRWISE %s: %s   MAX SHIFT %.2F / MIN SLACK %.2F",
                                    screenShip.name,
                                    reachability.valid ? "PASS" : "FAIL",
                                    reachability.maximumRequiredShift,
                                    reachability.minimumReachableSlack),
                         334.0F, 11, reachability.valid ? kAccent : kDanger);
-            const int picked = drawMenu(seedLabItems, seedLabSelection, 360, true);
+            drawCentred(TextFormat("STATE ROUTE: %s   CLEARANCE %.2F   STEPS %u",
+                                   routeState.valid ? "PASS" : "FAIL",
+                                   routeState.minimumGateClearance,
+                                   routeState.simulationSteps),
+                        356.0F, 11, routeState.valid ? kAccent : kDanger);
+            const int picked = drawMenu(seedLabItems, seedLabSelection, 384, true);
             if (picked == 0) chooseNextSeed(app);
             else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }
             else if (picked == 2) app.screens.pop();

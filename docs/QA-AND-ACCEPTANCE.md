@@ -44,6 +44,7 @@ Gameplay-specific mouse checks:
 - Gate distances are strictly increasing, retain minimum reaction spacing, and leave nominal tunnel clearance for the craft.
 - Swept gate-plane tests detect obstacle contact between fixed simulation steps while a craft in the opening clears the gate.
 - Run large headless seed batches for every difficulty tier and each ship profile. The automated suite checks 512 gates for all eight ship profiles and 64-gate batches across 24 deterministic derived seeds.
+- Run the fixed-step route probe across every ship profile and a deterministic multi-seed subset. It must carry position and lateral velocity between gate crossings, use gameplay flight physics and crossing interpolation, remain inside the conservative tunnel clearance, and report non-negative aperture clearance. This proves only the tested controller trajectory, not exhaustive reachable-state coverage.
 - Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
 - Validate dynamic hazards over their full relevant timing window.
 - Detect unavoidable obstacle intersections and insufficient warning distance.

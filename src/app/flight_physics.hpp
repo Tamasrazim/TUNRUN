@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace tunrun {
 
@@ -107,6 +108,132 @@ inline void advanceFlight(FlightState& state, FlightInput input,
         accumulator -= kFlightFixedStep;
         if (accumulator < 0.0F) accumulator = 0.0F;
     }
+}
+
+
+// A deterministic route probe propagates one real kinematic state through the
+// generated course at the same fixed step used by gameplay. It is a concrete
+// feasible-trajectory witness, not an exhaustive reachable-state proof.
+struct SimulatedRouteValidation {
+    bool valid = false;
+    std::uint32_t gatesChecked = 0U;
+    std::uint32_t transitionsChecked = 0U;
+    std::uint32_t simulationSteps = 0U;
+    std::uint32_t firstFailedGate = 0U;
+    float minimumGateClearance = std::numeric_limits<float>::infinity();
+    float maximumLateralOffset = 0.0F;
+    double simulatedDistance = 0.0;
+    const char* failure = "not validated";
+};
+
+inline SimulatedRouteValidation validateSimulatedRouteReachability(
+    std::uint64_t seed, std::uint32_t gateCount = 128U,
+    std::uint32_t shipId = kStarterShipId) noexcept {
+    SimulatedRouteValidation result;
+    if (gateCount == 0U || gateCount > 10000U) {
+        result.failure = "invalid gate count";
+        return result;
+    }
+    if (shipId >= kShipCatalog.size()) {
+        result.failure = "unknown ship profile";
+        return result;
+    }
+    const auto obstacles = validateObstacleSet(seed, gateCount);
+    if (!obstacles.valid) {
+        result.failure = obstacles.failure;
+        return result;
+    }
+
+    const auto& ship = shipDefinition(shipId);
+    FlightState state;
+    ProceduralGate activeGate = gateAt(seed, 0U);
+    // Validate against the narrowest permitted tunnel, not a convenient
+    // per-sample radius, so a passing probe cannot depend on a wide segment.
+    const TunnelCrossSection conservativeTunnel{
+        0.0F, 0.0F, kCourseMinRadius, 0.0F
+    };
+    const std::uint64_t stepBudget = std::min<std::uint64_t>(
+        8000000ULL, 1024ULL + static_cast<std::uint64_t>(gateCount) * 800ULL);
+
+    for (std::uint64_t step = 0; step < stepBudget; ++step) {
+        if (result.gatesChecked >= gateCount) {
+            result.valid = true;
+            result.failure = "ok";
+            return result;
+        }
+
+        const double previousDistance = static_cast<double>(state.distance);
+        const float previousX = state.x;
+        const float previousY = state.y;
+
+        // A bounded feedback pilot aims for the center of the upcoming
+        // aperture while damping lateral velocity. The simulation below uses
+        // updateFlight(), not a separate idealised motion equation.
+        const float maximumLateralSpeed =
+            (state.boostEnergy > 0.0F ? 6.0F : 4.0F) * ship.speedMultiplier;
+        const float steerX = std::clamp(
+            ((activeGate.offsetX - state.x) * 2.8F -
+             state.velocityX * 1.25F) / maximumLateralSpeed, -1.0F, 1.0F);
+        const float steerY = std::clamp(
+            ((activeGate.offsetY - state.y) * 2.8F -
+             state.velocityY * 1.25F) / maximumLateralSpeed, -1.0F, 1.0F);
+        updateFlight(state, FlightInput{steerX, steerY, true, false, shipId},
+                     kFlightFixedStep);
+        ++result.simulationSteps;
+
+        if (!std::isfinite(state.x) || !std::isfinite(state.y) ||
+            !std::isfinite(state.velocityX) || !std::isfinite(state.velocityY) ||
+            !std::isfinite(state.distance) || !std::isfinite(state.boostEnergy)) {
+            result.firstFailedGate = activeGate.index;
+            result.failure = "non-finite simulated flight state";
+            return result;
+        }
+        result.maximumLateralOffset = std::max(
+            result.maximumLateralOffset, std::sqrt(state.x * state.x + state.y * state.y));
+        result.simulatedDistance = static_cast<double>(state.distance);
+        if (collidesWithTunnelWall(state.x, state.y, conservativeTunnel)) {
+            result.firstFailedGate = activeGate.index;
+            result.failure = "simulated route intersects minimum tunnel clearance";
+            return result;
+        }
+
+        if (!crossesGatePlane(previousDistance,
+                              static_cast<double>(state.distance), activeGate)) {
+            continue;
+        }
+
+        const double travel = static_cast<double>(state.distance) - previousDistance;
+        const float fraction = travel > 1.0e-6
+            ? static_cast<float>(std::clamp(
+                (activeGate.distance - previousDistance) / travel, 0.0, 1.0))
+            : 0.0F;
+        const float crossingX = previousX + (state.x - previousX) * fraction;
+        const float crossingY = previousY + (state.y - previousY) * fraction;
+        const float offsetX = crossingX - activeGate.offsetX;
+        const float offsetY = crossingY - activeGate.offsetY;
+        const float clearance = activeGate.apertureRadius - kCraftCollisionRadius -
+            std::sqrt(offsetX * offsetX + offsetY * offsetY);
+        result.minimumGateClearance = std::min(result.minimumGateClearance, clearance);
+
+        if (collidesWithGate(crossingX, crossingY, activeGate)) {
+            result.firstFailedGate = activeGate.index;
+            result.failure = "simulated route misses a gate aperture";
+            return result;
+        }
+
+        ++result.gatesChecked;
+        if (result.gatesChecked >= gateCount) {
+            result.valid = true;
+            result.failure = "ok";
+            return result;
+        }
+        ++result.transitionsChecked;
+        activeGate = gateAt(seed, result.gatesChecked);
+    }
+
+    result.firstFailedGate = result.gatesChecked;
+    result.failure = "route simulation step budget exhausted";
+    return result;
 }
 
 } // namespace tunrun
