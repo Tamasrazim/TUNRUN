@@ -855,7 +855,7 @@ int main() {
         (void)persistProfile(app);
     }
 
-    int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
+    int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, modesSelection = 0;
     int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
         seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
@@ -1078,7 +1078,7 @@ int main() {
             const bool compactMenu = GetScreenHeight() < 680;
             const float mainButtonHeight = compactMenu ? 40.0F : kButtonHeight;
             const float mainButtonGap = compactMenu ? 5.0F : kButtonGap;
-            const int mainMenuTop = compactMenu ? 174 : 185;
+            const int mainMenuTop = compactMenu ? 180 : 185;
             const int picked = drawMenu(mainItems, mainSelection, mainMenuTop,
                 true, -1, true, mainButtonHeight, mainButtonGap);
             if (picked >= 0) {
@@ -1177,7 +1177,7 @@ int main() {
             DrawText(TextFormat("BEST GATE COMBO   %llu", static_cast<unsigned long long>(app.profile.bestCombo)), 78, 284, 18, kText);
             DrawLine(70, 316, GetScreenWidth() - 70, 316, kEdge);
             DrawText("RUN HISTORY", 70, 334, 15, kAccent);
-            DrawText(TextFormat("RUNS COMPLETED    %llu", static_cast<unsigned long long>(app.profile.totalRuns)), 78, 367, 17, kText);
+            DrawText(TextFormat("RUNS RECORDED     %llu", static_cast<unsigned long long>(app.profile.totalRuns)), 78, 367, 17, kText);
             DrawText(TextFormat("CRASHES           %llu", static_cast<unsigned long long>(app.profile.totalCrashes)), 78, 397, 17, kText);
             DrawText(TextFormat("AETHER SHARDS     %llu", static_cast<unsigned long long>(app.profile.aetherShards)), 430, 218, 16, kAccent);
             DrawText(TextFormat("SINGULARITY CORES %llu", static_cast<unsigned long long>(app.profile.singularityCores)), 430, 251, 16, kText);
@@ -1185,7 +1185,7 @@ int main() {
             DrawText(TextFormat("SHIPS UNLOCKED    %d / %d", static_cast<int>(unlockedCount), static_cast<int>(tunrun::kProfileShipCount)), 430, 284, 16, kText);
             DrawText(TextFormat("ACTIVE SHIP       %s", tunrun::shipDefinition(static_cast<std::uint32_t>(app.selectedShip)).name), 430, 367, 15, kText);
             if (app.saveWarning) DrawText("SAVE WARNING: CAREER DATA MAY NOT BE PERSISTED", 78, 433, 11, kDanger);
-            if (drawMenu({"BACK"}, mainSelection, GetScreenHeight() - 86) == 0) app.screens.pop();
+            if (drawMenu({"BACK"}, recordsSelection, GetScreenHeight() - 86) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         }
