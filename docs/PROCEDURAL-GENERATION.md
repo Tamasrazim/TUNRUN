@@ -1,0 +1,130 @@
+# Procedural Generation Specification
+
+## Objective
+
+Generate continuously new tunnel geometry and obstacle arrangements from a run seed. This must be a genuine procedural system—not a sequence of finished obstacle prefabs selected from a small list.
+
+The system has three separate responsibilities:
+
+1. **Generation:** construct possible geometry and behavior.
+2. **Validation:** reject or repair content that violates physical/playability limits.
+3. **Streaming:** prepare accepted content before the player reaches it.
+
+## Reproducibility contract
+
+Each run has:
+- a 64-bit root seed;
+- a generator version;
+- a ruleset/difficulty configuration;
+- a ship physics profile identifier.
+
+A text seed is normalised and hashed to the root seed. The course identity is the combination of root seed, generator version, ruleset, and relevant generation settings. Same identity must recreate the same canonical section parameters and underlying obstacle course.
+
+Use deterministic pseudorandom streams derived independently from (root seed, generator version, section index, subsystem id). Separate streams are required for tunnel geometry, structural topology, obstacle motion, resources, and cosmetic variation. Adding a visual particle must not rearrange obstacle placement.
+
+Quantise the generated canonical parameters before mesh construction. The promise is reproducibility of course data and gameplay placements; tiny renderer differences across drivers do not invalidate that promise.
+
+## Tunnel geometry model
+
+Represent the tunnel as a 3D centerline parameterised by distance. Construct a stable local frame along it so cross-sections can twist without sudden frame flips.
+
+The centerline may combine bounded low-frequency coherent noise with generated spline/control parameters. Noise is for smooth variation, not unrestricted high-frequency randomness. Apply explicit limits for:
+- maximum lateral displacement;
+- curvature and curvature change;
+- vertical slope;
+- twist rate;
+- minimum and maximum tunnel radius;
+- radius change per unit distance;
+- local cross-section slope and surface distortion.
+
+Cross-sections may be circular, elliptical, asymmetric, polygonal, or perturbed by bounded angular harmonics. Parameter ranges must always preserve a minimum traversable opening and collision surface continuity.
+
+Generation must support compound and changing geometry: a curved section can twist, taper, flare, or morph into a differently shaped entrance. The transition must preserve position and tangent continuity and avoid cracks or sudden collision jumps.
+
+## Entrances and transitions
+
+Entrances are generated as geometry, not picked as a complete prebuilt picture. The generator varies aperture profile, rim thickness, number/shape of structural ribs, asymmetry, offset, depth, local rotation, and the way the entrance blends into the previous and next tunnel surfaces.
+
+A generated entrance may lead into a different cross-section or tunnel orientation. The transition must be continuous enough for the craft's speed and movement limits. The generator may create unusual entry silhouettes, but must not place decorative geometry inside the required flight clearance unless it is intentionally a validated hazard.
+
+## Procedural structures and obstacles
+
+Use reusable low-level geometry operations—extrusion, ring segments, panels, struts, swept beams, bounded deformation, fractured pieces, and generated surface fields—to build higher-level structures from new parameter combinations.
+
+The main unit of variety is not a model id; it is the generated structure description. A structure description contains topology, dimensions, local transform, material parameters, motion model, collision representation, and warning cues.
+
+Examples of parameter dimensions include:
+- number and thickness of structural elements;
+- opening count, position, angle, and aspect ratio;
+- asymmetry and bounded deformation;
+- independent rotation axes and phase offsets;
+- translation, extension, retraction, oscillation, or sequential movement;
+- static/dynamic component mix;
+- placement in the local tunnel frame;
+- material pattern and lighting, kept separate from gameplay geometry.
+
+These dimensions can combine freely within constraints. No fixed repeating sequence such as “curve, ring, crusher, helix” should drive an ordinary run. Families may exist as generation grammars to control structural coherence, but the actual geometry and combinations must be parameterised and numerous.
+
+## Noise usage
+
+Use coherent seeded noise for geometry and surface variation where continuous spatial correlation makes sense. Use seeded random draws for discrete topology and choices. Use explicit periodic functions or deterministic motion parameters for moving obstacles.
+
+Do not use raw per-vertex random noise to generate primary tunnel surfaces: that tends to create jittery, jagged, unfair geometry. Bounded high-frequency detail may decorate surfaces but must not alter the collision corridor significantly.
+
+## Procedural resources
+
+Aether Shards and rare Singularity Core placements are generated after geometry and obstacle validation. Resource placement should reward controlled optional risk while leaving the baseline route viable. Rare rewards may be placed in difficult but reachable pockets; never use reward placement as proof that a route is safe.
+
+Rewards must be tied to stable section indices and deterministic streams so the course can be reproduced.
+
+## Playability validator
+
+The validator should operate on the actual generated collision representation and player movement limits, not just visual meshes.
+
+For every section:
+1. Confirm mesh/collision continuity with adjacent sections.
+2. Build a conservative collision/clearance representation.
+3. Evaluate a look-ahead reachable-state graph over tunnel distance, lateral/vertical position, and bounded steering velocity.
+4. Include dynamic obstacle positions at their relevant times.
+5. Reject if no viable trajectory remains or if warning distance is below the allowed reaction-time envelope.
+6. Verify ship-specific clearance for all supported ship profiles.
+7. Ensure resources do not occlude the required route or create unsafe collision ambiguity.
+8. Record the seed, section index, failing invariant, and generation parameters for debugging.
+
+The validator must not force every section into an obvious common pattern. It enforces feasibility and readability, not a hand-authored route sequence.
+
+If a candidate fails, regenerate the relevant subsystem using a deterministic retry stream and bounded retry count. If it continues to fail, fall back to a conservative procedural construction rule for that section and record the fallback. This is a safety net, not the normal content path.
+
+## Difficulty without obvious scripting
+
+Difficulty should emerge from bounded parameters such as:
+- width and clearance relative to the selected ship;
+- curvature and twist rate;
+- number and timing relationships of moving components;
+- depth/visibility and warning distance;
+- number of viable paths and the precision required;
+- interaction of independent geometry and motion systems.
+
+Difficulty tiers change parameter envelopes and validator thresholds, not a fixed obstacle schedule. Hard sections may be uncommon or require skill, but must remain possible and offer readable warning.
+
+Do not increase every difficulty dimension at once. Track each dimension so balancing can identify why a section was difficult.
+
+## Streaming and performance
+
+Generate several seconds of course ahead of the player, with the exact look-ahead distance driven by maximum speed and worst-case section complexity. Keep a safety buffer of already-validated sections.
+
+CPU generation and validation may run on worker threads using immutable input parameters. GPU mesh creation/destruction must be marshalled safely to the rendering thread. No generation job may mutate live collision data midway through a frame.
+
+When frame time spikes, increase pre-generation budget or simplify non-gameplay detail; never skip obstacle collision or spawn an unvalidated section just to keep moving.
+
+Generated sections behind the player can be unloaded once they are outside the rollback/ghost-replay retention window. Keep compact canonical seed/parameter records for deterministic replay.
+
+## Required test corpus
+
+- Known fixed seeds for unit/regression tests.
+- Large random seed batches across all difficulty tiers and ship profiles.
+- Boundary-value tests for smallest openings, maximum curvature, extreme twist, longest moving hazards, and section seams.
+- Dynamic collision tests with different obstacle phases.
+- Cross-run checks that the same seed produces the same canonical course hash.
+- Performance tests at the highest speed and densest allowed geometry.
+- Failure reports that reproduce by seed, generator version, section index, and ship id.
