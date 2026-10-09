@@ -123,7 +123,7 @@ Gameplay-specific mouse checks:
 ## 8. Security and privacy
 
 - Malformed, oversized, truncated, checksum-mismatched, and schema-incompatible save files fail safely without a crash or unbounded allocation.
-- The v1 fixture upgrades to v2, retains the pre-migration primary as backup, and writes a v2 checksum that validates after reload.
+- Valid v1 and v2 fixtures upgrade to v3; the v1 primary remains as backup, the v2 checksum is verified against the original field set, and the newly written v3 checksum validates after reload.
 - Save, replay, seed and imported-asset paths cannot escape their designated directories; archive extraction rejects absolute paths and `..` traversal.
 - JSON numbers, arrays, strings, nesting depth, entity counts and replay durations have explicit limits.
 - Corrupted primary and backup saves produce a recoverable error and never silently reset progression.
