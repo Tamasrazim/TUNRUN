@@ -48,9 +48,11 @@ Gameplay-specific mouse checks:
 - Run large headless seed batches for every difficulty tier and each ship profile. The automated suite checks 512 gates for all eight ship profiles and 64-gate batches across 24 deterministic derived seeds.
 - Run the fixed-step route probe across every ship profile and a deterministic multi-seed subset. It must carry position and lateral velocity between gate crossings, use gameplay flight physics and crossing interpolation, remain inside the conservative tunnel clearance, and report non-negative aperture clearance. This proves only the tested controller trajectory, not exhaustive reachable-state coverage.
 - Check tunnel seam continuity, minimum aperture, curvature bounds, and collision/render agreement.
+- Verify reward hashes and pickup order are seed-deterministic, Aether Shard values remain 4–8, every eighth pickup is a Singularity Core, and pickup collision happens only on a forward plane crossing.
+- Verify pickup render positions and collision offsets use the same course-relative frame as the tunnel while it curves/twists; non-finite collision inputs must be rejected.
 - Validate dynamic hazards over their full relevant timing window.
 - Detect unavoidable obstacle intersections and insufficient warning distance.
-- Confirm resource placements never block the only required route.
+- Confirm optional pickup placement never narrows or blocks the required route; do not make pickups mandatory until route-reachability validation includes them.
 - Confirm a failed candidate regenerates with a finite retry limit and useful diagnostic output.
 - Record each failure by seed, generator version, section index, ship, subsystem, and invariant.
 - Keep regression seeds for every previously discovered generator bug.
