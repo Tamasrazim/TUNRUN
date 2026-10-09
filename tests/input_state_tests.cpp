@@ -106,6 +106,31 @@ int main() {
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
     assert(!tunrun::crossesGatePlane(gate.distance + 0.5, gate.distance + 0.7, gate));
+
+    // Obstacle layout has its own deterministic versioned fingerprint.
+    assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
+    assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
+    assert(tunrun::obstacleHash(seed, 0U) == 0U);
+    const auto mixedGateValidation = tunrun::validateObstacleSet(seed, 512U);
+    assert(mixedGateValidation.valid && mixedGateValidation.gatesChecked == 512U);
+    assert(mixedGateValidation.standardGates + mixedGateValidation.precisionGates +
+           mixedGateValidation.offsetGates + mixedGateValidation.wideGates ==
+           mixedGateValidation.gatesChecked);
+    bool seenStandard = false, seenPrecision = false, seenOffset = false, seenWide = false;
+    for (std::uint32_t index = 0U; index < 512U; ++index) {
+        const auto generatedGate = tunrun::gateAt(seed, index);
+        assert(!tunrun::collidesWithGate(generatedGate.offsetX, generatedGate.offsetY,
+                                         generatedGate));
+        assert(tunrun::collidesWithGate(generatedGate.offsetX + generatedGate.apertureRadius,
+                                        generatedGate.offsetY, generatedGate));
+        switch (generatedGate.kind) {
+        case tunrun::GateKind::Standard: seenStandard = true; break;
+        case tunrun::GateKind::Precision: seenPrecision = true; break;
+        case tunrun::GateKind::Offset: seenOffset = true; break;
+        case tunrun::GateKind::Wide: seenWide = true; break;
+        }
+    }
+    assert(seenStandard && seenPrecision && seenOffset && seenWide);
     assert(tunrun::validateObstacleSet(seed, 64U).valid);
     assert(tunrun::deriveCourseSeed(seed, 0U) != tunrun::deriveCourseSeed(seed, 1U));
     const auto validation = tunrun::validateCourse(seed, 3600.0);

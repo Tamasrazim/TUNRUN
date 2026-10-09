@@ -39,10 +39,10 @@ Still required before M1 can pass:
 - Stable tangent-aligned local frames, taper/flare transitions, persistent user-entered seeds, and cross-platform hash fixtures remain outstanding.
 
 ## M4 — Generated obstacles and validation
-**Status: in progress.** Generator v1 now places seed-derived aperture gates at deterministic distances, draws them in the course, sweeps craft movement through their collision planes, and validates aperture clearance and gate spacing. The Seed Lab reports course and obstacle validation.
-- Invalid candidates fail with reproducible diagnostics.
-- Batch tests cover seam continuity, obstacle clearance and reaction distances.
-- Moving hazards, broader reachability validation, and generation streaming remain outstanding.
+**Status: in progress.** Obstacle generator v2 deterministically generates four aperture-gate families (Standard, Precision, Offset, Wide), applies per-family size/offset constraints, renders them with distinct cues, and hashes obstacle parameters independently from tunnel geometry. The validator checks parameter envelopes, nominal clearance and reaction spacing; Seed Lab reports per-family counts and the obstacle hash. Swept crossing still uses an interpolated craft position.
+- Expand validation from nominal gate clearance to a ship- and trajectory-aware reachable-state model.
+- Add regression fixtures for a larger seed batch and verify the visual warning distance on real hardware.
+- Moving hazards, broader obstacle grammars, resource placement, and generation streaming remain outstanding.
 
 ## M5 — Save, resources, and hangar
 **Status: in progress.** Profile v2 persists runtime settings, active ship, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Writes include a canonical FNV-1a corruption checksum; valid v1 profiles migrate to v2 after validation while keeping the old primary as backup. Windows uses a per-user local directory, hidden attributes, bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. The hangar unlocks and equips ships using Aether Shards or Singularity Cores with rollback if profile persistence fails. Ship handling is driven by one catalogue. Tests cover v1 migration, checksum rejection, recovery, economy transactions, and handling differences.

@@ -3,7 +3,7 @@
 
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
-The repository has moved into native implementation. **M5 persistence and ship economy are in progress**: schema v2 adds an accidental-corruption checksum and a tested migration path for valid v1 profiles; settings and progression save locally with backup recovery; the hangar uses Aether Shards and Singularity Cores to unlock and equip ships; and each ship has distinct speed, acceleration, boost-drain and energy-recovery parameters. Seeded tunnel generation and aperture gates remain in the prototype. The Windows CI build and unit tests are the source of truth; this is not a finished game.
+The repository has moved into native implementation. **M5 persistence and ship economy are in progress**: schema v2 adds an accidental-corruption checksum and a tested migration path for valid v1 profiles; settings and progression save locally with backup recovery; the hangar uses Aether Shards and Singularity Cores to unlock and equip ships; and each ship has distinct speed, acceleration, boost-drain and energy-recovery parameters. Seeded tunnel generation and four deterministic aperture-gate families now form the procedural gameplay prototype. The Windows CI build and unit tests are the source of truth; this is not a finished game.
 
 ## Core pillars
 
