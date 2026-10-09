@@ -12,7 +12,7 @@
 ## Screen inventory
 
 ### Main Menu
-Play, Hangar, Modes, Seed Lab, Records / Statistics, Settings, Credits, Exit. The menu tightens row sizing at the minimum supported window height so every action remains visible. Continue is shown only when a valid profile contains resumable progress.
+Play, Hangar, Modes, Seed Lab, Records / Statistics, Controls, Settings, Credits, Exit. The menu tightens row sizing at the minimum supported window height so every action remains visible. Continue is shown only when a valid profile contains resumable progress.
 
 ### Hangar
 Rotatable ship preview, name, handling stats, selected/unlocked/locked states, unlock requirements, resource balance, purchase confirmation, cosmetic preview, and equip action.
@@ -31,6 +31,9 @@ Speed, hull, energy, current score/multiplier, nearby hazard cues, pause prompt,
 
 ### Pause
 Resume, Restart Run (with confirmation where progress is lost), Settings, Controls, Return to Hangar, and Quit. Opening settings keeps the run paused; closing settings returns to Pause.
+
+### Controls
+A dedicated input reference is reachable from the main menu and Pause. It lists keyboard steering, boost, precision, dash, camera and pause controls; relative mouse steering and sensitivity; and controller stick/trigger/button mappings. Returning from Pause keeps the run paused.
 
 ### Settings
 Input mapping, mouse sensitivity/inversion/steering toggle, gamepad dead-zone/response curve, FOV, FPP/TPP camera distance, audio, graphics, motion/comfort options, UI scale, language-ready text layout, and reset-to-defaults confirmation.

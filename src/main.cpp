@@ -861,19 +861,19 @@ int main() {
         (void)persistProfile(app);
     }
 
-    int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, modesSelection = 0;
+    int mainSelection = 0, hangarSelection = 0, recordsSelection = 0, controlsSelection = 0, modesSelection = 0;
     int settingsSelection = 0, pauseSelection = 0, exitSelection = 0, crashSelection = 0,
         seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
         "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
-        "RECORDS / STATISTICS", "SETTINGS", "CREDITS", "EXIT"
+        "RECORDS / STATISTICS", "CONTROLS", "SETTINGS", "CREDITS", "EXIT"
     };
     const std::vector<std::string> modes{
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
         "CUSTOM SEED RUN", "PRACTICE PREVIEW", "BACK"
     };
-    const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> pauseItems{"RESUME", "CONTROLS", "SETTINGS", "RETURN TO MAIN MENU"};
     const std::vector<std::string> settingsItems{
         "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
         "MOUSE STEERING", "MOUSE SENSITIVITY", "RESET OPTIONS", "BACK"
@@ -1079,9 +1079,9 @@ int main() {
                                 static_cast<unsigned long long>(app.profile.singularityCores)),
                      330, 162, 14, kText);
             // Tighten rows at smaller window heights so every menu item stays visible.
-            const bool compactMenu = GetScreenHeight() < 680;
-            const float mainButtonHeight = compactMenu ? 40.0F : kButtonHeight;
-            const float mainButtonGap = compactMenu ? 5.0F : kButtonGap;
+            const bool compactMenu = GetScreenHeight() < 705;
+            const float mainButtonHeight = compactMenu ? 36.0F : kButtonHeight;
+            const float mainButtonGap = compactMenu ? 4.0F : kButtonGap;
             const int mainMenuTop = compactMenu ? 180 : 185;
             const int picked = drawMenu(mainItems, mainSelection, mainMenuTop,
                 true, -1, true, mainButtonHeight, mainButtonGap);
@@ -1092,9 +1092,10 @@ int main() {
                 case 2: app.screens.push(tunrun::Screen::Modes); break;
                 case 3: app.screens.push(tunrun::Screen::SeedLab); break;
                 case 4: app.screens.push(tunrun::Screen::Records); break;
-                case 5: app.screens.push(tunrun::Screen::Settings); break;
-                case 6: app.screens.push(tunrun::Screen::Credits); break;
-                case 7: app.screens.push(tunrun::Screen::ExitConfirm); break;
+                case 5: app.screens.push(tunrun::Screen::Controls); break;
+                case 6: app.screens.push(tunrun::Screen::Settings); break;
+                case 7: app.screens.push(tunrun::Screen::Credits); break;
+                case 8: app.screens.push(tunrun::Screen::ExitConfirm); break;
                 default: break;
                 }
             }
@@ -1193,6 +1194,36 @@ int main() {
             if (backPressed()) app.screens.pop();
             break;
         }
+        case tunrun::Screen::Controls: {
+            drawHeader("SYSTEM / CONTROLS", "CONTROLS",
+                       "Keyboard, relative mouse and gamepad input reference.");
+            DrawText("KEYBOARD + MOUSE", 70, 184, 15, kAccent);
+            DrawText("STEER  W / A / S / D OR ARROW KEYS", 78, 218, 13, kText);
+            DrawText("BOOST  LEFT SHIFT", 78, 246, 13, kText);
+            DrawText("PRECISION  LEFT CTRL", 78, 274, 13, kText);
+            DrawText("DASH  SPACE (EDGE-TRIGGERED)", 78, 302, 13, kText);
+            DrawText("CAMERA  V", 78, 330, 13, kText);
+            DrawText("PAUSE / BACK  ESC", 78, 358, 13, kText);
+            DrawText("MOUSE STEERING IS TOGGLEABLE", 78, 402, 12, kMuted);
+            DrawText("SENSITIVITY IS ADJUSTABLE IN SETTINGS", 78, 426, 12, kMuted);
+            DrawLine(402, 184, 402, 448, kEdge);
+            DrawText("GAMEPAD", 432, 184, 15, kAccent);
+            DrawText("LEFT STICK  STEER", 440, 218, 13, kText);
+            DrawText("RT  BOOST", 440, 246, 13, kText);
+            DrawText("LT  PRECISION", 440, 274, 13, kText);
+            DrawText("A  DASH", 440, 302, 13, kText);
+            DrawText("Y  CAMERA", 440, 330, 13, kText);
+            DrawText("START / B  PAUSE / BACK", 440, 358, 13, kText);
+            DrawText(TextFormat("DASH COST  %.0f ENERGY", tunrun::kDashEnergyCost),
+                     440, 402, 12, kMuted);
+            DrawText(TextFormat("BURST %.2fs  /  COOLDOWN %.2fs",
+                     tunrun::kDashDuration, tunrun::kDashCooldown), 440, 426, 12, kMuted);
+            if (drawMenu({"BACK"}, controlsSelection, GetScreenHeight() - 86) == 0) {
+                app.screens.pop();
+            }
+            if (backPressed()) app.screens.pop();
+            break;
+        }
         case tunrun::Screen::Modes: {
             drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Practice opens the current seeded procedural course.");
             const int picked = drawMenu(modes, modesSelection, 192);
@@ -1288,10 +1319,11 @@ int main() {
             break;
         case tunrun::Screen::Pause: {
             drawHeader("SYSTEM / PAUSED", "PAUSED", "Preview input is frozen while this screen is open.");
-            const int picked = drawMenu(pauseItems, pauseSelection, 260);
+            const int picked = drawMenu(pauseItems, pauseSelection, 245);
             if (picked == 0) app.screens.pop();
-            else if (picked == 1) app.screens.push(tunrun::Screen::Settings);
-            else if (picked == 2) app.screens.reset();
+            else if (picked == 1) app.screens.push(tunrun::Screen::Controls);
+            else if (picked == 2) app.screens.push(tunrun::Screen::Settings);
+            else if (picked == 3) app.screens.reset();
             if (backPressed()) app.screens.pop();
             break;
         }

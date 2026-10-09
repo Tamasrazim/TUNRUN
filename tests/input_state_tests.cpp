@@ -83,6 +83,10 @@ int main() {
     stack.push(Screen::Records);
     assert(stack.current() == Screen::Records);
     assert(stack.pop() && stack.current() == Screen::MainMenu);
+    stack.push(Screen::Pause);
+    stack.push(Screen::Controls);
+    assert(stack.current() == Screen::Controls);
+    assert(stack.pop() && stack.current() == Screen::Pause);
     stack.push(Screen::Preview);
     stack.push(Screen::Pause);
     stack.push(Screen::Settings);

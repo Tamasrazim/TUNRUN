@@ -6,9 +6,10 @@ A feature is not complete because its screen exists. It is complete only when it
 
 Test on Windows at normal DPI and scaled DPI, windowed, borderless, fullscreen, after resizing, and after Alt+Tab.
 
-For each screen (Main Menu, Hangar, Records / Statistics, Mode Select, Seed Entry, Settings, Pause, Results, confirmation dialogs):
+For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select, Seed Entry, Settings, Pause, Results, confirmation dialogs):
 - Every button is mouse-clickable at its visible position.
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
+- Controls opens from both Main Menu and Pause, lists actual keyboard/mouse/gamepad bindings, and Back returns to the correct parent screen without unpausing the run.
 - On the minimum-height window, the first menu button does not overlap the currency row.
 - At the minimum supported window size, all eight Main Menu actions remain visible and clickable without overlap.
 - The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
