@@ -223,6 +223,16 @@ int main() {
         hazard.distance - 0.8, 1.0,
         hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
         hazard.distance + 0.8, 1.02, hazard));
+    // A render frame can have no fixed-step forward-distance advance. Mine
+    // contact still has to be checked while the hazard clock advances.
+    const auto stationaryStart = tunrun::hazardCenterAt(hazard, 1.0);
+    const auto stationaryEnd = tunrun::hazardCenterAt(hazard, 1.02);
+    assert(tunrun::sweptCollidesWithHazard(
+        seed, stationaryStart.x, stationaryStart.y, hazard.distance, 1.0,
+        stationaryEnd.x, stationaryEnd.y, hazard.distance, 1.02, hazard));
+    assert(tunrun::sweptCollidesWithHazard(
+        seed, stationaryStart.x, stationaryStart.y, hazard.distance, 1.0,
+        stationaryStart.x, stationaryStart.y, hazard.distance, 1.0, hazard));
     assert(!tunrun::sweptCollidesWithHazard(
         seed, hazardAtTime.x, hazardAtTime.y,
         hazard.distance + 0.8, 1.01,
