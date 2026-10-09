@@ -1,4 +1,5 @@
 #include "app/input_state.hpp"
+#include "app/camera_rig.hpp"
 #include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
@@ -58,6 +59,29 @@ int main() {
     using tunrun::ButtonEdge;
     using tunrun::Screen;
     using tunrun::ScreenStack;
+
+    const auto safeChasePose = tunrun::thirdPersonCameraPose(
+        0.5F, -0.3F, 0.0F, 0.0F, -1.0F, 1.0F, -0.5F, 5.0F);
+    assert(!safeChasePose.clampedToTunnel);
+    assert(std::abs(safeChasePose.x - 0.5F) < 0.0001F);
+    assert(std::abs(safeChasePose.y + 0.05F) < 0.0001F);
+    assert(std::abs(safeChasePose.z - 6.0F) < 0.0001F);
+
+    const auto clampedChasePose = tunrun::thirdPersonCameraPose(
+        2.0F, 1.0F, 1.5F, 1.3F, -0.2F, -1.0F, 0.75F, 4.0F);
+    assert(clampedChasePose.clampedToTunnel);
+    assert(clampedChasePose.radialOffset <= 3.0001F);
+    assert(std::isfinite(clampedChasePose.x) &&
+           std::isfinite(clampedChasePose.y) &&
+           std::isfinite(clampedChasePose.z));
+
+    const auto invalidChasePose = tunrun::thirdPersonCameraPose(
+        std::numeric_limits<float>::quiet_NaN(), 0.0F,
+        0.0F, 0.0F, std::numeric_limits<float>::infinity(),
+        0.0F, 0.0F, std::numeric_limits<float>::quiet_NaN());
+    assert(std::isfinite(invalidChasePose.x) &&
+           std::isfinite(invalidChasePose.y) &&
+           std::isfinite(invalidChasePose.z));
 
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Campaign));
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));

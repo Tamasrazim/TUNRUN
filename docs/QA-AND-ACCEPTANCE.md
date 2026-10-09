@@ -120,7 +120,7 @@ Gameplay-specific mouse checks:
 - FPP/TPP switch works while moving and while using boost.
 - Dash activation requires a press edge, deducts energy once, ends after the configured duration, respects cooldown, and cannot auto-repeat while held.
 - Camera switching changes presentation only; it does not alter craft position, collision rules, seed, or obstacle phase. TPP's camera stays within the tunnel on the rear centerline; the rear tube geometry must enclose it at all times.
-- TPP camera collision prevents clipping through tunnel geometry.
+- TPP camera placement is measured from the rear section's centerline, clamps to the tunnel radius with wall clearance, and stays finite for invalid inputs.
 - FPP/TPP both show the upcoming route clearly enough for fair reaction.
 - Pausing freezes run simulation and moving hazards according to the chosen pause rule.
 - Restarting a seed run reproduces the same underlying course.

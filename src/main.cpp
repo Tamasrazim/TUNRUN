@@ -2,6 +2,7 @@
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
 #include "app/game_modes.hpp"
+#include "app/camera_rig.hpp"
 #include "app/economy.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
@@ -691,22 +692,14 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
         const float rearCenterY = rearSection.centerY - playerSection.centerY;
-        float cameraLocalX = shipX - forwardX * 6.0F;
-        float cameraLocalY = shipY - forwardY * 6.0F + 0.25F;
-        const float safeCameraRadius = std::max(0.75F, rearSection.radius - 1.0F);
-        const float cameraOffsetLength = std::sqrt(
-            cameraLocalX * cameraLocalX + cameraLocalY * cameraLocalY);
-        if (cameraOffsetLength > safeCameraRadius) {
-            const float scale = safeCameraRadius / cameraOffsetLength;
-            cameraLocalX *= scale;
-            cameraLocalY *= scale;
-        }
-        camera.position = Vector3{rearCenterX + cameraLocalX,
-                                  rearCenterY + cameraLocalY, -forwardZ * 6.0F};
+        const auto chasePose = tunrun::thirdPersonCameraPose(
+            shipX, shipY, forwardX, forwardY, forwardZ,
+            rearCenterX, rearCenterY, rearSection.radius);
+        camera.position = Vector3{chasePose.x, chasePose.y, chasePose.z};
         camera.target = Vector3{
             forwardSection.centerX - playerSection.centerX + shipX + forwardX * 8.0F,
             forwardSection.centerY - playerSection.centerY + shipY + forwardY * 8.0F,
-            -22.0F};
+            forwardZ * 24.0F};
     } else {
         camera.position = Vector3{shipX, shipY, 1.25F};
         camera.target = Vector3{
@@ -829,7 +822,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD / ARROWS: STEER   SPACE / A: DASH   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
+    DrawText("WASD: MOVE   ARROWS / RIGHT STICK: ROTATE   Q/E: ROLL   SPACE / A: DASH   SHIFT / RT: BOOST   V: CAMERA",
              36, GetScreenHeight() - 42, 11, kMuted);
 }
 } // namespace
