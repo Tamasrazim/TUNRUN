@@ -419,6 +419,130 @@ void drawProceduralReward(std::uint64_t seed, float playerDistance,
     DrawLine3D(left, back, color);
 }
 
+void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY) {
+    const Color hullColors[] = {
+        kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
+        Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
+        Color{187, 166, 255, 255}, Color{255, 218, 130, 255},
+        Color{165, 190, 218, 255}
+    };
+    const Color color = hullColors[shipId < 8U ? shipId : 0U];
+    const auto v = [shipX, shipY](float x, float y, float z) {
+        return Vector3{shipX + x, shipY + y, z};
+    };
+    const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
+    switch (shipId) {
+    case 0U: { // DRIFTWING: light delta wing.
+        const auto nose = v(0.0F, 0.0F, -0.35F);
+        const auto left = v(-0.78F, -0.30F, 0.62F);
+        const auto right = v(0.78F, -0.30F, 0.62F);
+        const auto tail = v(0.0F, 0.35F, 0.78F);
+        line(nose, left); line(nose, right); line(left, tail);
+        line(tail, right); line(left, right); line(nose, tail);
+        break;
+    }
+    case 1U: { // WRAITH: long nose with swept rear fins.
+        const auto nose = v(0.0F, 0.0F, -0.48F);
+        const auto core = v(0.0F, 0.0F, 0.38F);
+        const auto left = v(-0.43F, -0.05F, 0.55F);
+        const auto right = v(0.43F, -0.05F, 0.55F);
+        const auto leftTip = v(-0.82F, -0.28F, 0.82F);
+        const auto rightTip = v(0.82F, -0.28F, 0.82F);
+        const auto tail = v(0.0F, 0.26F, 0.94F);
+        line(nose, core); line(core, left); line(core, right);
+        line(left, leftTip); line(leftTip, tail); line(tail, rightTip);
+        line(rightTip, right); line(leftTip, rightTip); line(core, tail);
+        break;
+    }
+    case 2U: { // BULWARK: broad armored trapezoid.
+        const auto nose = v(0.0F, 0.0F, -0.28F);
+        const auto frontLeft = v(-0.50F, -0.28F, 0.18F);
+        const auto frontRight = v(0.50F, -0.28F, 0.18F);
+        const auto rearLeft = v(-0.80F, -0.10F, 0.70F);
+        const auto rearRight = v(0.80F, -0.10F, 0.70F);
+        const auto tail = v(0.0F, 0.30F, 0.90F);
+        line(nose, frontLeft); line(frontLeft, rearLeft);
+        line(rearLeft, tail); line(tail, rearRight);
+        line(rearRight, frontRight); line(frontRight, nose);
+        line(frontLeft, frontRight); line(rearLeft, rearRight);
+        line(nose, tail); line(frontLeft, tail); line(frontRight, tail);
+        break;
+    }
+    case 3U: { // MANTA: wide swept wings.
+        const auto nose = v(0.0F, 0.0F, -0.40F);
+        const auto leftTip = v(-1.00F, -0.02F, 0.35F);
+        const auto rightTip = v(1.00F, -0.02F, 0.35F);
+        const auto leftRear = v(-0.52F, -0.25F, 0.78F);
+        const auto rightRear = v(0.52F, -0.25F, 0.78F);
+        const auto tail = v(0.0F, 0.24F, 0.88F);
+        line(nose, leftTip); line(leftTip, leftRear); line(leftRear, tail);
+        line(tail, rightRear); line(rightRear, rightTip); line(rightTip, nose);
+        line(leftTip, rightTip); line(nose, tail); line(leftRear, rightRear);
+        break;
+    }
+    case 4U: { // COMET: long needle fuselage and twin exhaust rails.
+        const auto nose = v(0.0F, 0.0F, -0.65F);
+        const auto mid = v(0.0F, 0.0F, 0.28F);
+        const auto left = v(-0.28F, -0.12F, 0.55F);
+        const auto right = v(0.28F, -0.12F, 0.55F);
+        const auto leftTail = v(-0.42F, 0.10F, 0.96F);
+        const auto rightTail = v(0.42F, 0.10F, 0.96F);
+        line(nose, mid); line(mid, left); line(mid, right);
+        line(left, leftTail); line(right, rightTail);
+        line(leftTail, rightTail); line(left, right);
+        line(nose, leftTail); line(nose, rightTail);
+        break;
+    }
+    case 5U: { // SPECTRE: split twin-prong silhouette.
+        const auto leftNose = v(-0.22F, 0.02F, -0.45F);
+        const auto rightNose = v(0.22F, 0.02F, -0.45F);
+        const auto leftRear = v(-0.56F, -0.18F, 0.72F);
+        const auto rightRear = v(0.56F, -0.18F, 0.72F);
+        const auto center = v(0.0F, 0.20F, 0.78F);
+        const auto leftWing = v(-0.86F, -0.24F, 0.40F);
+        const auto rightWing = v(0.86F, -0.24F, 0.40F);
+        line(leftNose, leftRear); line(leftRear, leftWing);
+        line(leftWing, leftNose); line(rightNose, rightRear);
+        line(rightRear, rightWing); line(rightWing, rightNose);
+        line(leftRear, center); line(center, rightRear);
+        line(leftNose, center); line(rightNose, center);
+        break;
+    }
+    case 6U: { // VORTEX: interlocking diamond rails.
+        const auto nose = v(0.0F, 0.0F, -0.42F);
+        const auto left = v(-0.72F, 0.0F, 0.28F);
+        const auto right = v(0.72F, 0.0F, 0.28F);
+        const auto top = v(0.0F, 0.42F, 0.40F);
+        const auto bottom = v(0.0F, -0.32F, 0.70F);
+        const auto tail = v(0.0F, 0.12F, 0.92F);
+        line(nose, left); line(left, bottom); line(bottom, right);
+        line(right, nose); line(nose, top); line(top, right);
+        line(right, tail); line(tail, left); line(left, top);
+        line(top, bottom); line(bottom, tail); line(tail, nose);
+        break;
+    }
+    case 7U: { // OBSIDIAN: angular heavy interceptor.
+        const auto nose = v(0.0F, 0.0F, -0.34F);
+        const auto leftFront = v(-0.45F, -0.22F, 0.05F);
+        const auto rightFront = v(0.45F, -0.22F, 0.05F);
+        const auto leftWing = v(-0.90F, -0.12F, 0.52F);
+        const auto rightWing = v(0.90F, -0.12F, 0.52F);
+        const auto leftRear = v(-0.50F, 0.16F, 0.83F);
+        const auto rightRear = v(0.50F, 0.16F, 0.83F);
+        const auto tail = v(0.0F, 0.35F, 0.97F);
+        line(nose, leftFront); line(leftFront, leftWing);
+        line(leftWing, leftRear); line(leftRear, tail);
+        line(tail, rightRear); line(rightRear, rightWing);
+        line(rightWing, rightFront); line(rightFront, nose);
+        line(leftFront, rightFront); line(leftWing, rightWing);
+        line(leftRear, rightRear); line(leftFront, tail); line(rightFront, tail);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 void drawProceduralHazard(std::uint64_t seed, float playerDistance,
                            float elapsedSeconds,
                            const tunrun::TunnelCrossSection& playerSection,
@@ -443,7 +567,7 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
 }
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                bool tpp, float boostEnergy, float elapsedSeconds,
+                std::uint32_t shipId, bool tpp, float boostEnergy, float elapsedSeconds,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     Camera3D camera{};
@@ -496,20 +620,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
     if (tpp) {
-        const Vector3 nose{shipX, shipY, -0.2F};
-        const Vector3 left{shipX - 0.75F, shipY - 0.28F, 0.65F};
-        const Vector3 right{shipX + 0.75F, shipY - 0.28F, 0.65F};
-        const Vector3 tail{shipX, shipY + 0.34F, 0.8F};
-        DrawLine3D(nose, left, kAccent);
-        DrawLine3D(nose, right, kAccent);
-        DrawLine3D(left, tail, kAccent);
-        DrawLine3D(tail, right, kAccent);
-        DrawLine3D(left, right, kAccent);
+        drawPlayerShip(shipId, shipX, shipY);
     }
     EndMode3D();
     DrawRectangle(22, 18, 344, 174, Color{10, 14, 21, 225});
     DrawRectangleLines(22, 18, 344, 174, kEdge);
-    DrawText("TUNRUN / M4 PROCEDURAL", 35, 30, 15, kAccent);
+    DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
+             35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
@@ -780,7 +897,8 @@ int main() {
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
-                       tpp, app.flight.boostEnergy, app.elapsed,
+                       static_cast<std::uint32_t>(app.selectedShip), tpp,
+                       app.flight.boostEnergy, app.elapsed,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F

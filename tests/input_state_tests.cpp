@@ -332,6 +332,23 @@ int main() {
     assert(seenStandard && seenPrecision && seenOffset && seenWide);
     assert(tunrun::validateObstacleSet(seed, 64U).valid);
 
+    // The ship catalog is shared by the hangar, renderer, and physics model.
+    assert(tunrun::kShipCatalog.size() == 8U);
+    for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
+        const auto& ship = tunrun::shipDefinition(shipId);
+        assert(ship.name != nullptr && std::string_view(ship.name).size() > 0U);
+        assert(ship.speedMultiplier > 0.0F);
+        assert(ship.accelerationMultiplier > 0.0F);
+        assert(ship.boostDrainMultiplier > 0.0F);
+        assert(ship.energyRegenerationMultiplier > 0.0F);
+        for (std::uint32_t other = 0U; other < shipId; ++other) {
+            assert(std::string_view(ship.name) !=
+                   std::string_view(tunrun::shipDefinition(other).name));
+        }
+    }
+    assert(&tunrun::shipDefinition(999U) ==
+           &tunrun::shipDefinition(tunrun::kStarterShipId));
+
     // Check adjacent gate transitions against every ship profile at maximum
     // forward (boost) speed, using each ship's actual handling parameters.
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {

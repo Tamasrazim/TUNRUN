@@ -28,6 +28,8 @@ Material randomness and particle effects must not affect gameplay determinism.
 
 ## Player ships
 
+The native prototype now renders eight procedural third-person wireframe silhouettes directly through raylib, one for each catalogue entry: DRIFTWING, WRAITH, BULWARK, MANTA, COMET, SPECTRE, VORTEX, and OBSIDIAN. These are readable development silhouettes, not final production meshes or materials.
+
 Ships require clear silhouettes at typical gameplay distances. Each needs:
 - main hull;
 - wings/fins or other identifying structure;
