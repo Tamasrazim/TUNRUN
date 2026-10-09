@@ -331,8 +331,26 @@ void drawProceduralGate(std::uint64_t seed, float playerDistance,
         const Vector3 outer1{courseCenterX + std::cos(a1) * outerRadius, courseCenterY + std::sin(a1) * outerRadius, z};
         const Vector3 inner0{gateCenterX + std::cos(a0) * gate.apertureRadius, gateCenterY + std::sin(a0) * gate.apertureRadius, z};
         const Vector3 inner1{gateCenterX + std::cos(a1) * gate.apertureRadius, gateCenterY + std::sin(a1) * gate.apertureRadius, z};
-        DrawLine3D(outer0, outer1, Color{100, 130, 164, 220});
-        DrawLine3D(inner0, inner1, Color{200, 229, 255, 255});
+        Color outerColor{100, 130, 164, 220};
+        Color innerColor{200, 229, 255, 255};
+        switch (gate.kind) {
+        case tunrun::GateKind::Standard:
+            break;
+        case tunrun::GateKind::Precision:
+            outerColor = Color{146, 81, 66, 225};
+            innerColor = Color{255, 171, 131, 255};
+            break;
+        case tunrun::GateKind::Offset:
+            outerColor = Color{108, 92, 154, 225};
+            innerColor = Color{194, 172, 255, 255};
+            break;
+        case tunrun::GateKind::Wide:
+            outerColor = Color{70, 133, 120, 220};
+            innerColor = Color{150, 245, 213, 255};
+            break;
+        }
+        DrawLine3D(outer0, outer1, outerColor);
+        DrawLine3D(inner0, inner1, innerColor);
         if (side % 2 == 0) DrawLine3D(outer0, inner0, Color{76, 99, 125, 205});
     }
 }
@@ -365,6 +383,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto firstGate = tunrun::gateAt(seed, 0U);
     const int firstVisibleIndex = std::max(0, static_cast<int>(
         std::floor((static_cast<double>(distance) - firstGate.distance) / tunrun::kGateSpacing)));
+    const int nextGateIndex = std::max(0, static_cast<int>(
+        std::ceil((static_cast<double>(distance) - firstGate.distance) /
+                  tunrun::kGateSpacing)));
+    const auto nextGate = tunrun::gateAt(seed, static_cast<std::uint32_t>(nextGateIndex));
     for (int i = firstVisibleIndex; i < firstVisibleIndex + 4; ++i) {
         drawProceduralGate(seed, distance, playerSection,
                            tunrun::gateAt(seed, static_cast<std::uint32_t>(i)));
@@ -381,14 +403,15 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawLine3D(left, right, kAccent);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 106, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 106, kEdge);
-    DrawText("TUNRUN / M3 SEEDED COURSE", 35, 30, 15, kAccent);
+    DrawRectangle(22, 18, 344, 128, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 128, kEdge);
+    DrawText("TUNRUN / M4 PROCEDURAL", 35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
-    DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 98, 12, kMuted);
+    DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
+    DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT: BOOST   CTRL: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -782,10 +805,19 @@ int main() {
                                    validation.minimumRadius, validation.maximumRadius,
                                    validation.maximumCenterOffset),
                         266.0F, 13, kMuted);
-            drawCentred(TextFormat("OBSTACLES: %s   GATES CHECKED: %u",
+            drawCentred(TextFormat("OBSTACLES V%u: %s   GATES CHECKED: %u",
+                                   tunrun::kObstacleGeneratorVersion,
                                    gateValidation.valid ? "PASS" : "FAIL",
                                    gateValidation.gatesChecked),
                         288.0F, 13, gateValidation.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("MIX S%u P%u O%u W%u   HASH %016llX",
+                                   gateValidation.standardGates,
+                                   gateValidation.precisionGates,
+                                   gateValidation.offsetGates,
+                                   gateValidation.wideGates,
+                                   static_cast<unsigned long long>(
+                                       tunrun::obstacleHash(app.courseSeed, 32U))),
+                        311.0F, 11, kMuted);
             const int picked = drawMenu(seedLabItems, seedLabSelection, 340, true);
             if (picked == 0) chooseNextSeed(app);
             else if (picked == 1) { resetFlight(app, tpp); app.screens.push(tunrun::Screen::Preview); }

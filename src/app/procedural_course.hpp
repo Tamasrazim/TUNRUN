@@ -16,8 +16,11 @@ inline constexpr float kCourseMaxTwist = 0.38F;
 inline constexpr double kGateBaseDistance = 26.0;
 inline constexpr double kGateSpacing = 42.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
-inline constexpr float kGateMinApertureRadius = 1.75F;
-inline constexpr float kGateMaxApertureRadius = 2.05F;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 2U;
+inline constexpr float kGateMinApertureRadius = 1.35F;
+inline constexpr float kGateMaxApertureRadius = 2.45F;
+inline constexpr float kGateMaxOffsetX = 1.10F;
+inline constexpr float kGateMaxOffsetY = 0.80F;
 
 struct TunnelCrossSection {
     float centerX = 0.0F;
@@ -33,16 +36,27 @@ struct CourseValidation {
     float maximumCenterOffset = 0.0F;
     const char* failure = "not validated";
 };
+enum class GateKind : std::uint8_t {
+    Standard,
+    Precision,
+    Offset,
+    Wide
+};
 struct ProceduralGate {
     std::uint32_t index = 0U;
     double distance = 0.0;
     float offsetX = 0.0F;
     float offsetY = 0.0F;
     float apertureRadius = 1.85F;
+    GateKind kind = GateKind::Standard;
 };
 struct ObstacleValidation {
     bool valid = false;
     std::uint32_t gatesChecked = 0U;
+    std::uint32_t standardGates = 0U;
+    std::uint32_t precisionGates = 0U;
+    std::uint32_t offsetGates = 0U;
+    std::uint32_t wideGates = 0U;
     const char* failure = "not validated";
 };
 
@@ -129,18 +143,73 @@ inline std::uint64_t courseHash(std::uint64_t seed,
     }
     return hash;
 }
+inline const char* gateKindName(GateKind kind) noexcept {
+    switch (kind) {
+    case GateKind::Standard: return "STANDARD";
+    case GateKind::Precision: return "PRECISION";
+    case GateKind::Offset: return "OFFSET";
+    case GateKind::Wide: return "WIDE";
+    }
+    return "UNKNOWN";
+}
+
 inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
+    const auto sample = static_cast<std::int64_t>(index);
     const double firstDistance = kGateBaseDistance +
         static_cast<double>(courseUnit(seed, 0, 111U)) * 4.0;
+    const float kindRoll = courseUnit(seed, sample, 124U);
+    GateKind kind = GateKind::Standard;
+    float radiusMin = 1.75F, radiusMax = 2.05F;
+    float offsetScaleX = 0.70F, offsetScaleY = 0.50F;
+    if (kindRoll < 0.22F) {
+        kind = GateKind::Precision;
+        radiusMin = 1.35F; radiusMax = 1.55F;
+        offsetScaleX = 0.36F; offsetScaleY = 0.28F;
+    } else if (kindRoll < 0.46F) {
+        kind = GateKind::Wide;
+        radiusMin = 2.20F; radiusMax = 2.45F;
+        offsetScaleX = 0.25F; offsetScaleY = 0.22F;
+    } else if (kindRoll < 0.72F) {
+        kind = GateKind::Offset;
+        radiusMin = 1.70F; radiusMax = 1.95F;
+        offsetScaleX = 1.10F; offsetScaleY = 0.80F;
+    }
     return ProceduralGate{
         index,
         firstDistance + static_cast<double>(index) * kGateSpacing,
-        courseSigned(seed, static_cast<std::int64_t>(index), 121U) * 0.95F,
-        courseSigned(seed, static_cast<std::int64_t>(index), 122U) * 0.75F,
-        kGateMinApertureRadius +
-            courseUnit(seed, static_cast<std::int64_t>(index), 123U) *
-            (kGateMaxApertureRadius - kGateMinApertureRadius)
+        courseSigned(seed, sample, 121U) * offsetScaleX,
+        courseSigned(seed, sample, 122U) * offsetScaleY,
+        radiusMin + courseUnit(seed, sample, 123U) * (radiusMax - radiusMin),
+        kind
     };
+}
+
+// Canonical identity for obstacle gameplay data, separate from the tunnel
+// centerline hash so a gate-rule change cannot silently reuse the same hash.
+inline std::uint64_t obstacleHash(std::uint64_t seed,
+                                  std::uint32_t gateCount = 128U) noexcept {
+    if (gateCount == 0U || gateCount > 10000U) return 0U;
+    std::uint64_t hash = 14695981039346656037ULL;
+    const auto absorb = [&hash](std::int64_t value) {
+        std::uint64_t bits = static_cast<std::uint64_t>(value);
+        for (int byte = 0; byte < 8; ++byte) {
+            hash ^= bits & 0xFFULL;
+            hash *= 1099511628211ULL;
+            bits >>= 8U;
+        }
+    };
+    absorb(static_cast<std::int64_t>(kObstacleGeneratorVersion));
+    absorb(static_cast<std::int64_t>(gateCount));
+    for (std::uint32_t i = 0; i < gateCount; ++i) {
+        const auto gate = gateAt(seed, i);
+        absorb(static_cast<std::int64_t>(gate.index));
+        absorb(static_cast<std::int64_t>(std::llround(gate.distance * 1000.0)));
+        absorb(static_cast<std::int64_t>(std::llround(gate.offsetX * 10000.0F)));
+        absorb(static_cast<std::int64_t>(std::llround(gate.offsetY * 10000.0F)));
+        absorb(static_cast<std::int64_t>(std::llround(gate.apertureRadius * 10000.0F)));
+        absorb(static_cast<std::int64_t>(gate.kind));
+    }
+    return hash;
 }
 inline bool collidesWithGate(float x, float y, const ProceduralGate& gate,
                              float craftRadius = 0.42F) noexcept {
@@ -175,12 +244,31 @@ inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
             result.failure = "gate distances are not strictly increasing";
             return result;
         }
-        if (gate.index != i || gate.apertureRadius < kGateMinApertureRadius ||
-            gate.apertureRadius > kGateMaxApertureRadius) {
-            result.failure = "gate index/aperture outside bounds";
+        if (gate.index != i || !std::isfinite(gate.offsetX) ||
+            !std::isfinite(gate.offsetY) || !std::isfinite(gate.apertureRadius)) {
+            result.failure = "gate index or parameters are invalid";
             return result;
         }
-        if (std::abs(gate.offsetX) > 0.95F || std::abs(gate.offsetY) > 0.75F) {
+        float radiusMin = 0.0F, radiusMax = 0.0F;
+        switch (gate.kind) {
+        case GateKind::Standard:
+            radiusMin = 1.75F; radiusMax = 2.05F; ++result.standardGates; break;
+        case GateKind::Precision:
+            radiusMin = 1.35F; radiusMax = 1.55F; ++result.precisionGates; break;
+        case GateKind::Offset:
+            radiusMin = 1.70F; radiusMax = 1.95F; ++result.offsetGates; break;
+        case GateKind::Wide:
+            radiusMin = 2.20F; radiusMax = 2.45F; ++result.wideGates; break;
+        default:
+            result.failure = "unknown gate kind";
+            return result;
+        }
+        if (gate.apertureRadius < radiusMin || gate.apertureRadius > radiusMax) {
+            result.failure = "gate aperture does not match its kind";
+            return result;
+        }
+        if (std::abs(gate.offsetX) > kGateMaxOffsetX ||
+            std::abs(gate.offsetY) > kGateMaxOffsetY) {
             result.failure = "gate aperture offset outside bounds";
             return result;
         }
