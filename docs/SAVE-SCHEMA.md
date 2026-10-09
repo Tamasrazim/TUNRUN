@@ -13,11 +13,11 @@ Temporary write:
 
 Set the Windows Hidden attribute on the directory and save files where supported. Hidden is a convenience only; this is not encryption, anti-cheat, or tamper protection. Use the current Windows user profile and do not require administrator privileges.
 
-## Runtime schema v2
+## Runtime schema v3
 
-Current writes use a strict flat JSON object with exactly 16 fields: the schema v1 fields plus `checksum`. The parser caps input at 64 KiB, rejects duplicate or unexpected keys, validates types and ranges, rejects non-finite values, and verifies the checksum after parsing. The checksum is a 16-character lowercase hexadecimal FNV-1a digest over the canonical v2 profile payload before the checksum field is appended. It detects accidental value corruption; it is **not** cryptographic authentication, encryption, or anti-cheat protection.
+Current writes use a strict flat JSON object with exactly 18 fields: the previous runtime fields plus `bestScore`, `bestCombo`, and `checksum`. Career-best score and combo are updated at run completion; the current run score remains transient until then. The parser caps input at 64 KiB, rejects duplicate or unexpected keys, validates types and ranges, rejects non-finite values, and verifies checksums against the exact source-version payload. The checksum is a 16-character lowercase hexadecimal FNV-1a digest over the canonical payload for that schema version. It detects accidental value corruption; it is **not** cryptographic authentication, encryption, or anti-cheat protection.
 
-Schema v1 saves (the 15-field format without a checksum) are accepted by a dedicated v1-to-v2 migration. The current primary is copied to `profile.bak` before the upgraded v2 primary is atomically replaced. When recovering from a v1 backup, the backup is not overwritten during migration. If the migration write fails, the valid profile remains loaded in memory and migration is retried on a later save.
+Schema v1 saves (15 fields without a checksum) and schema v2 saves (16 fields with a checksum) are accepted and upgraded to v3. The parser verifies v2 using its original canonical field set before adding v3-only career records. The current primary is copied to `profile.bak` before the upgraded v3 primary is atomically replaced. When recovering from an older backup, the backup is not overwritten during migration. If the migration write fails, the valid profile remains loaded in memory and migration is retried on a later save.
 
 ## Planned full-game canonical schema
 

@@ -418,6 +418,10 @@ bool validateProfile(const Profile& profile, std::string& error) {
         error = "best distance is outside its legal range";
         return false;
     }
+    if (profile.bestScore > kProfileRecordCap || profile.bestCombo > kProfileRecordCap) {
+        error = "best score or combo exceeds the supported record cap";
+        return false;
+    }
     if (profile.totalCrashes > profile.totalRuns) {
         error = "crash count exceeds recorded runs";
         return false;
@@ -448,8 +452,14 @@ std::string serializeProfilePayload(const Profile& profile) {
         << "  \"singularityCores\": " << profile.singularityCores << ",\n"
         << "  \"totalRuns\": " << profile.totalRuns << ",\n"
         << "  \"totalCrashes\": " << profile.totalCrashes << ",\n"
-        << "  \"bestDistance\": " << std::setprecision(17) << profile.bestDistance << ",\n"
-        << "  \"rootSeed\": " << profile.rootSeed << ",\n"
+        << "  \"bestDistance\": " << std::setprecision(17) << profile.bestDistance << ",\n";
+    // Omitting v3-only fields for older schema versions preserves the exact
+    // canonical payload used to verify legacy checksums during migration.
+    if (profile.schemaVersion >= 3U) {
+        out << "  \"bestScore\": " << profile.bestScore << ",\n"
+            << "  \"bestCombo\": " << profile.bestCombo << ",\n";
+    }
+    out << "  \"rootSeed\": " << profile.rootSeed << ",\n"
         << "  \"runSerial\": " << profile.runSerial << "\n"
         << "}\n";
     return out.str();
@@ -481,8 +491,8 @@ std::string serializeProfile(const Profile& profile) {
 }
 
 bool parseProfile(std::string_view json, Profile& output, std::string& error,
-                  bool* migratedFromV1) {
-    if (migratedFromV1) *migratedFromV1 = false;
+                  bool* migratedFromLegacyVersion) {
+    if (migratedFromLegacyVersion) *migratedFromLegacyVersion = false;
     if (json.empty() || json.size() > kProfileMaxBytes) {
         error = "profile is empty or exceeds the size limit";
         return false;
@@ -493,19 +503,21 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error,
 
     std::uint32_t sourceVersion = 0U;
     if (!parseUnsignedField(values, "schemaVersion", sourceVersion, error)) return false;
-    if (sourceVersion != 1U && sourceVersion != kProfileSchemaVersion) {
+    if (sourceVersion < 1U || sourceVersion > kProfileSchemaVersion) {
         error = "unsupported profile schema version";
         return false;
     }
-    const bool migrateV1 = sourceVersion == 1U;
-    const std::size_t requiredFields = migrateV1 ? 15U : 16U;
+    const bool migrateLegacy = sourceVersion < kProfileSchemaVersion;
+    const std::size_t requiredFields = sourceVersion == 1U ? 15U
+        : sourceVersion == 2U ? 16U : 18U;
     if (values.size() != requiredFields) {
         error = "profile has missing or unexpected fields";
         return false;
     }
 
     Profile parsed{};
-    parsed.schemaVersion = kProfileSchemaVersion;
+    // Keep the source version until its canonical checksum has been verified.
+    parsed.schemaVersion = sourceVersion;
     if (!parseBooleanField(values, "showFps", parsed.showFps, error) ||
         !parseBooleanField(values, "reduceMotion", parsed.reduceMotion, error) ||
         !parseBooleanField(values, "mouseSteering", parsed.mouseSteering, error) ||
@@ -516,8 +528,11 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error,
         !parseUnsignedField(values, "singularityCores", parsed.singularityCores, error) ||
         !parseUnsignedField(values, "totalRuns", parsed.totalRuns, error) ||
         !parseUnsignedField(values, "totalCrashes", parsed.totalCrashes, error) ||
-        !parseDoubleField(values, "bestDistance", parsed.bestDistance, error) ||
-        !parseUnsignedField(values, "rootSeed", parsed.rootSeed, error) ||
+        !parseDoubleField(values, "bestDistance", parsed.bestDistance, error)) return false;
+    if (sourceVersion >= 3U &&
+        (!parseUnsignedField(values, "bestScore", parsed.bestScore, error) ||
+         !parseUnsignedField(values, "bestCombo", parsed.bestCombo, error))) return false;
+    if (!parseUnsignedField(values, "rootSeed", parsed.rootSeed, error) ||
         !parseUnsignedField(values, "runSerial", parsed.runSerial, error)) return false;
 
     const JsonValue* ships = findValue(values, "unlockedShips", JsonKind::BooleanArray, error);
@@ -529,9 +544,7 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error,
     for (std::size_t i = 0; i < kProfileShipCount; ++i) {
         parsed.unlockedShips[i] = ships->booleans[i];
     }
-    if (!validateProfile(parsed, error)) return false;
-
-    if (!migrateV1) {
+    if (sourceVersion >= 2U) {
         const JsonValue* checksum = findValue(values, "checksum", JsonKind::String, error);
         if (!checksum) return false;
         const std::string expected = profileChecksumHex(serializeProfilePayload(parsed));
@@ -541,8 +554,12 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error,
         }
     }
 
+    // Verify and parse using the original schema before validating under v3 rules.
+    parsed.schemaVersion = kProfileSchemaVersion;
+    if (!validateProfile(parsed, error)) return false;
+
     output = parsed;
-    if (migratedFromV1) *migratedFromV1 = migrateV1;
+    if (migratedFromLegacyVersion) *migratedFromLegacyVersion = migrateLegacy;
     error.clear();
     return true;
 }
@@ -590,7 +607,7 @@ ProfileLoadResult ProfileStore::load() const noexcept {
                 if (migrated) {
                     const auto migration = save(result.profile, false);
                     result.message = migration.success
-                        ? "profile migrated to schema v2 with checksum; schema v1 retained as backup"
+                        ? "profile migrated to schema v3; previous profile retained as backup"
                         : "profile loaded; schema migration will retry on the next save";
                 } else {
                     result.message = "profile loaded";

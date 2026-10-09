@@ -9,9 +9,10 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kProfileSchemaVersion = 2U;
+inline constexpr std::uint32_t kProfileSchemaVersion = 3U;
 inline constexpr std::size_t kProfileMaxBytes = 65536U;
 inline constexpr std::size_t kProfileShipCount = 8U;
+inline constexpr std::uint64_t kProfileRecordCap = 9000000000000000ULL;
 
 struct Profile {
     std::uint32_t schemaVersion = kProfileSchemaVersion;
@@ -29,6 +30,8 @@ struct Profile {
     std::uint64_t totalRuns = 0U;
     std::uint64_t totalCrashes = 0U;
     double bestDistance = 0.0;
+    std::uint64_t bestScore = 0U;
+    std::uint64_t bestCombo = 0U;
     std::uint64_t rootSeed = 0U;
     std::uint64_t runSerial = 0U;
 };
@@ -53,11 +56,11 @@ struct ProfileSaveResult {
 };
 
 [[nodiscard]] std::string serializeProfile(const Profile& profile);
-// Schema v1 remains readable and is migrated in memory. The optional flag is
-// set only when a v1 document parses and validates successfully.
+// Schemas v1 and v2 remain readable and are migrated in memory. The optional
+// flag is true whenever an older document parses and validates successfully.
 [[nodiscard]] bool parseProfile(std::string_view json, Profile& output,
                                 std::string& error,
-                                bool* migratedFromV1 = nullptr);
+                                bool* migratedFromLegacyVersion = nullptr);
 [[nodiscard]] bool validateProfile(const Profile& profile,
                                    std::string& error);
 

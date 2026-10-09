@@ -207,6 +207,8 @@ void finishRun(AppState& app) {
     if (app.profile.totalCrashes < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalCrashes;
     app.profile.bestDistance = std::max(app.profile.bestDistance,
                                         static_cast<double>(std::max(0.0F, app.flight.distance)));
+    app.profile.bestScore = std::max(app.profile.bestScore, app.runScore.total);
+    app.profile.bestCombo = std::max(app.profile.bestCombo, app.runScore.bestCombo);
     const double rawReward = std::floor(std::max(0.0F, app.flight.distance) / 20.0F);
     const std::uint64_t distanceReward = static_cast<std::uint64_t>(
         std::clamp(rawReward, 0.0, 250000.0));
@@ -1260,11 +1262,14 @@ int main() {
                                    static_cast<unsigned long long>(app.lastRunReward),
                                    static_cast<unsigned long long>(app.lastRunCoreReward)),
                         246.0F, 14, kAccent);
-            drawCentred(TextFormat("SCORE %llu   BEST COMBO %llu   CLEAN PASSES %llu",
+            drawCentred(TextFormat("RUN SCORE %llu   CAREER BEST %llu",
                                    static_cast<unsigned long long>(app.runScore.total),
-                                   static_cast<unsigned long long>(app.runScore.bestCombo),
+                                   static_cast<unsigned long long>(app.profile.bestScore)),
+                        280.0F, 12, kAccent);
+            drawCentred(TextFormat("BEST COMBO %llu   CLEAN PASSES %llu",
+                                   static_cast<unsigned long long>(app.profile.bestCombo),
                                    static_cast<unsigned long long>(app.runScore.cleanPasses)),
-                        284.0F, 12, kAccent);
+                        298.0F, 11, kMuted);
             if (app.crashCause == CrashCause::Gate) {
                 const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);
                 drawCentred(TextFormat("GATE #%u   DISTANCE %.1f   TYPE %s",
@@ -1279,7 +1284,7 @@ int main() {
                                            tunrun::hazardHash(app.courseSeed, 128U))),
                             267.0F, 11, kDanger);
             }
-            const int picked = drawMenu(crashItems, crashSelection, 310, true);
+            const int picked = drawMenu(crashItems, crashSelection, 328, true);
             if (picked == 0) {
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
