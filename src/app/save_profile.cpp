@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <iterator>
 #include <limits>
+#include <locale>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -425,8 +426,10 @@ bool validateProfile(const Profile& profile, std::string& error) {
     return true;
 }
 
-std::string serializeProfile(const Profile& profile) {
+namespace {
+std::string serializeProfilePayload(const Profile& profile) {
     std::ostringstream out;
+    out.imbue(std::locale::classic());
     out << "{\n"
         << "  \"schemaVersion\": " << profile.schemaVersion << ",\n"
         << "  \"showFps\": " << (profile.showFps ? "true" : "false") << ",\n"
@@ -452,7 +455,33 @@ std::string serializeProfile(const Profile& profile) {
     return out.str();
 }
 
-bool parseProfile(std::string_view json, Profile& output, std::string& error) {
+// FNV-1a detects accidental value corruption only; it is not authentication,
+// encryption, or a defence against a player editing their local profile.
+std::string profileChecksumHex(std::string_view content) {
+    std::uint64_t hash = 14695981039346656037ULL;
+    for (const unsigned char byte : content) {
+        hash ^= static_cast<std::uint64_t>(byte);
+        hash *= 1099511628211ULL;
+    }
+    std::ostringstream out;
+    out.imbue(std::locale::classic());
+    out << std::hex << std::nouppercase << std::setw(16) << std::setfill('0') << hash;
+    return out.str();
+}
+} // namespace
+
+std::string serializeProfile(const Profile& profile) {
+    const std::string payload = serializeProfilePayload(profile);
+    const std::size_t closing = payload.rfind("}\n");
+    if (closing == std::string::npos) return payload;
+    std::string output = payload.substr(0U, closing);
+    output += "  \"checksum\": \"" + profileChecksumHex(payload) + "\"\n}\n";
+    return output;
+}
+
+bool parseProfile(std::string_view json, Profile& output, std::string& error,
+                  bool* migratedFromV1) {
+    if (migratedFromV1) *migratedFromV1 = false;
     if (json.empty() || json.size() > kProfileMaxBytes) {
         error = "profile is empty or exceeds the size limit";
         return false;
@@ -460,14 +489,23 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error) {
     std::unordered_map<std::string, JsonValue> values;
     FlatJsonParser parser(json);
     if (!parser.parse(values, error)) return false;
-    constexpr std::size_t requiredFields = 15U;
+
+    std::uint32_t sourceVersion = 0U;
+    if (!parseUnsignedField(values, "schemaVersion", sourceVersion, error)) return false;
+    if (sourceVersion != 1U && sourceVersion != kProfileSchemaVersion) {
+        error = "unsupported profile schema version";
+        return false;
+    }
+    const bool migrateV1 = sourceVersion == 1U;
+    const std::size_t requiredFields = migrateV1 ? 15U : 16U;
     if (values.size() != requiredFields) {
         error = "profile has missing or unexpected fields";
         return false;
     }
+
     Profile parsed{};
-    if (!parseUnsignedField(values, "schemaVersion", parsed.schemaVersion, error) ||
-        !parseBooleanField(values, "showFps", parsed.showFps, error) ||
+    parsed.schemaVersion = kProfileSchemaVersion;
+    if (!parseBooleanField(values, "showFps", parsed.showFps, error) ||
         !parseBooleanField(values, "reduceMotion", parsed.reduceMotion, error) ||
         !parseBooleanField(values, "mouseSteering", parsed.mouseSteering, error) ||
         !parseBooleanField(values, "fullscreen", parsed.fullscreen, error) ||
@@ -480,6 +518,7 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error) {
         !parseDoubleField(values, "bestDistance", parsed.bestDistance, error) ||
         !parseUnsignedField(values, "rootSeed", parsed.rootSeed, error) ||
         !parseUnsignedField(values, "runSerial", parsed.runSerial, error)) return false;
+
     const JsonValue* ships = findValue(values, "unlockedShips", JsonKind::BooleanArray, error);
     if (!ships) return false;
     if (ships->booleans.size() != kProfileShipCount) {
@@ -490,7 +529,19 @@ bool parseProfile(std::string_view json, Profile& output, std::string& error) {
         parsed.unlockedShips[i] = ships->booleans[i];
     }
     if (!validateProfile(parsed, error)) return false;
+
+    if (!migrateV1) {
+        const JsonValue* checksum = findValue(values, "checksum", JsonKind::String, error);
+        if (!checksum) return false;
+        const std::string expected = profileChecksumHex(serializeProfilePayload(parsed));
+        if (checksum->text.size() != 16U || checksum->text != expected) {
+            error = "profile checksum mismatch";
+            return false;
+        }
+    }
+
     output = parsed;
+    if (migratedFromV1) *migratedFromV1 = migrateV1;
     error.clear();
     return true;
 }
@@ -531,10 +582,18 @@ ProfileLoadResult ProfileStore::load() const noexcept {
         const auto backup = directory_ / "profile.bak";
         std::string primaryText, backupText, readError, parseError;
         bool primaryExists = false, backupExists = false;
+        bool migrated = false;
         if (readProfileFile(primary, primaryText, primaryExists, readError) && primaryExists) {
-            if (parseProfile(primaryText, result.profile, parseError)) {
+            if (parseProfile(primaryText, result.profile, parseError, &migrated)) {
                 result.status = ProfileLoadStatus::Loaded;
-                result.message = "profile loaded";
+                if (migrated) {
+                    const auto migration = save(result.profile, false);
+                    result.message = migration.success
+                        ? "profile migrated to schema v2 with checksum; schema v1 retained as backup"
+                        : "profile loaded; schema migration will retry on the next save";
+                } else {
+                    result.message = "profile loaded";
+                }
                 return result;
             }
         }
@@ -542,10 +601,18 @@ ProfileLoadResult ProfileStore::load() const noexcept {
         const bool primaryWasPresent = primaryExists ||
             std::filesystem::exists(primary, existsError);
         readError.clear();
+        migrated = false;
         if (readProfileFile(backup, backupText, backupExists, readError) && backupExists) {
-            if (parseProfile(backupText, result.profile, parseError)) {
+            if (parseProfile(backupText, result.profile, parseError, &migrated)) {
                 result.status = ProfileLoadStatus::RecoveredBackup;
-                result.message = "recovered profile from backup";
+                if (migrated) {
+                    const auto migration = save(result.profile, true);
+                    result.message = migration.success
+                        ? "recovered and migrated profile from backup; legacy copy preserved"
+                        : "recovered older profile from backup; schema migration will retry on the next save";
+                } else {
+                    result.message = "recovered profile from backup";
+                }
                 return result;
             }
         }

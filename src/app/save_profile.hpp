@@ -9,7 +9,7 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kProfileSchemaVersion = 1U;
+inline constexpr std::uint32_t kProfileSchemaVersion = 2U;
 inline constexpr std::size_t kProfileMaxBytes = 65536U;
 inline constexpr std::size_t kProfileShipCount = 8U;
 
@@ -53,8 +53,11 @@ struct ProfileSaveResult {
 };
 
 [[nodiscard]] std::string serializeProfile(const Profile& profile);
+// Schema v1 remains readable and is migrated in memory. The optional flag is
+// set only when a v1 document parses and validates successfully.
 [[nodiscard]] bool parseProfile(std::string_view json, Profile& output,
-                                std::string& error);
+                                std::string& error,
+                                bool* migratedFromV1 = nullptr);
 [[nodiscard]] bool validateProfile(const Profile& profile,
                                    std::string& error);
 
