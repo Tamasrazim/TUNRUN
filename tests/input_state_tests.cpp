@@ -9,6 +9,42 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <string_view>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+namespace {
+bool writeTestFile(const std::filesystem::path& path, std::string_view content) {
+#if defined(_WIN32)
+    // The production store hides these files; clear the cosmetic attribute so
+    // the test can corrupt them deterministically with the Win32 file API.
+    if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL);
+    }
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0U;
+    const bool ok = WriteFile(file, content.data(),
+        static_cast<DWORD>(content.size()), &written, nullptr) != 0 &&
+        static_cast<std::size_t>(written) == content.size();
+    CloseHandle(file);
+    return ok;
+#else
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    file.write(content.data(), static_cast<std::streamsize>(content.size()));
+    return static_cast<bool>(file);
+#endif
+}
+} // namespace
 
 int main() {
     using tunrun::ButtonEdge;
@@ -169,11 +205,8 @@ int main() {
     nextProfile.aetherShards = 64U;
     assert(store.save(nextProfile).success); // preserves the previous primary as backup
 
-    {
-        std::ofstream primary(profileDirectory / "profile.json", std::ios::binary | std::ios::trunc);
-        primary << "{ this is intentionally corrupted";
-        assert(static_cast<bool>(primary));
-    }
+    assert(writeTestFile(profileDirectory / "profile.json",
+                         "{ this is intentionally corrupted"));
     const auto recovered = store.load();
     assert(recovered.status == tunrun::ProfileLoadStatus::RecoveredBackup);
     assert(recovered.profile.runSerial == profile.runSerial);
@@ -182,9 +215,7 @@ int main() {
     assert(store.load().status == tunrun::ProfileLoadStatus::Loaded);
 
     for (const char* name : {"profile.json", "profile.bak"}) {
-        std::ofstream damaged(profileDirectory / name, std::ios::binary | std::ios::trunc);
-        damaged << "{ damaged";
-        assert(static_cast<bool>(damaged));
+        assert(writeTestFile(profileDirectory / name, "{ damaged"));
     }
     assert(store.load().status == tunrun::ProfileLoadStatus::RecoveryRequired);
     tunrun::Profile defaults;
