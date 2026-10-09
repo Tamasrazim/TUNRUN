@@ -771,32 +771,39 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
-    const auto firstHazardForHud = tunrun::hazardAt(seed, 0U);
-    const int nextHazardIndex = std::max(0, static_cast<int>(std::ceil(
-        (static_cast<double>(distance) - firstHazardForHud.distance) /
-        tunrun::kHazardSpacing)));
-    const auto nextHazardForHud = tunrun::hazardAt(
-        seed, static_cast<std::uint32_t>(nextHazardIndex));
-    DrawText(TextFormat("NEXT HAZARD: %.1f UNITS",
-             std::max(0.0, nextHazardForHud.distance - static_cast<double>(distance))),
-             35, 137, 10, Color{255, 153, 125, 255});
+    const auto hazardCue = tunrun::hazardHudCueAt(
+        seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
+    if (hazardCue.valid) {
+        DrawText(TextFormat("NEXT HAZARD: %.1f UNITS", hazardCue.distanceAhead),
+                 35, 137, 10, Color{255, 153, 125, 255});
+        const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
+            ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
+        const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
+            ? "LEVEL" : hazardCue.offsetY > 0.0F ? "UP" : "DOWN";
+        DrawText(TextFormat("MINE BEARING: %s %.1f / %s %.1f",
+                 horizontalDirection, std::abs(hazardCue.offsetX),
+                 verticalDirection, std::abs(hazardCue.offsetY)),
+                 35, 157, 10, Color{255, 153, 125, 255});
+    } else {
+        DrawText("HAZARD CUE UNAVAILABLE", 35, 137, 10, kMuted);
+    }
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 157, 10, kMuted);
+             static_cast<unsigned long long>(coresPickedUp)), 35, 177, 10, kMuted);
     DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
-             static_cast<unsigned long long>(score.cleanPasses)), 35, 177, 10, kAccent);
+             static_cast<unsigned long long>(score.cleanPasses)), 35, 197, 10, kAccent);
     if (dashRemaining > 0.0F) {
-        DrawText("DASH ACTIVE", 35, 197, 10, kAccent);
+        DrawText("DASH ACTIVE", 35, 217, 10, kAccent);
     } else if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
-                 35, 197, 10, kMuted);
+                 35, 217, 10, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
-        DrawText("DASH READY: SPACE / PAD A", 35, 197, 10, kAccent);
+        DrawText("DASH READY: SPACE / PAD A", 35, 217, 10, kAccent);
     } else {
         DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
-                 35, 197, 10, kMuted);
+                 35, 217, 10, kMuted);
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});

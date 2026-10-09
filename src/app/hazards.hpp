@@ -78,6 +78,51 @@ inline HazardCenter hazardCenterAt(const ProceduralHazard& hazard,
     };
 }
 
+struct HazardHudCue {
+    bool valid = false;
+    std::uint32_t hazardIndex = 0U;
+    double distanceAhead = 0.0;
+    // Lateral offset in the same player-relative render frame used by the
+    // projected mine. X < 0 means left; Y > 0 means up.
+    float offsetX = 0.0F;
+    float offsetY = 0.0F;
+};
+
+// Deterministically describe the nearest mine ahead for the in-run HUD.
+// The transform matches drawProceduralHazard so cues describe the rendered
+// position rather than raw generator offsets in a different course frame.
+inline HazardHudCue hazardHudCueAt(std::uint64_t seed, double playerDistance,
+                                   double elapsedSeconds, float playerX,
+                                   float playerY) noexcept {
+    HazardHudCue result;
+    if (!std::isfinite(playerDistance) || !std::isfinite(elapsedSeconds) ||
+        !std::isfinite(playerX) || !std::isfinite(playerY)) return result;
+
+    const auto firstHazard = hazardAt(seed, 0U);
+    const double indexEstimate = std::ceil(
+        (playerDistance - firstHazard.distance) / kHazardSpacing);
+    if (!std::isfinite(indexEstimate)) return result;
+    const double boundedIndex = std::clamp(
+        indexEstimate, 0.0,
+        static_cast<double>(std::numeric_limits<std::uint32_t>::max()));
+    const auto hazardIndex = static_cast<std::uint32_t>(boundedIndex);
+    const auto hazard = hazardAt(seed, hazardIndex);
+    const auto playerSection = sampleCourse(seed, playerDistance);
+    const auto hazardSection = sampleCourse(seed, hazard.distance);
+    const auto movingCenter = hazardCenterAt(hazard, elapsedSeconds);
+
+    result.distanceAhead = std::max(0.0, hazard.distance - playerDistance);
+    result.offsetX = hazardSection.centerX - playerSection.centerX +
+                     movingCenter.x - playerX;
+    result.offsetY = hazardSection.centerY - playerSection.centerY +
+                     movingCenter.y - playerY;
+    result.hazardIndex = hazardIndex;
+    result.valid = std::isfinite(result.distanceAhead) &&
+                   std::isfinite(result.offsetX) &&
+                   std::isfinite(result.offsetY);
+    return result;
+}
+
 inline bool crossesHazardPlane(double previousDistance, double currentDistance,
                                const ProceduralHazard& hazard) noexcept {
     if (!std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||

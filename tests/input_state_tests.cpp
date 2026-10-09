@@ -380,6 +380,29 @@ int main() {
     const auto hazardCenterAgain = tunrun::hazardCenterAt(hazardAgain, 1.25);
     assert(hazardCenter.x == hazardCenterAgain.x &&
            hazardCenter.y == hazardCenterAgain.y);
+
+    const auto cue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.0F, 0.0F);
+    const auto repeatedCue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.0F, 0.0F);
+    assert(cue.valid && cue.hazardIndex == 0U);
+    assert(cue.distanceAhead == hazard.distance);
+    assert(cue.offsetX == repeatedCue.offsetX && cue.offsetY == repeatedCue.offsetY);
+    const auto playerSectionForCue = tunrun::sampleCourse(seed, 0.0);
+    const auto hazardSectionForCue = tunrun::sampleCourse(seed, hazard.distance);
+    assert(std::abs(cue.offsetX -
+        (hazardSectionForCue.centerX - playerSectionForCue.centerX + hazardCenter.x)) < 0.0001F);
+    assert(std::abs(cue.offsetY -
+        (hazardSectionForCue.centerY - playerSectionForCue.centerY + hazardCenter.y)) < 0.0001F);
+    const auto shiftedCue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.5F, -0.25F);
+    assert(shiftedCue.valid && std::abs(shiftedCue.offsetX - (cue.offsetX - 0.5F)) < 0.0001F);
+    assert(std::abs(shiftedCue.offsetY - (cue.offsetY + 0.25F)) < 0.0001F);
+    const auto nextCue = tunrun::hazardHudCueAt(
+        seed, hazard.distance + 0.01, 1.25, 0.0F, 0.0F);
+    assert(nextCue.valid && nextCue.hazardIndex == 1U);
+    assert(nextCue.distanceAhead > 0.0);
+    assert(!tunrun::hazardHudCueAt(
+        seed, std::numeric_limits<double>::quiet_NaN(), 1.25, 0.0F, 0.0F).valid);
+    assert(!tunrun::hazardHudCueAt(
+        seed, 0.0, std::numeric_limits<double>::infinity(), 0.0F, 0.0F).valid);
     assert(tunrun::collidesWithHazard(hazardCenter.x, hazardCenter.y,
                                       hazard, 1.25));
     assert(!tunrun::collidesWithHazard(hazardCenter.x + hazard.radius +

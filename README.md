@@ -9,7 +9,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
 - **Seeded rewards:** Aether Shards and rarer Singularity Core pickups appear in the tunnel, use swept crossing checks, and contribute to the run payout.
-- **Moving hazards:** seed-derived mines oscillate over time, appear in the 3D tunnel with a HUD distance cue, and can end a run on contact.
+- **Moving hazards:** seed-derived mines oscillate over time, appear in the 3D tunnel with distance and player-relative bearing cues, and can end a run on contact.
 - **Skill scoring and records:** clean gate passes earn accuracy bonuses, gate families have different base scores, and consecutive passes raise the in-run combo multiplier. Career-best score and combo persist in profile v3, the Records / Statistics screen displays them, and the crash/results screen calls out new personal records.
 - **Input and pause safety:** the Controls screen documents current keyboard, relative mouse and gamepad bindings. Mouse sensitivity supports click-and-drag as well as keyboard/controller adjustment. Crash and Seed Lab seeds can be copied in exact round-trippable hexadecimal form. Restarting/leaving a run and resetting settings ask for confirmation; settings reset preserves wallet and ship progression.
 - **Refresh-aware frame pacing:** the renderer follows the monitor refresh rate up to 240 FPS, falls back to 144 FPS when the monitor query is invalid, and keeps flight physics on its separate fixed timestep.

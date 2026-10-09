@@ -71,6 +71,7 @@ Gameplay-specific mouse checks:
 - A run that sets a new career-best score or combo announces exactly which record improved; tied or lower results do not show a new-record banner.
 - Verify pickup render positions and collision offsets use the same sampled course-relative frame as the tunnel while it curves/twists; include a pickup-centered trajectory through a curved section, misses outside the collection radius, backwards movement, and non-finite collision inputs.
 - Verify moving-mine generation and hashes are seed-deterministic, motion is repeatable for equal run-clock times, motion stays within the declared envelope, and hazard planes maintain the minimum spacing from gate reaction windows.
+- Mine HUD bearing matches the render-frame transform and advances to the next mine immediately after a plane crossing; offsets are deterministic for equal seed, run clock and player pose, while non-finite inputs disable the cue safely.
 - Verify swept gate and mine collision transform ship coordinates into the obstacle's sampled course frame; include curved-centreline offsets, near/far sphere-edge contact, near misses, stationary-distance render frames, reverse travel, and non-finite inputs.
 - Run multi-seed hazard validation (currently 24 derived seeds × 128 hazards) and gameplay simulations for all eight ships; confirm warning distance gives enough time to evade. Parameter bounds alone are not proof of avoidability.
 - Validate any additional dynamic hazard families over their full relevant timing windows.

@@ -23,7 +23,7 @@ enum class GameModeChoice : std::uint8_t {
     case GameModeChoice::Campaign:
         return "Campaign mode is not implemented in this build; checkpoints and progression are still in development.";
     case GameModeChoice::Endless:
-        return "A separate Endless mode is not implemented yet; use Play / Procedural Run for the current survival loop.";
+        return "Endless is not a separate mode yet; use Play / Procedural Run for the current survival loop.";
     case GameModeChoice::CustomSeedRun:
     case GameModeChoice::PracticePreview:
     case GameModeChoice::Back:
