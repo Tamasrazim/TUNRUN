@@ -1,0 +1,32 @@
+name: Windows build and tests
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: MSVC x64 build and unit tests
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure
+        run: cmake -S . -B build -A x64 -DTUNRUN_ENABLE_TESTS=ON -DBUILD_EXAMPLES=OFF
+      - name: Compile
+        run: cmake --build build --config Release --parallel 2
+      - name: Run unit tests
+        run: ctest --test-dir build -C Release --output-on-failure

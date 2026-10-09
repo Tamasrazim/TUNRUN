@@ -1,0 +1,343 @@
+#include "app/input_state.hpp"
+#include "raylib.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <string>
+#include <vector>
+
+namespace {
+constexpr int kInitialWidth = 1280;
+constexpr int kInitialHeight = 800;
+constexpr float kPanelWidth = 540.0F;
+constexpr float kButtonHeight = 48.0F;
+constexpr float kButtonGap = 10.0F;
+const Color kBackground{8, 10, 15, 255};
+const Color kPanel{17, 21, 30, 245};
+const Color kEdge{57, 68, 83, 255};
+const Color kText{232, 238, 246, 255};
+const Color kMuted{137, 151, 171, 255};
+const Color kAccent{189, 222, 255, 255};
+const Color kDanger{255, 142, 142, 255};
+
+struct AppState {
+    tunrun::ScreenStack screens;
+    int selectedShip = 0;
+    int selectedMode = 0;
+    bool showFps = true;
+    bool reduceMotion = false;
+    bool fullscreen = false;
+    float shipX = 0.0F;
+    float shipY = 0.0F;
+    float elapsed = 0.0F;
+};
+
+bool padPressed(int button) {
+    return IsGamepadAvailable(0) && IsGamepadButtonPressed(0, button);
+}
+bool upPressed() {
+    return IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W) ||
+           padPressed(GAMEPAD_BUTTON_LEFT_FACE_UP);
+}
+bool downPressed() {
+    return IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) ||
+           padPressed(GAMEPAD_BUTTON_LEFT_FACE_DOWN);
+}
+bool confirmPressed() {
+    return IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) ||
+           padPressed(GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+}
+bool backPressed() {
+    return IsKeyPressed(KEY_ESCAPE) || padPressed(GAMEPAD_BUTTON_MIDDLE_RIGHT);
+}
+
+void drawCentred(const char* text, float y, int fontSize, Color color) {
+    DrawText(text, (GetScreenWidth() - MeasureText(text, fontSize)) / 2,
+             static_cast<int>(y), fontSize, color);
+}
+
+void drawBackground(float time, bool reducedMotion) {
+    ClearBackground(kBackground);
+    const float drift = reducedMotion ? 0.0F : std::sin(time * 0.35F) * 10.0F;
+    const int width = GetScreenWidth();
+    const int height = GetScreenHeight();
+    for (int i = 0; i < 12; ++i) {
+        const float scale = static_cast<float>(i + 1) / 12.0F;
+        DrawEllipseLines(width / 2 + static_cast<int>(drift * scale),
+                         static_cast<int>(height * 0.54F),
+                         18.0F + scale * static_cast<float>(std::min(width, height)) * 0.65F,
+                         9.0F + scale * static_cast<float>(height) * 0.26F,
+                         Color{42, 55, 72, static_cast<unsigned char>(18 + i * 4)});
+    }
+    for (int i = 0; i < 12; ++i) {
+        const int x = width * i / 11;
+        DrawLine(x, 0, width / 2 + (x - width / 2) / 5, height,
+                 Color{28, 38, 53, 100});
+    }
+}
+
+bool drawButton(Rectangle bounds, const char* label, bool selected, bool danger = false) {
+    const bool hovered = CheckCollisionPointRec(GetMousePosition(), bounds);
+    const bool focused = hovered || selected;
+    DrawRectangleRounded(bounds, 0.10F, 8, focused ? Color{36, 50, 68, 255} : kPanel);
+    DrawRectangleRoundedLinesEx(bounds, 0.10F, 8, 1.2F,
+                                danger ? kDanger : focused ? kAccent : kEdge);
+    DrawText(label,
+        static_cast<int>(bounds.x + (bounds.width - MeasureText(label, 18)) / 2),
+        static_cast<int>(bounds.y + (bounds.height - 18.0F) / 2), 18,
+        danger ? kDanger : kText);
+    return hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
+
+void moveSelection(int count, int& selection) {
+    if (count <= 0) { selection = 0; return; }
+    if (upPressed()) selection = (selection - 1 + count) % count;
+    if (downPressed()) selection = (selection + 1) % count;
+    selection = std::clamp(selection, 0, count - 1);
+}
+
+int drawMenu(const std::vector<std::string>& labels, int& selection,
+             int firstY, bool confirmEnabled = true, int dangerIndex = -1) {
+    moveSelection(static_cast<int>(labels.size()), selection);
+    const int top = firstY < 0
+        ? (GetScreenHeight() - static_cast<int>(labels.size()) *
+           static_cast<int>(kButtonHeight + kButtonGap)) / 2
+        : firstY;
+    for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
+        const Rectangle bounds{
+            (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
+            static_cast<float>(top + i * static_cast<int>(kButtonHeight + kButtonGap)),
+            kPanelWidth, kButtonHeight
+        };
+        if (CheckCollisionPointRec(GetMousePosition(), bounds)) selection = i;
+        const bool click = drawButton(bounds, labels[static_cast<std::size_t>(i)].c_str(),
+                                      selection == i, i == dangerIndex);
+        if (click || (confirmEnabled && selection == i && confirmPressed())) return i;
+    }
+    return -1;
+}
+
+void drawHeader(const char* number, const char* title, const char* subtitle) {
+    DrawText(number, 48, 35, 15, kAccent);
+    DrawText(title, 48, 62, 36, kText);
+    DrawText(subtitle, 50, 108, 16, kMuted);
+    DrawLine(50, 143, GetScreenWidth() - 50, 143, kEdge);
+}
+
+Vector3 tunnelPoint(float time, int ring, int side) {
+    constexpr int sides = 12;
+    const float z = -3.0F - static_cast<float>(ring) * 3.0F;
+    const float depth = -z;
+    const float sway = std::sin(time * 0.55F + depth * 0.024F) * (0.25F + depth * 0.008F);
+    const float vertical = std::sin(time * 0.35F + depth * 0.017F) * depth * 0.004F;
+    const float radius = 5.5F + 0.65F * std::sin(time * 0.7F + depth * 0.031F);
+    const float angle = static_cast<float>(side) * 2.0F * PI / sides +
+                        time * 0.08F + depth * 0.012F;
+    return Vector3{sway + std::cos(angle) * radius,
+                   vertical + std::sin(angle) * radius, z};
+}
+
+void drawTunnel(float elapsed, float shipX, float shipY, bool tpp, bool reducedMotion) {
+    const float time = reducedMotion ? 0.0F : elapsed;
+    Camera3D camera{};
+    camera.position = tpp ? Vector3{shipX, shipY + 0.7F, 7.0F}
+                           : Vector3{shipX, shipY, 1.5F};
+    camera.target = Vector3{shipX * 0.3F, shipY * 0.3F, -24.0F};
+    camera.up = Vector3{0.0F, 1.0F, 0.0F};
+    camera.fovy = 70.0F;
+    camera.projection = CAMERA_PERSPECTIVE;
+    ClearBackground(kBackground);
+    BeginMode3D(camera);
+    constexpr int ringCount = 22;
+    constexpr int sideCount = 12;
+    for (int ring = 0; ring < ringCount; ++ring) {
+        const Color ringColor = ring % 4 == 0
+            ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
+        for (int side = 0; side < sideCount; ++side) {
+            DrawLine3D(tunnelPoint(time, ring, side),
+                       tunnelPoint(time, ring, (side + 1) % sideCount), ringColor);
+            if (ring + 1 < ringCount) {
+                DrawLine3D(tunnelPoint(time, ring, side),
+                           tunnelPoint(time, ring + 1, side), Color{48, 65, 83, 125});
+            }
+        }
+    }
+    if (tpp) {
+        const Vector3 nose{shipX, shipY, -0.2F};
+        const Vector3 left{shipX - 0.75F, shipY - 0.28F, 0.65F};
+        const Vector3 right{shipX + 0.75F, shipY - 0.28F, 0.65F};
+        const Vector3 tail{shipX, shipY + 0.34F, 0.8F};
+        DrawLine3D(nose, left, kAccent);
+        DrawLine3D(nose, right, kAccent);
+        DrawLine3D(left, tail, kAccent);
+        DrawLine3D(tail, right, kAccent);
+        DrawLine3D(left, right, kAccent);
+    }
+    EndMode3D();
+    DrawRectangle(22, 18, 300, 76, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 300, 76, kEdge);
+    DrawText("TUNRUN / M1 INPUT TESTBED", 35, 30, 15, kAccent);
+    DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
+    DrawText("NO COLLISION OR PROCEDURAL WORLD YET", 35, 73, 10, kMuted);
+    DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
+                  Color{10, 14, 21, 220});
+    DrawText("WASD / ARROWS: STEER     V: CAMERA     ESC: PAUSE",
+             36, GetScreenHeight() - 42, 14, kMuted);
+}
+} // namespace
+
+int main() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    InitWindow(1280, 800, "TUNRUN | Procedural Tunnel Runner");
+    SetWindowMinSize(800, 560);
+    SetExitKey(KEY_NULL);
+    SetTargetFPS(144);
+    SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+
+    AppState app;
+    int mainSelection = 0, hangarSelection = 0, modesSelection = 0;
+    int settingsSelection = 0, pauseSelection = 0, exitSelection = 0;
+    bool tpp = false;
+    const std::vector<std::string> mainItems{
+        "PLAY / FLIGHT TESTBED", "HANGAR", "GAME MODES", "SETTINGS", "CREDITS", "EXIT"
+    };
+    const std::vector<std::string> ships{
+        "DRIFTWING", "WRAITH", "BULWARK", "MANTA",
+        "COMET", "SPECTRE", "VORTEX", "OBSIDIAN"
+    };
+    const std::vector<std::string> modes{
+        "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
+        "SEED CHALLENGE (PLANNED)", "PRACTICE PREVIEW", "BACK"
+    };
+    const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
+    const std::vector<std::string> settingsItems{
+        "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION", "BACK"
+    };
+    const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
+
+    while (!WindowShouldClose() && !app.exitRequested) {
+        const float dt = std::min(GetFrameTime(), 0.05F);
+        if (app.screens.current() != tunrun::Screen::Pause &&
+            app.screens.current() != tunrun::Screen::Settings) app.elapsed += dt;
+
+        if (app.screens.current() == tunrun::Screen::Preview) {
+            if (!IsWindowFocused()) {
+                app.screens.push(tunrun::Screen::Pause);
+            } else {
+                const float movement = 4.0F * dt;
+                if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) app.shipX -= movement;
+                if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) app.shipX += movement;
+                if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) app.shipY += movement;
+                if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) app.shipY -= movement;
+                if (IsGamepadAvailable(0)) {
+                    app.shipX += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) * movement;
+                    app.shipY -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) * movement;
+                }
+                app.shipX = std::clamp(app.shipX, -3.1F, 3.1F);
+                app.shipY = std::clamp(app.shipY, -3.1F, 3.1F);
+                if (IsKeyPressed(KEY_V)) tpp = !tpp;
+                if (backPressed()) app.screens.push(tunrun::Screen::Pause);
+            }
+        }
+
+        BeginDrawing();
+        if (app.screens.current() == tunrun::Screen::Preview) {
+            drawTunnel(app.elapsed, app.shipX, app.shipY, tpp, app.reduceMotion);
+            EndDrawing();
+            continue;
+        }
+
+        drawBackground(app.elapsed, app.reduceMotion);
+        switch (app.screens.current()) {
+        case tunrun::Screen::MainMenu: {
+            drawCentred("T U N R U N", 56.0F, 54, kText);
+            drawCentred("PROCEDURAL TUNNEL RUNNER", 116.0F, 16, kAccent);
+            drawCentred("APPLICATION SHELL / MILESTONE M1", 141.0F, 12, kMuted);
+            const int picked = drawMenu(mainItems, mainSelection, 185);
+            if (picked >= 0) {
+                switch (picked) {
+                case 0: app.shipX = 0; app.shipY = 0; app.screens.push(tunrun::Screen::Preview); break;
+                case 1: app.screens.push(tunrun::Screen::Hangar); break;
+                case 2: app.screens.push(tunrun::Screen::Modes); break;
+                case 3: app.screens.push(tunrun::Screen::Settings); break;
+                case 4: app.screens.push(tunrun::Screen::Credits); break;
+                case 5: app.screens.push(tunrun::Screen::ExitConfirm); break;
+                default: break;
+                }
+            }
+            break;
+        }
+        case tunrun::Screen::Hangar: {
+            drawHeader("01 / COLLECTION", "HANGAR", "Selection preview only; unlocks and economy are not implemented.");
+            drawCentred("SHIP", 205.0F, 15, kAccent);
+            const std::string selected = "[ " + ships[static_cast<std::size_t>(app.selectedShip)] + " ]";
+            drawCentred(selected.c_str(), 245.0F, 32, kText);
+            drawCentred("Ship models and handling profiles arrive in a later milestone.", 293.0F, 15, kMuted);
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 - 180), 350, 70, 45}, "<", false))
+                app.selectedShip = (app.selectedShip + 7) % 8;
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 + 110), 350, 70, 45}, ">", false))
+                app.selectedShip = (app.selectedShip + 1) % 8;
+            if (drawMenu({"BACK"}, hangarSelection, GetScreenHeight() - 96) == 0) app.screens.pop();
+            if (IsKeyPressed(KEY_LEFT)) app.selectedShip = (app.selectedShip + 7) % 8;
+            if (IsKeyPressed(KEY_RIGHT)) app.selectedShip = (app.selectedShip + 1) % 8;
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Modes: {
+            drawHeader("02 / FLIGHT PLAN", "GAME MODES", "Only Practice Preview opens the current visual testbed.");
+            const int picked = drawMenu(modes, modesSelection, 192);
+            if (picked == 3) app.screens.push(tunrun::Screen::Preview);
+            else if (picked == 4) app.screens.pop();
+            else if (picked >= 0) app.selectedMode = picked;
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Settings: {
+            drawHeader("03 / CONFIGURATION", "SETTINGS", "Preview settings are session-only in this milestone.");
+            auto labels = settingsItems;
+            labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
+            labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
+            labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
+            const int picked = drawMenu(labels, settingsSelection, 240);
+            if (picked == 0) { app.fullscreen = !app.fullscreen; ToggleFullscreen(); }
+            else if (picked == 1) app.showFps = !app.showFps;
+            else if (picked == 2) app.reduceMotion = !app.reduceMotion;
+            else if (picked == 3) app.screens.pop();
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Credits:
+            drawHeader("04 / PROJECT", "CREDITS", "An original project by Tamasrazim.");
+            drawCentred("C++20  /  raylib 5.5  /  CMake", 235.0F, 20, kText);
+            drawCentred("Third-party notices and license terms are included in the repository.", 275.0F, 15, kMuted);
+            if (drawMenu({"BACK"}, mainSelection, GetScreenHeight() - 96) == 0) app.screens.pop();
+            if (backPressed()) app.screens.pop();
+            break;
+        case tunrun::Screen::Pause: {
+            drawHeader("SYSTEM / PAUSED", "PAUSED", "Preview input is frozen while this screen is open.");
+            const int picked = drawMenu(pauseItems, pauseSelection, 260);
+            if (picked == 0) app.screens.pop();
+            else if (picked == 1) app.screens.push(tunrun::Screen::Settings);
+            else if (picked == 2) app.screens.reset();
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::ExitConfirm: {
+            drawHeader("SYSTEM / CONFIRMATION", "EXIT TUNRUN?", "Session-only settings will be discarded.");
+            const int picked = drawMenu(exitItems, exitSelection, 320, true, 1);
+            if (picked == 0) app.screens.pop();
+            else if (picked == 1) app.exitRequested = true;
+            if (backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::Preview:
+            break;
+        }
+        if (app.showFps) DrawFPS(GetScreenWidth() - 92, 16);
+        DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, GetScreenHeight() - 25, 12, kMuted);
+        EndDrawing();
+    }
+    CloseWindow();
+    return 0;
+}

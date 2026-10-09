@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows-dev",
+      "displayName": "TUNRUN Windows x64 Development",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/windows-dev",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "TUNRUN_ENABLE_TESTS": "ON",
+        "BUILD_EXAMPLES": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows-dev", "configurePreset": "windows-dev", "configuration": "Debug" },
+    { "name": "windows-release", "configurePreset": "windows-dev", "configuration": "Release" }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-dev",
+      "configurePreset": "windows-dev",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

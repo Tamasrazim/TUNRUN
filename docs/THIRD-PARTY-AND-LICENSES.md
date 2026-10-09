@@ -1,6 +1,6 @@
 # Third-Party Code, Assets, and Licensing
 
-Status: inventory policy. The game source and asset inventory have not been added yet.
+Status: inventory policy. The first build dependency, raylib 5.5, is pinned by commit in CMake and has its license reproduced in [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md). Other code and asset inventory remains to be populated as assets are added.
 
 ## Before adding any third-party material
 
@@ -16,7 +16,7 @@ Record each dependency or redistributable asset with:
 | Notice | Required attribution, notice, source offer, or accompanying files |
 | Verification | Reviewer and date the rights were checked |
 
-The register must cover libraries, transitive dependencies, fonts, textures, models, shaders, sound effects, music, voice, icons, tools bundled with the game, and generated content based on external references.
+The register must cover libraries, transitive dependencies, fonts, textures, models, shaders, sound effects, music, voice, icons, tools bundled with the game, and generated content based on external references. Start with the root [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) and keep it synchronized with this inventory.
 
 ## Dependency rules
 
