@@ -106,6 +106,55 @@ inline bool collidesWithHazard(float x, float y,
     return dx * dx + dy * dy <= combinedRadius * combinedRadius;
 }
 
+// Tests the full frame-to-frame relative trajectory, including longitudinal
+// separation from the mine. Interpolating the mine center between frame times
+// makes this a swept 3D closest-approach test, instead of checking only the
+// exact center plane and potentially missing contact at the sphere's near edge.
+inline bool sweptCollidesWithHazard(
+    float previousX, float previousY, double previousDistance, double previousTime,
+    float currentX, float currentY, double currentDistance, double currentTime,
+    const ProceduralHazard& hazard,
+    float craftRadius = kHazardCraftCollisionRadius) noexcept {
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(previousTime) || !std::isfinite(currentTime) ||
+        !std::isfinite(hazard.distance) || !std::isfinite(hazard.radius) ||
+        !std::isfinite(craftRadius)) return true;
+    if (currentDistance <= previousDistance || currentTime < previousTime) return false;
+
+    const HazardCenter previousCenter = hazardCenterAt(hazard, previousTime);
+    const HazardCenter currentCenter = hazardCenterAt(hazard, currentTime);
+    if (!std::isfinite(previousCenter.x) || !std::isfinite(previousCenter.y) ||
+        !std::isfinite(currentCenter.x) || !std::isfinite(currentCenter.y)) return true;
+
+    // Relative coordinates include both player and mine movement; course
+    // distance supplies the longitudinal axis of the swept segment.
+    const double rx0 = static_cast<double>(previousX - previousCenter.x);
+    const double ry0 = static_cast<double>(previousY - previousCenter.y);
+    const double rz0 = previousDistance - hazard.distance;
+    const double rx1 = static_cast<double>(currentX - currentCenter.x);
+    const double ry1 = static_cast<double>(currentY - currentCenter.y);
+    const double rz1 = currentDistance - hazard.distance;
+    const double dx = rx1 - rx0;
+    const double dy = ry1 - ry0;
+    const double dz = rz1 - rz0;
+    const double lengthSquared = dx * dx + dy * dy + dz * dz;
+    double fraction = 0.0;
+    if (lengthSquared > 1.0e-12) {
+        fraction = std::clamp(
+            -(rx0 * dx + ry0 * dy + rz0 * dz) / lengthSquared, 0.0, 1.0);
+    }
+    const double closestX = rx0 + dx * fraction;
+    const double closestY = ry0 + dy * fraction;
+    const double closestZ = rz0 + dz * fraction;
+    const double combinedRadius = static_cast<double>(hazard.radius) +
+                                  std::max(0.0F, craftRadius);
+    if (combinedRadius <= 0.0) return true;
+    return closestX * closestX + closestY * closestY + closestZ * closestZ
+           <= combinedRadius * combinedRadius;
+}
+
 inline std::uint64_t hazardHash(std::uint64_t seed,
                                 std::uint32_t hazardCount = 128U) noexcept {
     if (hazardCount == 0U || hazardCount > 10000U) return 0U;

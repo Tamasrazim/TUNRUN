@@ -191,6 +191,42 @@ int main() {
                                        hazard.distance + 0.2, hazard));
     assert(!tunrun::crossesHazardPlane(
         std::numeric_limits<double>::quiet_NaN(), hazard.distance + 0.1, hazard));
+    const auto hazardAtTime = tunrun::hazardCenterAt(hazard, 1.0);
+    const float hazardCombinedRadius = hazard.radius +
+                                       tunrun::kHazardCraftCollisionRadius;
+    // Contact can happen at the near edge before the craft reaches the
+    // hazard center plane; the swept check must not miss it.
+    assert(tunrun::sweptCollidesWithHazard(
+        hazardAtTime.x + hazardCombinedRadius - 0.15F, hazardAtTime.y,
+        hazard.distance - 0.8, 1.0,
+        hazardAtTime.x + hazardCombinedRadius - 0.15F, hazardAtTime.y,
+        hazard.distance - 0.2, 1.01, hazard));
+    assert(!tunrun::sweptCollidesWithHazard(
+        hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
+        hazard.distance - 0.8, 1.0,
+        hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
+        hazard.distance + 0.8, 1.02, hazard));
+    assert(!tunrun::sweptCollidesWithHazard(
+        hazardAtTime.x, hazardAtTime.y,
+        hazard.distance + 0.8, 1.01,
+        hazardAtTime.x, hazardAtTime.y,
+        hazard.distance - 0.8, 1.0, hazard));
+    assert(tunrun::sweptCollidesWithHazard(
+        std::numeric_limits<float>::quiet_NaN(), 0.0F,
+        hazard.distance - 1.0, 1.0,
+        0.0F, 0.0F, hazard.distance + 1.0, 1.1, hazard));
+
+    // Regression batch: several derived seeds must keep hazards within the
+    // declared motion envelope and outside gate reaction windows.
+    for (std::uint64_t seedIndex = 0U; seedIndex < 24U; ++seedIndex) {
+        const std::uint64_t batchSeed = tunrun::deriveCourseSeed(seed, seedIndex);
+        const auto batchValidation = tunrun::validateHazardSet(batchSeed, 128U);
+        assert(batchValidation.valid);
+        assert(batchValidation.hazardsChecked == 128U);
+        assert(batchValidation.minimumGateSeparation >=
+               tunrun::kHazardMinimumGateSeparation);
+        assert(tunrun::hazardHash(batchSeed) != tunrun::hazardHash(seed));
+    }
     assert(tunrun::hazardHash(seed) == tunrun::hazardHash(seed));
     assert(tunrun::hazardHash(seed) != tunrun::hazardHash(seed + 1U));
     assert(tunrun::hazardHash(seed, 0U) == 0U);

@@ -720,30 +720,23 @@ int main() {
                 }
                 if (app.screens.current() == tunrun::Screen::Preview) {
                     const auto firstHazard = tunrun::hazardAt(app.courseSeed, 0U);
+                    const double hazardLongitudinalReach =
+                        tunrun::kHazardMaximumRadius + tunrun::kHazardCraftCollisionRadius;
                     const int firstCandidate = std::max(0, static_cast<int>(std::floor(
-                        (previousDistance - firstHazard.distance) /
-                        tunrun::kHazardSpacing)) - 1);
+                        (previousDistance - hazardLongitudinalReach -
+                         firstHazard.distance) / tunrun::kHazardSpacing)) - 1);
                     const int lastCandidate = std::max(firstCandidate, static_cast<int>(std::ceil(
-                        (static_cast<double>(app.flight.distance) -
-                         firstHazard.distance) / tunrun::kHazardSpacing)) + 1);
+                        (static_cast<double>(app.flight.distance) +
+                         hazardLongitudinalReach - firstHazard.distance) /
+                        tunrun::kHazardSpacing)) + 1);
                     for (int hazardIndex = firstCandidate;
                          hazardIndex <= lastCandidate; ++hazardIndex) {
                         const auto hazard = tunrun::hazardAt(app.courseSeed,
                             static_cast<std::uint32_t>(hazardIndex));
-                        if (!tunrun::crossesHazardPlane(previousDistance,
-                                app.flight.distance, hazard)) continue;
-                        const double travel = static_cast<double>(app.flight.distance) -
-                                              previousDistance;
-                        const float fraction = travel > 1.0e-6
-                            ? static_cast<float>(std::clamp(
-                                (hazard.distance - previousDistance) / travel, 0.0, 1.0))
-                            : 0.0F;
-                        const float crossingX = previousX + (app.flight.x - previousX) * fraction;
-                        const float crossingY = previousY + (app.flight.y - previousY) * fraction;
-                        const double crossingTime = static_cast<double>(previousElapsed) +
-                            static_cast<double>(app.elapsed - previousElapsed) * fraction;
-                        if (tunrun::collidesWithHazard(crossingX, crossingY,
-                                hazard, crossingTime)) {
+                        if (tunrun::sweptCollidesWithHazard(
+                                previousX, previousY, previousDistance, previousElapsed,
+                                app.flight.x, app.flight.y, app.flight.distance, app.elapsed,
+                                hazard)) {
                             app.crashCause = CrashCause::Hazard;
                             finishRun(app);
                             app.screens.replace(tunrun::Screen::Crash);
