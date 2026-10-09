@@ -25,7 +25,7 @@ ctest --preset windows-dev
 ./scripts/package-windows.ps1 -BuildDirectory build/windows-dev/Release -OutputDirectory build/package -Version "0.1.0-dev" -CommitSha "local-build"
 ```
 
-The package script validates its paths, requires the executable and license/docs, includes optional `assets/` and `resources/` directories when present, and emits `TUNRUN-Windows-x64-Portable.zip`, `build-info.json`, and a SHA-256 package manifest. The default CI build directory is `build/Release`.
+The package script validates its paths, requires the executable and license/docs, includes optional `assets/` and `resources/` directories when present, and emits `TUNRUN-Windows-x64-Portable.zip`, `build-info.json`, and a SHA-256 package manifest. CI uploads the staged package directory, so the Actions artifact opens directly to the portable contents instead of nesting one ZIP inside another. The default CI build directory is `build/Release`.
 
 ## Distribution size and assets
 
