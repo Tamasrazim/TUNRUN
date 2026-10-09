@@ -20,7 +20,7 @@ FetchContent_Declare(raylib
 )
 FetchContent_MakeAvailable(raylib)
 
-add_executable(tunrun src/main.cpp)
+add_executable(tunrun src/main.cpp src/app/raw_mouse.cpp)
 target_include_directories(tunrun PRIVATE src)
 target_link_libraries(tunrun PRIVATE raylib)
 
