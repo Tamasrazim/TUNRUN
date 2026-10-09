@@ -116,8 +116,9 @@ bool persistProfile(AppState& app, bool preserveBackup = false) {
 }
 void beginSeedEntry(AppState& app) {
     while (GetCharPressed() > 0) {}
-    app.seedEntryText = TextFormat("0x%016llX", static_cast<unsigned long long>(app.courseSeed));
-    app.seedEntryMessage.clear(); app.seedEntryHasError = false;
+    app.seedEntryText.clear();
+    app.seedEntryMessage.clear();
+    app.seedEntryHasError = false;
 }
 void resetFlight(AppState& app, bool& tpp) {
     app.flight = {};
@@ -283,8 +284,15 @@ void moveSelection(int count, int& selection) {
 }
 
 int drawMenu(const std::vector<std::string>& labels, int& selection,
-             int firstY, bool confirmEnabled = true, int dangerIndex = -1) {
-    moveSelection(static_cast<int>(labels.size()), selection);
+             int firstY, bool confirmEnabled = true, int dangerIndex = -1,
+             bool navigationEnabled = true) {
+    if (navigationEnabled) {
+        moveSelection(static_cast<int>(labels.size()), selection);
+    } else if (labels.empty()) {
+        selection = 0;
+    } else {
+        selection = std::clamp(selection, 0, static_cast<int>(labels.size()) - 1);
+    }
     const int top = firstY < 0
         ? (GetScreenHeight() - static_cast<int>(labels.size()) *
            static_cast<int>(kButtonHeight + kButtonGap)) / 2
@@ -508,7 +516,7 @@ int main() {
     };
     const std::vector<std::string> modes{
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
-        "SEED CHALLENGE", "PRACTICE PREVIEW", "BACK"
+        "CUSTOM SEED RUN", "PRACTICE PREVIEW", "BACK"
     };
     const std::vector<std::string> pauseItems{"RESUME", "SETTINGS", "RETURN TO MAIN MENU"};
     const std::vector<std::string> settingsItems{
@@ -809,6 +817,7 @@ int main() {
         case tunrun::Screen::SeedEntry: {
             drawHeader("03 / GENERATION", "SEED ENTRY",
                        "Use reproducible text or a literal 64-bit hexadecimal seed.");
+            bool typedThisFrame = false;
             const bool pasteRequested = IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_V);
             if (pasteRequested) {
                 const char* clipboard = GetClipboardText();
@@ -816,24 +825,44 @@ int main() {
                     const unsigned char c=static_cast<unsigned char>(*cursor);
                     if (c>=32U && c<=126U) app.seedEntryText.push_back(*cursor);
                 }
+                // Discard the V character event associated with the paste chord.
+                while (GetCharPressed() > 0) {}
+                typedThisFrame = true;
                 app.seedEntryMessage.clear(); app.seedEntryHasError=false;
             } else {
                 while (true) {
                     const int character=GetCharPressed();
                     if (character<=0) break;
+                    typedThisFrame = true;
                     if (character>=32 && character<=126 && app.seedEntryText.size()<64U) app.seedEntryText.push_back(static_cast<char>(character));
                     app.seedEntryMessage.clear(); app.seedEntryHasError=false;
                 }
             }
-            if (IsKeyPressed(KEY_BACKSPACE) && !app.seedEntryText.empty()) app.seedEntryText.pop_back();
-            if (IsKeyPressed(KEY_DELETE)) app.seedEntryText.clear();
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                typedThisFrame = true;
+                if (!app.seedEntryText.empty()) app.seedEntryText.pop_back();
+                app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+            }
+            if (IsKeyPressed(KEY_DELETE)) {
+                typedThisFrame = true;
+                app.seedEntryText.clear();
+                app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+            }
             static constexpr char chars[]="abcdefghijklmnopqrstuvwxyz0123456789 _-";
             constexpr int charCount=static_cast<int>(sizeof(chars)-1U);
             if (IsGamepadAvailable(0)) {
                 if (padPressed(GAMEPAD_BUTTON_LEFT_FACE_LEFT)) seedPickerIndex=(seedPickerIndex+charCount-1)%charCount;
                 else if (padPressed(GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) seedPickerIndex=(seedPickerIndex+1)%charCount;
-                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_LEFT) && app.seedEntryText.size()<64U) app.seedEntryText.push_back(chars[seedPickerIndex]);
-                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP) && !app.seedEntryText.empty()) app.seedEntryText.pop_back();
+                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_LEFT) && app.seedEntryText.size()<64U) {
+                    app.seedEntryText.push_back(chars[seedPickerIndex]);
+                    typedThisFrame = true;
+                    app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+                }
+                if (padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP)) {
+                    if (!app.seedEntryText.empty()) app.seedEntryText.pop_back();
+                    typedThisFrame = true;
+                    app.seedEntryMessage.clear(); app.seedEntryHasError=false;
+                }
             }
             const Rectangle box{static_cast<float>(GetScreenWidth()/2-270),220.0F,540.0F,62.0F};
             const bool hovered=CheckCollisionPointRec(GetMousePosition(),box);
@@ -848,9 +877,16 @@ int main() {
             DrawText("TYPE/PASTE: 1-64 characters; case and repeated spaces are normalized.",50,300,13,kMuted);
             DrawText("HEX: use 0x + up to 16 digits, or exactly 16 hexadecimal digits.",50,320,13,kMuted);
             DrawText(TextFormat("CONTROLLER PICKER: [%c]  D-PAD LEFT/RIGHT, X ADD, Y DELETE",chars[seedPickerIndex]),50,340,13,kMuted);
-            if (!app.seedEntryMessage.empty()) drawCentred(app.seedEntryMessage.c_str(),363,13,app.seedEntryHasError?kDanger:kAccent);
-            const int picked=drawMenu(seedEntryItems,seedEntrySelection,390,true);
-            if (picked==0) {
+            if (!app.seedEntryMessage.empty()) {
+                drawCentred(app.seedEntryMessage.c_str(),363,13,app.seedEntryHasError?kDanger:kAccent);
+            } else {
+                DrawText(TextFormat("CURRENT COURSE: %016llX",
+                    static_cast<unsigned long long>(app.courseSeed)),50,363,12,kMuted);
+            }
+            const int picked=drawMenu(seedEntryItems,seedEntrySelection,390,false,-1,!typedThisFrame);
+            const bool confirmAction = IsKeyPressed(KEY_ENTER) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+            const int action = picked >= 0 ? picked : (confirmAction ? seedEntrySelection : -1);
+            if (action==0) {
                 const auto parsed=tunrun::parseSeedText(app.seedEntryText);
                 if (!parsed.valid) { app.seedEntryMessage=parsed.error; app.seedEntryHasError=true; }
                 else if (parsed.seed==0U) { app.seedEntryMessage="Seed 0 is reserved; choose a non-zero seed."; app.seedEntryHasError=true; }
@@ -867,7 +903,7 @@ int main() {
                         app.courseSeed=parsed.seed; resetFlight(app,tpp); app.screens.replace(tunrun::Screen::Preview);
                     }
                 }
-            } else if (picked==1 || (picked<0 && backPressed())) app.screens.pop();
+            } else if (action==1 || (action<0 && backPressed())) app.screens.pop();
             break;
         }
         case tunrun::Screen::SeedLab: {

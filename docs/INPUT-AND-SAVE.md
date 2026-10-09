@@ -8,7 +8,7 @@ A device change updates visual prompts, but must not reset screen state, discard
 
 ## Custom Seed Entry
 
-Seed Entry is available from Seed Lab and Seed Challenge. It accepts 1–64 ASCII letters, digits, spaces, underscores, or hyphens. Text is lowercased and repeated whitespace is collapsed before a stable 64-bit hash is derived; a `0x`-prefixed value with 1–16 hexadecimal digits, or exactly 16 hexadecimal digits, is interpreted literally. The chosen non-zero root seed and run serial are saved before the run starts, so the selected course identity can be reconstructed after restart. Invalid characters, empty input, overlong text, zero, or a failed save show an inline error instead of silently substituting another seed. Keyboard typing/paste, mouse controls, and a gamepad character picker are supported.
+Seed Entry is available from Seed Lab and the Custom Seed Run menu entry. It accepts 1–64 ASCII letters, digits, spaces, underscores, or hyphens. Text is lowercased and repeated whitespace is collapsed before a stable 64-bit hash is derived; a `0x`-prefixed value with 1–16 hexadecimal digits, or exactly 16 hexadecimal digits, is interpreted literally. The chosen non-zero root seed and run serial are saved before the run starts, so the selected course identity can be reconstructed after restart. Invalid characters, empty input, overlong text, zero, or a failed save show an inline error instead of silently substituting another seed. Keyboard typing/paste, mouse controls, and a gamepad character picker are supported.
 
 ## Default controls
 
