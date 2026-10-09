@@ -45,10 +45,10 @@ Still required before M1 can pass:
 - Moving hazards, broader reachability validation, and generation streaming remain outstanding.
 
 ## M5 — Save, resources, and hangar
-**Status: in progress.** Profile v1 persists runtime settings, active ship, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Windows uses a per-user local directory, hidden attributes, validated bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. The hangar now unlocks and equips ships using Aether Shards or Singularity Cores, with rollback if the profile write fails. Ship-specific speed, acceleration, boost drain, and recharge data is driven by one catalog. Automated tests cover persistence recovery, economy transactions, and handling differences.
+**Status: in progress.** Profile v2 persists runtime settings, active ship, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Writes include a canonical FNV-1a corruption checksum; valid v1 profiles migrate to v2 after validation while keeping the old primary as backup. Windows uses a per-user local directory, hidden attributes, bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. The hangar unlocks and equips ships using Aether Shards or Singularity Cores with rollback if profile persistence fails. Ship handling is driven by one catalogue. Tests cover v1 migration, checksum rejection, recovery, economy transactions, and handling differences.
 - Complete campaign progression and unlock/progression rewards.
-- Add explicit schema migrations and integrity checksums.
-- Verify persistence through real application restarts, interrupted writes, permissions, and Windows user profiles.
+- Exercise migration/write interruption and real Windows restart/permission behavior across the full acceptance matrix.
+- The runtime FNV checksum detects accidental corruption only; it is not tamper protection or cryptographic signing.
 
 ## M6 — Gameplay and AI
 **Deliverable:** hull, boost, dash, scoring, rewards, rival pilots, environmental drones, ghost recording.
