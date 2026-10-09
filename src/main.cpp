@@ -657,7 +657,8 @@ void drawProceduralHazard(std::uint64_t seed, float playerDistance,
 }
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                std::uint32_t shipId, bool tpp, float boostEnergy, float elapsedSeconds,
+                std::uint32_t shipId, bool tpp, float boostEnergy,
+                float dashCooldownRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
@@ -714,8 +715,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawPlayerShip(shipId, shipX, shipY);
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 196, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 196, kEdge);
+    DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 220, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
@@ -740,6 +741,12 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
              static_cast<unsigned long long>(score.cleanPasses)), 35, 177, 10, kAccent);
+    if (dashCooldownRemaining > 0.0F) {
+        DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
+                 35, 197, 10, kMuted);
+    } else {
+        DrawText("DASH READY: SPACE / PAD A", 35, 197, 10, kAccent);
+    }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("WASD / ARROWS: STEER   SHIFT / RT: BOOST   CTRL / LT: PRECISION   V: CAMERA   ESC: PAUSE",
@@ -888,12 +895,15 @@ int main() {
                 const bool padPrecision = IsGamepadAvailable(0) &&
                     tunrun::triggerPressed(
                         GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER));
+                const bool padDash = IsGamepadAvailable(0) &&
+                    IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
                 const tunrun::FlightInput flightInput{
                     std::clamp(steerX, -1.0F, 1.0F),
                     std::clamp(steerY, -1.0F, 1.0F),
                     IsKeyDown(KEY_LEFT_SHIFT) || padBoost,
                     IsKeyDown(KEY_LEFT_CONTROL) || padPrecision,
-                    static_cast<std::uint32_t>(app.selectedShip)
+                    static_cast<std::uint32_t>(app.selectedShip),
+                    IsKeyDown(KEY_SPACE) || padDash
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 applyRelativeMouseSteering(app.flight.x, app.flight.y, mouseDelta,
@@ -1006,7 +1016,8 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp,
-                       app.flight.boostEnergy, app.elapsed, app.runScore,
+                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F

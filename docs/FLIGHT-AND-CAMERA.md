@@ -12,7 +12,8 @@ Simulation should use a fixed timestep or controlled accumulator. Render frames 
 
 ### Motion components
 
-- Forward speed, target speed, acceleration, braking/precision mode, and boost.
+- Forward speed, target speed, acceleration, braking/precision mode, boost, and dash.
+- Dash is an edge-triggered 0.24-second forward burst (19 units/s, or 24 while also boosting), costs 28 energy, and has a 1.20-second cooldown. It cannot activate while precision mode is held and does not repeat while the key/button remains down.
 - Horizontal and vertical steering with bounded rate and acceleration.
 - Angular response and banking based on steering and tunnel frame rotation.
 - Hull integrity and collision response.
@@ -21,7 +22,7 @@ Simulation should use a fixed timestep or controlled accumulator. Render frames 
 
 Flight parameters must be data-driven by a ship profile. Do not hard-code ship identity into physics branches.
 
-The current prototype has a 120 Hz fixed-step lateral/vertical simulation. The wireframe tunnel and wall check use the same seeded course sampler. The course currently bends within a forward-aligned frame; a tangent-aligned 3D frame and obstacle collision are not implemented yet.
+The current prototype has a 120 Hz fixed-step lateral/vertical simulation. Dash timing, energy cost, and cooldown advance only on fixed simulation steps, so render rate does not change the burst duration. The wireframe tunnel and wall check use the same seeded course sampler. The course currently bends within a forward-aligned frame; a tangent-aligned 3D frame and obstacle collision are not implemented yet.
 
 ## Initial prototype tuning targets
 

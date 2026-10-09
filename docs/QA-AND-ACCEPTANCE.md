@@ -99,6 +99,7 @@ Gameplay-specific mouse checks:
 ## 7. Camera and gameplay
 
 - FPP/TPP switch works while moving and while using boost.
+- Dash activation requires a press edge, deducts energy once, ends after the configured duration, respects cooldown, and cannot auto-repeat while held.
 - Camera switching changes presentation only; it does not alter craft transform, collision, seed, or obstacle phase.
 - TPP camera collision prevents clipping through tunnel geometry.
 - FPP/TPP both show the upcoming route clearly enough for fair reaction.
