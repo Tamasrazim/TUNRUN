@@ -156,9 +156,15 @@ void resetFlight(AppState& app, bool& tpp) {
     app.runSingularityCorePickupReward = 0U;
     tpp = false;
 }
+void copyCourseSeed(AppState& app) {
+    const std::string seedText = tunrun::formatHexSeed(app.courseSeed);
+    SetClipboardText(seedText.c_str());
+    app.seedCopiedNotice = true;
+}
 void chooseNextSeed(AppState& app) {
     if (app.runSerial < std::numeric_limits<std::uint64_t>::max()) ++app.runSerial;
     app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
+    app.seedCopiedNotice = false;
     (void)persistProfile(app);
 }
 void activateHangarShip(AppState& app, std::uint32_t shipId) {
@@ -898,7 +904,7 @@ int main() {
         "RETRY SAME SEED", "COPY SEED", "NEW SEED", "RETURN TO MAIN MENU"
     };
     const std::vector<std::string> seedLabItems{
-        "ENTER CUSTOM SEED", "GENERATE NEW SEED", "START THIS SEED", "BACK"
+        "ENTER CUSTOM SEED", "GENERATE NEW SEED", "START THIS SEED", "COPY SEED", "BACK"
     };
     const std::vector<std::string> seedEntryItems{"APPLY + START RUN", "CANCEL"};
     const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
@@ -1531,9 +1537,7 @@ int main() {
                 resetFlight(app, tpp);
                 app.screens.replace(tunrun::Screen::Preview);
             } else if (picked == 1) {
-                const std::string seedText = tunrun::formatHexSeed(app.courseSeed);
-                SetClipboardText(seedText.c_str());
-                app.seedCopiedNotice = true;
+                copyCourseSeed(app);
             } else if (picked == 2) {
                 chooseNextSeed(app);
                 resetFlight(app, tpp);
@@ -1698,12 +1702,23 @@ int main() {
                         291.0F, 9, hazardValidation.valid ? kAccent : kDanger);
             const int seedLabMenuY = std::max(
                 310, std::min(430, GetScreenHeight() - 250));
-            const int picked = drawMenu(seedLabItems, seedLabSelection, seedLabMenuY, true);
+            const bool compactSeedLabMenu = GetScreenHeight() < 760;
+            const float seedLabButtonHeight = compactSeedLabMenu ? 36.0F : kButtonHeight;
+            const float seedLabButtonGap = compactSeedLabMenu ? 4.0F : kButtonGap;
+            const int picked = drawMenu(seedLabItems, seedLabSelection, seedLabMenuY,
+                true, -1, true, seedLabButtonHeight, seedLabButtonGap);
+            if (app.seedCopiedNotice) {
+                const int noticeY = seedLabMenuY + static_cast<int>(seedLabItems.size()) *
+                    static_cast<int>(seedLabButtonHeight + seedLabButtonGap) + 4;
+                drawCentred("SEED COPIED TO CLIPBOARD", static_cast<float>(noticeY),
+                            10, kAccent);
+            }
             if (picked == 0) {
                 beginSeedEntry(app); seedEntrySelection=0; app.screens.push(tunrun::Screen::SeedEntry);
             } else if (picked == 1) chooseNextSeed(app);
             else if (picked == 2) { resetFlight(app,tpp); app.screens.push(tunrun::Screen::Preview); }
-            else if (picked == 3) app.screens.pop();
+            else if (picked == 3) copyCourseSeed(app);
+            else if (picked == 4) app.screens.pop();
             if (IsKeyPressed(KEY_N)) chooseNextSeed(app);
             if (backPressed()) app.screens.pop();
             break;
