@@ -1,9 +1,11 @@
 #pragma once
 
 #include "app/procedural_course.hpp"
+#include "app/ship_catalog.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace tunrun {
 
@@ -21,6 +23,7 @@ struct FlightInput {
     float steerY = 0.0F; // -1 down, +1 up
     bool boost = false;
     bool precision = false;
+    std::uint32_t shipId = kStarterShipId;
 };
 
 inline constexpr float kFlightLimit = 6.5F;
@@ -58,20 +61,26 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         input.steerY /= intentLength;
     }
 
+    const auto& ship = shipDefinition(input.shipId);
     const bool precision = input.precision;
     const bool boosting = input.boost && !precision && state.boostEnergy > 0.0F;
-    const float maximumSpeed = precision ? 2.0F : (boosting ? 6.0F : 4.0F);
-    const float acceleration = precision ? 16.0F : 10.0F;
+    const float maximumSpeed =
+        (precision ? 2.0F : (boosting ? 6.0F : 4.0F)) * ship.speedMultiplier;
+    const float acceleration =
+        (precision ? 16.0F : 10.0F) * ship.accelerationMultiplier;
     state.velocityX = approach(state.velocityX, input.steerX * maximumSpeed,
                                acceleration * dt);
     state.velocityY = approach(state.velocityY, input.steerY * maximumSpeed,
                                acceleration * dt);
     state.x += state.velocityX * dt;
     state.y += state.velocityY * dt;
-    const float forwardSpeed = precision ? 8.0F : (boosting ? 16.0F : 11.0F);
+    const float forwardSpeed =
+        (precision ? 8.0F : (boosting ? 16.0F : 11.0F)) * ship.speedMultiplier;
     state.distance += forwardSpeed * dt;
 
-    const float energyDelta = boosting ? -38.0F * dt : 18.0F * dt;
+    const float energyDelta = boosting
+        ? -38.0F * dt * ship.boostDrainMultiplier
+        : 18.0F * dt * ship.energyRegenerationMultiplier;
     state.boostEnergy = std::clamp(state.boostEnergy + energyDelta, 0.0F, 100.0F);
 
     if (state.x < -kFlightLimit) {

@@ -45,8 +45,8 @@ Still required before M1 can pass:
 - Moving hazards, broader reachability validation, and generation streaming remain outstanding.
 
 ## M5 — Save, resources, and hangar
-**Status: in progress.** Profile v1 persists runtime settings, selected ship preview, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Windows uses a per-user local directory, hidden attributes, validated bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. Automated tests cover round trips, corrupt-primary backup recovery, and non-destructive reset.
-- Complete transactional ship purchases/unlocks and campaign progression.
+**Status: in progress.** Profile v1 persists runtime settings, active ship, root-seed/run sequence, wallet balances, run/crash totals, and best distance. Windows uses a per-user local directory, hidden attributes, validated bounded JSON, flushed temporary writes, atomic replacement, backup recovery, and a recovery/reset UI that preserves damaged copies. The hangar now unlocks and equips ships using Aether Shards or Singularity Cores, with rollback if the profile write fails. Ship-specific speed, acceleration, boost drain, and recharge data is driven by one catalog. Automated tests cover persistence recovery, economy transactions, and handling differences.
+- Complete campaign progression and unlock/progression rewards.
 - Add explicit schema migrations and integrity checksums.
 - Verify persistence through real application restarts, interrupted writes, permissions, and Windows user profiles.
 

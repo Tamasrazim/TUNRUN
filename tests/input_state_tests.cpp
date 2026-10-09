@@ -1,5 +1,6 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
+#include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include <cassert>
@@ -166,6 +167,30 @@ int main() {
     assert(std::abs(at30.distance - at60.distance) < 0.01F);
     assert(std::abs(at30.distance - at120.distance) < 0.01F);
 
+    assert(tunrun::shipDefinition(4U).speedMultiplier >
+           tunrun::shipDefinition(0U).speedMultiplier);
+    assert(tunrun::shipDefinition(4U).boostDrainMultiplier >
+           tunrun::shipDefinition(2U).boostDrainMultiplier);
+    tunrun::FlightState driftwingFlight;
+    tunrun::FlightState cometFlight;
+    float driftwingAccumulator = 0.0F, cometAccumulator = 0.0F;
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(driftwingFlight, tunrun::FlightInput{1.0F, 0.0F, false, false, 0U},
+                              1.0F / 120.0F, driftwingAccumulator);
+        tunrun::advanceFlight(cometFlight, tunrun::FlightInput{1.0F, 0.0F, false, false, 4U},
+                              1.0F / 120.0F, cometAccumulator);
+    }
+    assert(cometFlight.x > driftwingFlight.x);
+    tunrun::FlightState lowDrainFlight, highDrainFlight;
+    float lowDrainAccumulator = 0.0F, highDrainAccumulator = 0.0F;
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(lowDrainFlight, tunrun::FlightInput{0.0F, 0.0F, true, false, 2U},
+                              1.0F / 120.0F, lowDrainAccumulator);
+        tunrun::advanceFlight(highDrainFlight, tunrun::FlightInput{0.0F, 0.0F, true, false, 4U},
+                              1.0F / 120.0F, highDrainAccumulator);
+    }
+    assert(lowDrainFlight.boostEnergy > highDrainFlight.boostEnergy);
+
     // Profile serialization, strict parsing, backup recovery, and non-destructive reset.
     tunrun::Profile profile;
     profile.rootSeed = 0xD3A5B79C12345678ULL;
@@ -224,6 +249,31 @@ int main() {
     const auto afterReset = store.load();
     assert(afterReset.status == tunrun::ProfileLoadStatus::Loaded);
     assert(afterReset.profile.rootSeed == defaults.rootSeed);
+    tunrun::Profile economyProfile;
+    economyProfile.rootSeed = 99U;
+    economyProfile.aetherShards = 100U;
+    const auto purchase = tunrun::purchaseShip(economyProfile, 1U);
+    assert(purchase == tunrun::ShipTransactionStatus::Purchased);
+    assert(economyProfile.aetherShards == 20U && economyProfile.unlockedShips[1U]);
+    assert(tunrun::purchaseShip(economyProfile, 1U) ==
+           tunrun::ShipTransactionStatus::AlreadyUnlocked);
+    assert(economyProfile.aetherShards == 20U); // duplicate activation cannot charge twice
+    assert(tunrun::equipShip(economyProfile, 1U) == tunrun::ShipTransactionStatus::Equipped);
+    assert(economyProfile.selectedShip == 1U);
+    const auto shardsBeforeFailedBuy = economyProfile.aetherShards;
+    assert(tunrun::purchaseShip(economyProfile, 2U) ==
+           tunrun::ShipTransactionStatus::InsufficientAetherShards);
+    assert(economyProfile.aetherShards == shardsBeforeFailedBuy);
+    assert(!economyProfile.unlockedShips[2U]);
+    assert(tunrun::equipShip(economyProfile, 2U) == tunrun::ShipTransactionStatus::ShipLocked);
+    economyProfile.singularityCores = 2U;
+    assert(tunrun::purchaseShip(economyProfile, 5U) == tunrun::ShipTransactionStatus::Purchased);
+    assert(economyProfile.singularityCores == 0U && economyProfile.unlockedShips[5U]);
+    assert(tunrun::purchaseShip(economyProfile, 6U) ==
+           tunrun::ShipTransactionStatus::InsufficientSingularityCores);
+    assert(tunrun::purchaseShip(economyProfile, 8U) ==
+           tunrun::ShipTransactionStatus::InvalidShip);
+
     bool foundPreservedDamagedFile = false;
     for (const auto& entry : std::filesystem::directory_iterator(profileDirectory)) {
         if (entry.path().filename().string().find(".corrupt-") != std::string::npos) {

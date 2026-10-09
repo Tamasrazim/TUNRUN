@@ -1,5 +1,6 @@
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
+#include "app/economy.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -32,6 +33,8 @@ enum class CrashCause { Wall, Gate };
 struct AppState {
     tunrun::ScreenStack screens;
     int selectedShip = 0;
+    int hangarPreviewShip = 0;
+    std::string hangarMessage;
     int selectedMode = 0;
     bool showFps = true;
     bool reduceMotion = false;
@@ -121,6 +124,55 @@ void chooseNextSeed(AppState& app) {
     app.courseSeed = tunrun::deriveCourseSeed(app.rootSeed, app.runSerial);
     (void)persistProfile(app);
 }
+void activateHangarShip(AppState& app, std::uint32_t shipId) {
+    if (shipId >= tunrun::kProfileShipCount) {
+        app.hangarMessage = "Invalid ship selection.";
+        return;
+    }
+
+    tunrun::Profile candidate = app.profile;
+    const bool wasUnlocked = candidate.unlockedShips[shipId];
+    if (!wasUnlocked) {
+        const auto purchase = tunrun::purchaseShip(candidate, shipId);
+        if (purchase == tunrun::ShipTransactionStatus::InsufficientAetherShards) {
+            app.hangarMessage = "Not enough Aether Shards.";
+            return;
+        }
+        if (purchase == tunrun::ShipTransactionStatus::InsufficientSingularityCores) {
+            app.hangarMessage = "Not enough Singularity Cores.";
+            return;
+        }
+        if (purchase != tunrun::ShipTransactionStatus::Purchased) {
+            app.hangarMessage = "Ship purchase was rejected.";
+            return;
+        }
+    }
+
+    const auto equip = tunrun::equipShip(candidate, shipId);
+    if (equip == tunrun::ShipTransactionStatus::AlreadyEquipped) {
+        app.hangarMessage = "This ship is already active.";
+        return;
+    }
+    if (equip != tunrun::ShipTransactionStatus::Equipped) {
+        app.hangarMessage = "Locked ships cannot be equipped.";
+        return;
+    }
+
+    const tunrun::Profile previousProfile = app.profile;
+    const int previousShip = app.selectedShip;
+    app.profile = candidate;
+    app.selectedShip = static_cast<int>(shipId);
+    if (!persistProfile(app)) {
+        app.profile = previousProfile;
+        app.selectedShip = previousShip;
+        app.hangarMessage = "Save failed; purchase/equip was rolled back.";
+        return;
+    }
+    app.hangarMessage = wasUnlocked
+        ? std::string("Equipped: ") + tunrun::shipDefinition(shipId).name
+        : std::string("Unlocked and equipped: ") + tunrun::shipDefinition(shipId).name;
+}
+
 void finishRun(AppState& app) {
     if (app.runRecorded) return;
     app.runRecorded = true;
@@ -397,6 +449,12 @@ int main() {
     app.mouseSensitivity = app.profile.mouseSensitivity;
     app.selectedShip = static_cast<int>(std::min<std::uint32_t>(
         app.profile.selectedShip, static_cast<std::uint32_t>(tunrun::kProfileShipCount - 1U)));
+    if (!app.profile.unlockedShips[static_cast<std::size_t>(app.selectedShip)]) {
+        app.selectedShip = static_cast<int>(tunrun::kStarterShipId);
+        app.profile.selectedShip = tunrun::kStarterShipId;
+        initializeProfile = true;
+    }
+    app.hangarPreviewShip = app.selectedShip;
     if (app.fullscreen) ToggleFullscreen();
 
     if (app.profileRecoveryRequired) {
@@ -413,10 +471,6 @@ int main() {
     const std::vector<std::string> mainItems{
         "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
         "SETTINGS", "CREDITS", "EXIT"
-    };
-    const std::vector<std::string> ships{
-        "DRIFTWING", "WRAITH", "BULWARK", "MANTA",
-        "COMET", "SPECTRE", "VORTEX", "OBSIDIAN"
     };
     const std::vector<std::string> modes{
         "CAMPAIGN (PLANNED)", "ENDLESS (PLANNED)",
@@ -476,7 +530,8 @@ int main() {
                     std::clamp(steerX, -1.0F, 1.0F),
                     std::clamp(steerY, -1.0F, 1.0F),
                     IsKeyDown(KEY_LEFT_SHIFT),
-                    IsKeyDown(KEY_LEFT_CONTROL)
+                    IsKeyDown(KEY_LEFT_CONTROL),
+                    static_cast<std::uint32_t>(app.selectedShip)
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 applyRelativeMouseSteering(app.flight.x, app.flight.y, mouseDelta,
@@ -569,33 +624,72 @@ int main() {
             break;
         }
         case tunrun::Screen::Hangar: {
-            const int previousShip = app.selectedShip;
-            drawHeader("01 / COLLECTION", "HANGAR", "Selection persists locally; unlocks and purchases are next.");
-            drawCentred("SHIP", 205.0F, 15, kAccent);
-            const std::string selected = "[ " + ships[static_cast<std::size_t>(app.selectedShip)] + " ]";
-            drawCentred(selected.c_str(), 245.0F, 32, kText);
-            drawCentred("Ship models and handling profiles arrive in a later milestone.", 293.0F, 15, kMuted);
+            const int previewShip = app.hangarPreviewShip;
+            const int previousPreviewShip = app.hangarPreviewShip;
+            const auto& definition = tunrun::shipDefinition(static_cast<std::uint32_t>(previewShip));
+            const bool unlocked = app.profile.unlockedShips[static_cast<std::size_t>(previewShip)];
+            const bool active = app.selectedShip == previewShip;
+            drawHeader("01 / COLLECTION", "HANGAR", "Unlock and equip ships with local, save-before-confirm economy transactions.");
+            drawCentred("SHIP", 195.0F, 15, kAccent);
+            drawCentred(definition.name, 230.0F, 32, kText);
+            const std::string status = unlocked
+                ? (active ? "STATUS: ACTIVE / UNLOCKED" : "STATUS: UNLOCKED / NOT ACTIVE")
+                : "STATUS: LOCKED";
+            drawCentred(status.c_str(), 270.0F, 15, unlocked ? kAccent : kMuted);
+            drawCentred(TextFormat("SPEED %.2fx   ACCELERATION %.2fx   BOOST DRAIN %.2fx",
+                                   definition.speedMultiplier, definition.accelerationMultiplier,
+                                   definition.boostDrainMultiplier),
+                        300.0F, 14, kText);
+
+            std::string actionLabel;
+            if (unlocked) {
+                actionLabel = active ? "ACTIVE SHIP" : "EQUIP THIS SHIP";
+            } else if (definition.aetherShardCost > 0U) {
+                actionLabel = "UNLOCK FOR " + std::to_string(definition.aetherShardCost) + " AETHER SHARDS";
+            } else {
+                actionLabel = "UNLOCK FOR " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
+            }
+            const Rectangle actionBounds{
+                static_cast<float>(GetScreenWidth() / 2 - 190), 405.0F, 380.0F, 45.0F
+            };
+            const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), false);
+            const bool actionConfirmed = confirmPressed();
+            if (actionClicked || actionConfirmed) {
+                activateHangarShip(app, static_cast<std::uint32_t>(previewShip));
+            }
+
             if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 - 180), 350, 70, 45}, "<", false))
-                app.selectedShip = (app.selectedShip + 7) % 8;
+                app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()/2 + 110), 350, 70, 45}, ">", false))
-                app.selectedShip = (app.selectedShip + 1) % 8;
-            if (drawMenu({"BACK"}, hangarSelection, GetScreenHeight() - 96) == 0) app.screens.pop();
-            if (leftPressed()) app.selectedShip = (app.selectedShip + 7) % 8;
-            if (rightPressed()) app.selectedShip = (app.selectedShip + 1) % 8;
+                app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
+            if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
+            if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (IsGamepadAvailable(0)) {
                 const float horizontalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
                 if (horizontalAxis < -0.65F && !app.hangarAxisLeftHeld) {
-                    app.selectedShip = (app.selectedShip + 7) % 8;
+                    app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
                     app.hangarAxisLeftHeld = true;
                 } else if (horizontalAxis > 0.65F && !app.hangarAxisRightHeld) {
-                    app.selectedShip = (app.selectedShip + 1) % 8;
+                    app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
                     app.hangarAxisRightHeld = true;
                 } else if (std::abs(horizontalAxis) < 0.25F) {
                     app.hangarAxisLeftHeld = false;
                     app.hangarAxisRightHeld = false;
                 }
             }
-            if (app.selectedShip != previousShip) (void)persistProfile(app);
+            if (app.hangarPreviewShip != previousPreviewShip && !actionClicked && !actionConfirmed) {
+                app.hangarMessage.clear();
+            }
+            DrawText(TextFormat("AETHER SHARDS %llu  |  SINGULARITY CORES %llu",
+                                static_cast<unsigned long long>(app.profile.aetherShards),
+                                static_cast<unsigned long long>(app.profile.singularityCores)),
+                     50, 462, 13, kAccent);
+            if (!app.hangarMessage.empty()) {
+                const std::string visibleMessage = app.hangarMessage.substr(0, 88);
+                drawCentred(visibleMessage.c_str(), 480.0F, 13, app.saveWarning ? kDanger : kMuted);
+            }
+            if (drawMenu({"BACK"}, hangarSelection, std::max(485, GetScreenHeight() - 100),
+                         !actionConfirmed) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         }
