@@ -19,15 +19,30 @@ inline constexpr float kMouseSensitivityStep = 0.0005F;
     return std::clamp(current, kMouseSensitivityMin, kMouseSensitivityMax);
 }
 
-// Maps a pointer's normalized horizontal position onto the supported
-// sensitivity range, quantized to the same step used by keyboard/controller input.
+// Sensitivity spans a large ratio, so the visible slider uses a logarithmic
+// scale; this gives useful resolution at the low end without hiding high values.
+[[nodiscard]] inline float mouseSensitivitySliderPosition(float sensitivity) noexcept {
+    if (!std::isfinite(sensitivity)) sensitivity = kMouseSensitivityDefault;
+    sensitivity = std::clamp(sensitivity, kMouseSensitivityMin, kMouseSensitivityMax);
+    const double logMin = std::log(static_cast<double>(kMouseSensitivityMin));
+    const double logMax = std::log(static_cast<double>(kMouseSensitivityMax));
+    const double logValue = std::log(static_cast<double>(sensitivity));
+    return static_cast<float>(std::clamp((logValue - logMin) / (logMax - logMin), 0.0, 1.0));
+}
+
+// Maps a normalized pointer position to sensitivity on the same logarithmic
+// scale, snapping to the keyboard/controller increment grid centred at default.
 [[nodiscard]] inline float mouseSensitivityFromSlider(float normalizedPosition) noexcept {
     if (!std::isfinite(normalizedPosition)) return kMouseSensitivityDefault;
     const float position = std::clamp(normalizedPosition, 0.0F, 1.0F);
-    const float raw = kMouseSensitivityMin +
-        position * (kMouseSensitivityMax - kMouseSensitivityMin);
-    const float steps = std::round((raw - kMouseSensitivityMin) / kMouseSensitivityStep);
-    return std::clamp(kMouseSensitivityMin + steps * kMouseSensitivityStep,
+    if (position <= 0.0F) return kMouseSensitivityMin;
+    if (position >= 1.0F) return kMouseSensitivityMax;
+    const double logMin = std::log(static_cast<double>(kMouseSensitivityMin));
+    const double logMax = std::log(static_cast<double>(kMouseSensitivityMax));
+    const float raw = static_cast<float>(std::exp(
+        logMin + static_cast<double>(position) * (logMax - logMin)));
+    const float steps = std::round((raw - kMouseSensitivityDefault) / kMouseSensitivityStep);
+    return std::clamp(kMouseSensitivityDefault + steps * kMouseSensitivityStep,
                       kMouseSensitivityMin, kMouseSensitivityMax);
 }
 

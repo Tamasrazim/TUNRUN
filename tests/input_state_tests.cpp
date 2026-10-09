@@ -177,9 +177,17 @@ int main() {
     assert(mouseSensitivityFromSlider(2.0F) == kMouseSensitivityMax);
     assert(mouseSensitivityFromSlider(
         std::numeric_limits<float>::quiet_NaN()) == kMouseSensitivityDefault);
+    assert(mouseSensitivitySliderPosition(kMouseSensitivityMin) == 0.0F);
+    assert(mouseSensitivitySliderPosition(kMouseSensitivityMax) == 1.0F);
+    const float defaultSliderPosition = mouseSensitivitySliderPosition(
+        kMouseSensitivityDefault);
+    assert(defaultSliderPosition > 0.5F && defaultSliderPosition < 0.7F);
+    assert(mouseSensitivityFromSlider(defaultSliderPosition) ==
+           kMouseSensitivityDefault);
+    const float lowerSensitivity = mouseSensitivityFromSlider(0.25F);
     const float middleSensitivity = mouseSensitivityFromSlider(0.5F);
-    assert(middleSensitivity >= kMouseSensitivityMin &&
-           middleSensitivity <= kMouseSensitivityMax);
+    const float higherSensitivity = mouseSensitivityFromSlider(0.75F);
+    assert(lowerSensitivity < middleSensitivity && middleSensitivity < higherSensitivity);
 
     constexpr std::uint64_t seed = 0x123456789ABCDEF0ULL;
     const auto section = tunrun::sampleCourse(seed, 1.25);

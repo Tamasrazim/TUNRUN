@@ -1287,10 +1287,8 @@ int main() {
                 sensitivityBounds.width - 2.0F * sensitivityTrackInset,
                 3.0F
             };
-            const float normalizedSensitivity = std::clamp(
-                (app.mouseSensitivity - kMouseSensitivityMin) /
-                    (kMouseSensitivityMax - kMouseSensitivityMin),
-                0.0F, 1.0F);
+            const float normalizedSensitivity =
+                mouseSensitivitySliderPosition(app.mouseSensitivity);
             DrawRectangleRounded(sensitivityTrack, 0.8F, 6, kEdge);
             DrawRectangleRounded(Rectangle{
                 sensitivityTrack.x, sensitivityTrack.y,
