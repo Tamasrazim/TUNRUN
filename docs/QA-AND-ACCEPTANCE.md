@@ -10,6 +10,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Every button is mouse-clickable at its visible position.
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
 - Controls opens from both Main Menu and Pause, lists actual keyboard/mouse/gamepad bindings, and Back returns to the correct parent screen without unpausing the run.
+- While Controls, Settings or run-confirmation is layered above Pause, procedural hazard time remains frozen; returning to the run does not advance the mines through the pause interval.
 - Pause → Restart Same Seed asks before discarding the current run, retains the exact course seed after confirmation, and starts with clean score, dash, and pickup state.
 - Pause → Return to Main Menu asks before discarding the current run; Cancel returns to Pause without changing the run.
 - On the minimum-height window, the first menu button does not overlap the currency row.

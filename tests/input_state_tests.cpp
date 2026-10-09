@@ -86,11 +86,14 @@ int main() {
     stack.push(Screen::Pause);
     stack.push(Screen::Controls);
     assert(stack.current() == Screen::Controls);
+    assert(stack.contains(Screen::Pause) && stack.contains(Screen::Controls));
     assert(stack.pop() && stack.current() == Screen::Pause);
     stack.push(Screen::RunConfirm);
     assert(stack.current() == Screen::RunConfirm);
+    assert(stack.contains(Screen::Pause) && stack.contains(Screen::RunConfirm));
     assert(stack.pop() && stack.current() == Screen::Pause);
     assert(stack.pop() && stack.current() == Screen::MainMenu);
+    assert(!stack.contains(Screen::Pause));
     stack.push(Screen::Preview);
     stack.push(Screen::Pause);
     stack.push(Screen::Settings);

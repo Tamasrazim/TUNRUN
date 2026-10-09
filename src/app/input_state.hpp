@@ -33,6 +33,12 @@ public:
     [[nodiscard]] Screen current() const noexcept { return screens_.back(); }
     [[nodiscard]] std::size_t size() const noexcept { return screens_.size(); }
     [[nodiscard]] bool canGoBack() const noexcept { return screens_.size() > 1U; }
+    [[nodiscard]] bool contains(Screen target) const noexcept {
+        for (const Screen screen : screens_) {
+            if (screen == target) return true;
+        }
+        return false;
+    }
     void push(Screen value) { screens_.push_back(value); }
     void replace(Screen value) noexcept { screens_.back() = value; }
     bool pop() noexcept {
