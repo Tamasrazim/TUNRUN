@@ -66,6 +66,41 @@ inline bool collectsReward(float x, float y, const ProceduralReward& reward,
     return dx * dx + dy * dy <= radius * radius;
 }
 
+// Convert player coordinates from the course frame at each simulation
+// endpoint into the frame used by the rendered pickup before testing contact.
+// This keeps pickup physics aligned with the centerline displacement shown in
+// the 3D scene on curved courses.
+inline bool collectsRewardAtCourseCrossing(
+    std::uint64_t seed,
+    float previousX, float previousY, double previousDistance,
+    float currentX, float currentY, double currentDistance,
+    const ProceduralReward& reward,
+    float radius = kRewardPickupRadius) noexcept {
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(reward.distance)) return false;
+    if (!crossesRewardPlane(previousDistance, currentDistance, reward)) return false;
+
+    const double travel = currentDistance - previousDistance;
+    if (travel <= 1.0e-9) return false;
+    const double fraction = std::clamp(
+        (reward.distance - previousDistance) / travel, 0.0, 1.0);
+    const auto previousSection = sampleCourse(seed, previousDistance);
+    const auto currentSection = sampleCourse(seed, currentDistance);
+    const auto rewardSection = sampleCourse(seed, reward.distance);
+
+    const double worldX0 = static_cast<double>(previousX) + previousSection.centerX;
+    const double worldY0 = static_cast<double>(previousY) + previousSection.centerY;
+    const double worldX1 = static_cast<double>(currentX) + currentSection.centerX;
+    const double worldY1 = static_cast<double>(currentY) + currentSection.centerY;
+    const float rewardRelativeX = static_cast<float>(
+        worldX0 + (worldX1 - worldX0) * fraction - rewardSection.centerX);
+    const float rewardRelativeY = static_cast<float>(
+        worldY0 + (worldY1 - worldY0) * fraction - rewardSection.centerY);
+    return collectsReward(rewardRelativeX, rewardRelativeY, reward, radius);
+}
+
 // Stable canonical fingerprint for regression tests and replay compatibility.
 inline std::uint64_t rewardHash(std::uint64_t seed,
                                std::uint32_t rewardCount = 256U) noexcept {

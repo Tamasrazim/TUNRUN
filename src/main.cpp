@@ -752,17 +752,9 @@ int main() {
                          rewardIndex <= lastRewardIndex; ++rewardIndex) {
                         const auto reward = tunrun::rewardAt(app.courseSeed,
                             static_cast<std::uint32_t>(rewardIndex));
-                        if (!tunrun::crossesRewardPlane(previousDistance,
-                                app.flight.distance, reward)) continue;
-                        const double travel = static_cast<double>(app.flight.distance) -
-                                              previousDistance;
-                        const float fraction = travel > 1.0e-6
-                            ? static_cast<float>(std::clamp(
-                                (reward.distance - previousDistance) / travel, 0.0, 1.0))
-                            : 0.0F;
-                        const float pickupX = previousX + (app.flight.x - previousX) * fraction;
-                        const float pickupY = previousY + (app.flight.y - previousY) * fraction;
-                        if (!tunrun::collectsReward(pickupX, pickupY, reward)) continue;
+                        if (!tunrun::collectsRewardAtCourseCrossing(
+                                app.courseSeed, previousX, previousY, previousDistance,
+                                app.flight.x, app.flight.y, app.flight.distance, reward)) continue;
                         const auto maxReward = std::numeric_limits<std::uint64_t>::max();
                         if (reward.kind == tunrun::RewardKind::AetherShard) {
                             app.runAetherPickupReward =

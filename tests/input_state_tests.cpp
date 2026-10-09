@@ -168,6 +168,26 @@ int main() {
                                        firstReward.distance + 0.2, firstReward));
     assert(!tunrun::collectsReward(std::numeric_limits<float>::quiet_NaN(),
                                    firstReward.offsetY, firstReward));
+    const auto rewardSection = tunrun::sampleCourse(seed, firstReward.distance);
+    const auto rewardBeforeSection = tunrun::sampleCourse(seed, firstReward.distance - 0.7);
+    const auto rewardAfterSection = tunrun::sampleCourse(seed, firstReward.distance + 0.7);
+    const float rewardPreviousX = firstReward.offsetX + rewardSection.centerX -
+                                  rewardBeforeSection.centerX;
+    const float rewardPreviousY = firstReward.offsetY + rewardSection.centerY -
+                                  rewardBeforeSection.centerY;
+    const float rewardCurrentX = firstReward.offsetX + rewardSection.centerX -
+                                 rewardAfterSection.centerX;
+    const float rewardCurrentY = firstReward.offsetY + rewardSection.centerY -
+                                 rewardAfterSection.centerY;
+    assert(tunrun::collectsRewardAtCourseCrossing(
+        seed, rewardPreviousX, rewardPreviousY, firstReward.distance - 0.7,
+        rewardCurrentX, rewardCurrentY, firstReward.distance + 0.7, firstReward));
+    assert(!tunrun::collectsRewardAtCourseCrossing(
+        seed, rewardPreviousX, rewardPreviousY, firstReward.distance + 0.1,
+        rewardCurrentX, rewardCurrentY, firstReward.distance + 0.7, firstReward));
+    assert(!tunrun::collectsRewardAtCourseCrossing(
+        seed, rewardPreviousX + 3.0F, rewardPreviousY, firstReward.distance - 0.7,
+        rewardCurrentX + 3.0F, rewardCurrentY, firstReward.distance + 0.7, firstReward));
     for (std::uint32_t rewardIndex = 0U; rewardIndex < 512U; ++rewardIndex) {
         const auto reward = tunrun::rewardAt(seed, rewardIndex);
         assert(reward.index == rewardIndex);
