@@ -60,6 +60,7 @@ struct AppState {
     tunrun::ScreenStack screens;
     int selectedShip = 0;
     int hangarPreviewShip = 0;
+    std::uint32_t pendingHangarShip = tunrun::kStarterShipId;
     std::string hangarMessage;
     std::string seedEntryText;
     std::string seedEntryMessage;
@@ -191,37 +192,57 @@ void chooseNextSeed(AppState& app) {
     app.seedCopiedNotice = false;
     (void)persistProfile(app);
 }
+void purchaseHangarShip(AppState& app, std::uint32_t shipId) {
+    if (shipId >= tunrun::kProfileShipCount || shipId >= tunrun::kShipCatalog.size()) {
+        app.hangarMessage = "Invalid ship selection.";
+        return;
+    }
+    if (app.profile.unlockedShips[shipId]) {
+        app.hangarMessage = "This ship is already unlocked; equip it separately.";
+        return;
+    }
+
+    tunrun::Profile candidate = app.profile;
+    const auto purchase = tunrun::purchaseShip(candidate, shipId);
+    if (purchase == tunrun::ShipTransactionStatus::InsufficientAetherShards) {
+        app.hangarMessage = "Not enough Aether Shards.";
+        return;
+    }
+    if (purchase == tunrun::ShipTransactionStatus::InsufficientSingularityCores) {
+        app.hangarMessage = "Not enough Singularity Cores.";
+        return;
+    }
+    if (purchase != tunrun::ShipTransactionStatus::Purchased) {
+        app.hangarMessage = "Ship purchase was rejected.";
+        return;
+    }
+
+    const tunrun::Profile previousProfile = app.profile;
+    app.profile = candidate;
+    // A purchase unlocks the ship only. The currently equipped ship stays active.
+    if (!persistProfile(app)) {
+        app.profile = previousProfile;
+        app.hangarMessage = "Save failed; unlock and wallet change were rolled back.";
+        return;
+    }
+    app.hangarMessage = std::string("Unlocked: ") + tunrun::shipDefinition(shipId).name +
+                        ". Equip it when ready.";
+}
+
 void activateHangarShip(AppState& app, std::uint32_t shipId) {
-    if (shipId >= tunrun::kProfileShipCount) {
+    if (shipId >= tunrun::kProfileShipCount || shipId >= tunrun::kShipCatalog.size()) {
         app.hangarMessage = "Invalid ship selection.";
         return;
     }
 
     tunrun::Profile candidate = app.profile;
-    const bool wasUnlocked = candidate.unlockedShips[shipId];
-    if (!wasUnlocked) {
-        const auto purchase = tunrun::purchaseShip(candidate, shipId);
-        if (purchase == tunrun::ShipTransactionStatus::InsufficientAetherShards) {
-            app.hangarMessage = "Not enough Aether Shards.";
-            return;
-        }
-        if (purchase == tunrun::ShipTransactionStatus::InsufficientSingularityCores) {
-            app.hangarMessage = "Not enough Singularity Cores.";
-            return;
-        }
-        if (purchase != tunrun::ShipTransactionStatus::Purchased) {
-            app.hangarMessage = "Ship purchase was rejected.";
-            return;
-        }
-    }
-
     const auto equip = tunrun::equipShip(candidate, shipId);
     if (equip == tunrun::ShipTransactionStatus::AlreadyEquipped) {
         app.hangarMessage = "This ship is already active.";
         return;
     }
     if (equip != tunrun::ShipTransactionStatus::Equipped) {
-        app.hangarMessage = "Locked ships cannot be equipped.";
+        app.hangarMessage = "Unlock this ship before equipping it.";
         return;
     }
 
@@ -232,12 +253,10 @@ void activateHangarShip(AppState& app, std::uint32_t shipId) {
     if (!persistProfile(app)) {
         app.profile = previousProfile;
         app.selectedShip = previousShip;
-        app.hangarMessage = "Save failed; purchase/equip was rolled back.";
+        app.hangarMessage = "Save failed; equip change was rolled back.";
         return;
     }
-    app.hangarMessage = wasUnlocked
-        ? std::string("Equipped: ") + tunrun::shipDefinition(shipId).name
-        : std::string("Unlocked and equipped: ") + tunrun::shipDefinition(shipId).name;
+    app.hangarMessage = std::string("Equipped: ") + tunrun::shipDefinition(shipId).name;
 }
 
 void finishRun(AppState& app) {
@@ -632,6 +651,16 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         }
         return Vector3{localX, localY, yawedZ};
     };
+    const float bodyWidthScales[]  = {0.92F, 0.78F, 1.25F, 1.08F, 0.68F, 0.91F, 0.86F, 1.16F};
+    const float bodyHeightScales[] = {0.92F, 0.86F, 1.20F, 0.78F, 0.76F, 0.92F, 1.10F, 1.12F};
+    const float bodyLengthScales[] = {1.00F, 1.10F, 1.04F, 0.99F, 1.28F, 1.08F, 1.02F, 1.12F};
+    const std::size_t bodyIndex = shipId < 8U ? static_cast<std::size_t>(shipId) : 0U;
+    const float bodyWidth = bodyWidthScales[bodyIndex];
+    const float bodyHeight = bodyHeightScales[bodyIndex];
+    const float bodyLength = bodyLengthScales[bodyIndex];
+    const auto body = [&](float x, float y, float z) {
+        return v(x * bodyWidth, y * bodyHeight, z * bodyLength);
+    };
     const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
     const auto quad = [](Vector3 a, Vector3 b, Vector3 c, Vector3 d,
                          Color upper, Color lower) {
@@ -647,6 +676,19 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         const Vector3 tipBack = v(side * tipBackX, wingY - 0.025F, tipBackZ);
         const Vector3 rootBack = v(side * rootBackX, -0.045F, rootBackZ);
         quad(rootFront, tipFront, tipBack, rootBack, hullLight, color);
+        const Vector3 lowerRootFront = v(side * rootFrontX, 0.010F, rootFrontZ);
+        const Vector3 lowerTipFront = v(side * tipFrontX, wingY - 0.050F, tipFrontZ);
+        const Vector3 lowerTipBack = v(side * tipBackX, wingY - 0.075F, tipBackZ);
+        const Vector3 lowerRootBack = v(side * rootBackX, -0.090F, rootBackZ);
+        quad(lowerRootFront, lowerRootBack, lowerTipBack, lowerTipFront, hullShade, color);
+        DrawTriangle3D(rootFront, lowerRootFront, lowerTipFront, hullShade);
+        DrawTriangle3D(rootFront, lowerTipFront, tipFront, hullLight);
+        DrawTriangle3D(tipFront, lowerTipFront, lowerTipBack, color);
+        DrawTriangle3D(tipFront, lowerTipBack, tipBack, hullShade);
+        DrawTriangle3D(tipBack, lowerTipBack, lowerRootBack, color);
+        DrawTriangle3D(tipBack, lowerRootBack, rootBack, hullShade);
+        DrawTriangle3D(rootBack, lowerRootBack, lowerRootFront, hullShade);
+        DrawTriangle3D(rootBack, lowerRootFront, rootFront, color);
         line(rootFront, tipFront);
         line(tipFront, tipBack);
         line(tipBack, rootBack);
@@ -697,12 +739,12 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     default: break;
     }
     // Broad faceted central fuselage, canopy, and rear engine bells.
-    const auto nose = v(0.0F, 0.0F, -0.88F);
-    const auto top = v(0.0F, 0.26F, 0.03F);
-    const auto bottom = v(0.0F, -0.21F, 0.30F);
-    const auto left = v(-0.36F, -0.015F, 0.23F);
-    const auto right = v(0.36F, -0.015F, 0.23F);
-    const auto tail = v(0.0F, 0.045F, 1.00F);
+    const auto nose = body(0.0F, 0.0F, -0.88F);
+    const auto top = body(0.0F, 0.26F, 0.03F);
+    const auto bottom = body(0.0F, -0.21F, 0.30F);
+    const auto left = body(-0.36F, -0.015F, 0.23F);
+    const auto right = body(0.36F, -0.015F, 0.23F);
+    const auto tail = body(0.0F, 0.045F, 1.00F);
     DrawTriangle3D(nose, top, left, hullLight);
     DrawTriangle3D(nose, right, top, color);
     DrawTriangle3D(nose, bottom, right, hullShade);
@@ -712,126 +754,128 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     DrawTriangle3D(left, tail, bottom, hullShade);
     DrawTriangle3D(bottom, tail, right, hullShade);
     // Blue-glass canopy and engine bells add recognizable spacecraft details.
-    DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
-                   v(0.0F, 0.205F, -0.48F),
-                   v(0.15F, 0.135F, -0.28F), withVisibility(Color{43, 90, 130, 255}));
-    DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
-                   v(0.15F, 0.135F, -0.28F),
-                   v(0.0F, 0.155F, -0.04F), withVisibility(Color{26, 57, 88, 255}));
-    DrawCylinderEx(v(-0.205F, -0.06F, 0.61F), v(-0.205F, -0.06F, 0.90F),
-                   0.095F, 0.072F, 8, hullShade);
-    DrawCylinderEx(v(0.205F, -0.06F, 0.61F), v(0.205F, -0.06F, 0.90F),
-                   0.095F, 0.072F, 8, hullShade);
+    DrawTriangle3D(body(-0.15F, 0.135F, -0.28F),
+                   body(0.0F, 0.205F, -0.48F),
+                   body(0.15F, 0.135F, -0.28F), withVisibility(Color{43, 90, 130, 255}));
+    DrawTriangle3D(body(-0.15F, 0.135F, -0.28F),
+                   body(0.15F, 0.135F, -0.28F),
+                   body(0.0F, 0.155F, -0.04F), withVisibility(Color{26, 57, 88, 255}));
     Color engineGlow = shipId == 4U ? Color{255, 139, 96, 255}
-        : shipId == 6U ? Color{179, 123, 255, 255} : Color{88, 226, 255, 255};
+        : shipId == 6U ? Color{179, 123, 255, 255}
+        : shipId == 7U ? Color{255, 90, 110, 255} : Color{88, 226, 255, 255};
     engineGlow.a = color.a;
-    DrawSphere(v(-0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
-    DrawSphere(v(0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
+    const float engineScale = std::min(bodyWidth, bodyHeight);
+    const auto enginePod = [&](float x, float y, float z, float radius, float length) {
+        const Vector3 start = body(x, y, z);
+        const Vector3 end = body(x, y, z + length);
+        DrawCylinderEx(start, end, radius * engineScale,
+                       radius * 0.76F * engineScale, 10, hullShade);
+        DrawCylinderEx(start, end, radius * 0.46F * engineScale,
+                       radius * 0.40F * engineScale, 10,
+                       withVisibility(Color{14, 19, 29, 255}));
+        DrawSphere(end, radius * 0.72F * engineScale, engineGlow);
+        DrawSphere(end, radius * 0.36F * engineScale,
+                   withVisibility(Color{215, 248, 255, 255}));
+    };
+    enginePod(-0.205F, -0.06F, 0.58F, 0.095F, 0.31F);
+    enginePod( 0.205F, -0.06F, 0.58F, 0.095F, 0.31F);
+    if (shipId == 2U) {
+        // Bulwark: four-engine heavy lifter with wider-set auxiliary pods.
+        enginePod(-0.43F, -0.10F, 0.50F, 0.070F, 0.25F);
+        enginePod( 0.43F, -0.10F, 0.50F, 0.070F, 0.25F);
+    } else if (shipId == 4U) {
+        // Comet: an additional narrow centerline thruster for its racer profile.
+        enginePod(0.0F, -0.10F, 0.61F, 0.068F, 0.38F);
+    } else if (shipId == 6U) {
+        // Vortex: lateral stabilizer thrusters sit outboard of the main pair.
+        enginePod(-0.43F, -0.01F, 0.45F, 0.052F, 0.26F);
+        enginePod( 0.43F, -0.01F, 0.45F, 0.052F, 0.26F);
+    }
+    const Color detailLight = withVisibility(Color{
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.r) + 52)),
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.g) + 52)),
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.b) + 52)), 255});
+    const Color detailDark = withVisibility(Color{
+        static_cast<unsigned char>(color.r * 0.32F),
+        static_cast<unsigned char>(color.g * 0.32F),
+        static_cast<unsigned char>(color.b * 0.32F), 255});
     switch (shipId) {
-    case 0U: { // DRIFTWING: light delta wing.
-        const auto nose = v(0.0F, 0.0F, -0.35F);
-        const auto left = v(-0.78F, -0.30F, 0.62F);
-        const auto right = v(0.78F, -0.30F, 0.62F);
-        const auto tail = v(0.0F, 0.35F, 0.78F);
-        line(nose, left); line(nose, right); line(left, tail);
-        line(tail, right); line(left, right); line(nose, tail);
+    case 0U: { // DRIFTWING: twin dorsal fins and a broad rear delta.
+        DrawTriangle3D(body(-0.17F, 0.07F, 0.34F), body(-0.04F, 0.35F, 0.86F),
+                       body(-0.03F, 0.08F, 0.78F), detailLight);
+        DrawTriangle3D(body(0.17F, 0.07F, 0.34F), body(0.03F, 0.08F, 0.78F),
+                       body(0.04F, 0.35F, 0.86F), color);
         break;
     }
-    case 1U: { // WRAITH: long nose with swept rear fins.
-        const auto nose = v(0.0F, 0.0F, -0.48F);
-        const auto core = v(0.0F, 0.0F, 0.38F);
-        const auto left = v(-0.43F, -0.05F, 0.55F);
-        const auto right = v(0.43F, -0.05F, 0.55F);
-        const auto leftTip = v(-0.82F, -0.28F, 0.82F);
-        const auto rightTip = v(0.82F, -0.28F, 0.82F);
-        const auto tail = v(0.0F, 0.26F, 0.94F);
-        line(nose, core); line(core, left); line(core, right);
-        line(left, leftTip); line(leftTip, tail); line(tail, rightTip);
-        line(rightTip, right); line(leftTip, rightTip); line(core, tail);
+    case 1U: { // WRAITH: raised dorsal blade and paired front sensor rails.
+        DrawTriangle3D(body(-0.08F, 0.13F, 0.18F), body(0.0F, 0.56F, 0.72F),
+                       body(-0.02F, 0.12F, 0.82F), detailLight);
+        DrawTriangle3D(body(0.08F, 0.13F, 0.18F), body(0.02F, 0.12F, 0.82F),
+                       body(0.0F, 0.56F, 0.72F), color);
+        line(body(-0.11F, 0.10F, -0.45F), body(-0.11F, 0.10F, 0.28F));
+        line(body(0.11F, 0.10F, -0.45F), body(0.11F, 0.10F, 0.28F));
         break;
     }
-    case 2U: { // BULWARK: broad armored trapezoid.
-        const auto nose = v(0.0F, 0.0F, -0.28F);
-        const auto frontLeft = v(-0.50F, -0.28F, 0.18F);
-        const auto frontRight = v(0.50F, -0.28F, 0.18F);
-        const auto rearLeft = v(-0.80F, -0.10F, 0.70F);
-        const auto rearRight = v(0.80F, -0.10F, 0.70F);
-        const auto tail = v(0.0F, 0.30F, 0.90F);
-        line(nose, frontLeft); line(frontLeft, rearLeft);
-        line(rearLeft, tail); line(tail, rearRight);
-        line(rearRight, frontRight); line(frontRight, nose);
-        line(frontLeft, frontRight); line(rearLeft, rearRight);
-        line(nose, tail); line(frontLeft, tail); line(frontRight, tail);
+    case 2U: { // BULWARK: layered armored cheek plates and squared shoulders.
+        DrawTriangle3D(body(-0.30F, 0.02F, 0.02F), body(-0.48F, -0.02F, 0.47F),
+                       body(-0.29F, 0.12F, 0.58F), detailLight);
+        DrawTriangle3D(body(0.30F, 0.02F, 0.02F), body(0.29F, 0.12F, 0.58F),
+                       body(0.48F, -0.02F, 0.47F), color);
+        DrawTriangle3D(body(-0.30F, -0.05F, 0.04F), body(-0.29F, -0.13F, 0.52F),
+                       body(-0.48F, -0.02F, 0.47F), detailDark);
+        DrawTriangle3D(body(0.30F, -0.05F, 0.04F), body(0.48F, -0.02F, 0.47F),
+                       body(0.29F, -0.13F, 0.52F), detailDark);
         break;
     }
-    case 3U: { // MANTA: wide swept wings.
-        const auto nose = v(0.0F, 0.0F, -0.40F);
-        const auto leftTip = v(-1.00F, -0.02F, 0.35F);
-        const auto rightTip = v(1.00F, -0.02F, 0.35F);
-        const auto leftRear = v(-0.52F, -0.25F, 0.78F);
-        const auto rightRear = v(0.52F, -0.25F, 0.78F);
-        const auto tail = v(0.0F, 0.24F, 0.88F);
-        line(nose, leftTip); line(leftTip, leftRear); line(leftRear, tail);
-        line(tail, rightRear); line(rightRear, rightTip); line(rightTip, nose);
-        line(leftTip, rightTip); line(nose, tail); line(leftRear, rightRear);
+    case 3U: { // MANTA: flowing shoulder fins and back vents.
+        DrawTriangle3D(body(-0.18F, 0.10F, 0.18F), body(-0.68F, 0.06F, 0.45F),
+                       body(-0.32F, 0.12F, 0.70F), detailLight);
+        DrawTriangle3D(body(0.18F, 0.10F, 0.18F), body(0.32F, 0.12F, 0.70F),
+                       body(0.68F, 0.06F, 0.45F), color);
+        for (int vent = -1; vent <= 1; ++vent) {
+            const float offset = static_cast<float>(vent) * 0.075F;
+            line(body(offset, 0.11F, 0.28F), body(offset, 0.11F, 0.58F));
+        }
         break;
     }
-    case 4U: { // COMET: long needle fuselage and twin exhaust rails.
-        const auto nose = v(0.0F, 0.0F, -0.65F);
-        const auto mid = v(0.0F, 0.0F, 0.28F);
-        const auto left = v(-0.28F, -0.12F, 0.55F);
-        const auto right = v(0.28F, -0.12F, 0.55F);
-        const auto leftTail = v(-0.42F, 0.10F, 0.96F);
-        const auto rightTail = v(0.42F, 0.10F, 0.96F);
-        line(nose, mid); line(mid, left); line(mid, right);
-        line(left, leftTail); line(right, rightTail);
-        line(leftTail, rightTail); line(left, right);
-        line(nose, leftTail); line(nose, rightTail);
+    case 4U: { // COMET: long nose ridge, small upright tail fins.
+        DrawTriangle3D(body(-0.07F, 0.10F, -0.72F), body(0.0F, 0.24F, 0.38F),
+                       body(0.0F, 0.11F, 0.74F), detailLight);
+        DrawTriangle3D(body(0.07F, 0.10F, -0.72F), body(0.0F, 0.11F, 0.74F),
+                       body(0.0F, 0.24F, 0.38F), color);
+        DrawTriangle3D(body(-0.16F, 0.02F, 0.48F), body(-0.22F, 0.26F, 0.85F),
+                       body(-0.12F, 0.02F, 0.86F), detailDark);
+        DrawTriangle3D(body(0.16F, 0.02F, 0.48F), body(0.12F, 0.02F, 0.86F),
+                       body(0.22F, 0.26F, 0.85F), detailDark);
         break;
     }
-    case 5U: { // SPECTRE: split twin-prong silhouette.
-        const auto leftNose = v(-0.22F, 0.02F, -0.45F);
-        const auto rightNose = v(0.22F, 0.02F, -0.45F);
-        const auto leftRear = v(-0.56F, -0.18F, 0.72F);
-        const auto rightRear = v(0.56F, -0.18F, 0.72F);
-        const auto center = v(0.0F, 0.20F, 0.78F);
-        const auto leftWing = v(-0.86F, -0.24F, 0.40F);
-        const auto rightWing = v(0.86F, -0.24F, 0.40F);
-        line(leftNose, leftRear); line(leftRear, leftWing);
-        line(leftWing, leftNose); line(rightNose, rightRear);
-        line(rightRear, rightWing); line(rightWing, rightNose);
-        line(leftRear, center); line(center, rightRear);
-        line(leftNose, center); line(rightNose, center);
+    case 5U: { // SPECTRE: split-prong nose leaves a visible center gap.
+        DrawTriangle3D(body(-0.25F, 0.04F, -0.66F), body(-0.08F, 0.13F, -0.27F),
+                       body(-0.19F, 0.00F, -0.08F), detailLight);
+        DrawTriangle3D(body(0.25F, 0.04F, -0.66F), body(0.19F, 0.00F, -0.08F),
+                       body(0.08F, 0.13F, -0.27F), color);
+        DrawTriangle3D(body(-0.10F, 0.05F, -0.30F), body(0.0F, 0.16F, -0.44F),
+                       body(0.10F, 0.05F, -0.30F), detailDark);
         break;
     }
-    case 6U: { // VORTEX: interlocking diamond rails.
-        const auto nose = v(0.0F, 0.0F, -0.42F);
-        const auto left = v(-0.72F, 0.0F, 0.28F);
-        const auto right = v(0.72F, 0.0F, 0.28F);
-        const auto top = v(0.0F, 0.42F, 0.40F);
-        const auto bottom = v(0.0F, -0.32F, 0.70F);
-        const auto tail = v(0.0F, 0.12F, 0.92F);
-        line(nose, left); line(left, bottom); line(bottom, right);
-        line(right, nose); line(nose, top); line(top, right);
-        line(right, tail); line(tail, left); line(left, top);
-        line(top, bottom); line(bottom, tail); line(tail, nose);
+    case 6U: { // VORTEX: elevated sensor crown and diamond dorsal planes.
+        DrawTriangle3D(body(-0.12F, 0.13F, 0.05F), body(0.0F, 0.52F, 0.43F),
+                       body(-0.03F, 0.13F, 0.72F), detailLight);
+        DrawTriangle3D(body(0.12F, 0.13F, 0.05F), body(0.03F, 0.13F, 0.72F),
+                       body(0.0F, 0.52F, 0.43F), color);
+        line(body(-0.40F, 0.05F, 0.22F), body(0.0F, 0.30F, 0.48F));
+        line(body(0.40F, 0.05F, 0.22F), body(0.0F, 0.30F, 0.48F));
         break;
     }
-    case 7U: { // OBSIDIAN: angular heavy interceptor.
-        const auto nose = v(0.0F, 0.0F, -0.34F);
-        const auto leftFront = v(-0.45F, -0.22F, 0.05F);
-        const auto rightFront = v(0.45F, -0.22F, 0.05F);
-        const auto leftWing = v(-0.90F, -0.12F, 0.52F);
-        const auto rightWing = v(0.90F, -0.12F, 0.52F);
-        const auto leftRear = v(-0.50F, 0.16F, 0.83F);
-        const auto rightRear = v(0.50F, 0.16F, 0.83F);
-        const auto tail = v(0.0F, 0.35F, 0.97F);
-        line(nose, leftFront); line(leftFront, leftWing);
-        line(leftWing, leftRear); line(leftRear, tail);
-        line(tail, rightRear); line(rightRear, rightWing);
-        line(rightWing, rightFront); line(rightFront, nose);
-        line(leftFront, rightFront); line(leftWing, rightWing);
-        line(leftRear, rightRear); line(leftFront, tail); line(rightFront, tail);
+    case 7U: { // OBSIDIAN: reinforced spine and shielded tail fins.
+        DrawTriangle3D(body(-0.20F, 0.13F, -0.28F), body(0.0F, 0.32F, 0.53F),
+                       body(-0.13F, 0.12F, 0.78F), detailLight);
+        DrawTriangle3D(body(0.20F, 0.13F, -0.28F), body(0.13F, 0.12F, 0.78F),
+                       body(0.0F, 0.32F, 0.53F), color);
+        DrawTriangle3D(body(-0.36F, -0.02F, 0.30F), body(-0.54F, 0.24F, 0.86F),
+                       body(-0.30F, 0.03F, 0.77F), detailDark);
+        DrawTriangle3D(body(0.36F, -0.02F, 0.30F), body(0.30F, 0.03F, 0.77F),
+                       body(0.54F, 0.24F, 0.86F), detailDark);
         break;
     }
     default:
@@ -1577,6 +1621,7 @@ int main() {
         "MOUSE FLIGHT: ON", "MOUSE SENSITIVITY: 0.0040", "RESET OPTIONS", "BACK"
     };
     const std::vector<std::string> resetSettingsItems{"CANCEL", "RESET OPTIONS"};
+    const std::vector<std::string> hangarPurchaseItems{"CANCEL", "CONFIRM UNLOCK"};
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
     const std::vector<std::string> crashItems{
         "RETRY SAME SEED", "COPY SEED", "NEW SEED", "RETURN TO MAIN MENU"
@@ -1586,7 +1631,8 @@ int main() {
     };
     const std::vector<std::string> seedEntryItems{"APPLY + START RUN", "CANCEL"};
     const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
-    int hangarFocus = 0; // 0 = purchase/equip, 1 = Back
+    int hangarFocus = 0; // 0 = unlock/equip, 1 = Back
+    int hangarPurchaseSelection = 0; // Default focus is Cancel to avoid accidental purchases
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const bool mouseCaptureWanted =
@@ -1902,23 +1948,38 @@ int main() {
             std::string actionLabel;
             if (unlocked) {
                 actionLabel = active ? "ACTIVE SHIP" : "EQUIP THIS SHIP";
-            } else if (definition.aetherShardCost > 0U) {
-                actionLabel = "BUY + EQUIP / " + std::to_string(definition.aetherShardCost) + " SHARDS";
             } else {
-                actionLabel = "BUY + EQUIP / " + std::to_string(definition.singularityCoreCost) + " CORES";
+                actionLabel = "UNLOCK SHIP";
             }
-            const float actionWidth = std::min(385.0F,
-                static_cast<float>(GetScreenWidth()) * 0.41F);
+            const float actionWidth = std::clamp(
+                static_cast<float>(GetScreenWidth()) - 450.0F, 150.0F, 385.0F);
             const Rectangle actionBounds{66.0F, 405.0F, actionWidth, 45.0F};
             const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), hangarFocus == 0);
             const bool actionConfirmed = hangarFocus == 0 && confirmPressed();
             if (!active && (actionClicked || actionConfirmed)) {
-                activateHangarShip(app, static_cast<std::uint32_t>(previewShip));
+                if (unlocked) {
+                    activateHangarShip(app, static_cast<std::uint32_t>(previewShip));
+                } else {
+                    app.pendingHangarShip = static_cast<std::uint32_t>(previewShip);
+                    hangarPurchaseSelection = 0;
+                    app.screens.push(tunrun::Screen::HangarPurchaseConfirm);
+                }
             }
 
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 400), 390, 34, 34}, "<", false))
+            std::string priceLine;
+            if (unlocked) {
+                priceLine = active ? "EQUIPPED / FLIGHT READY" : "UNLOCKED / EQUIP IS A SEPARATE ACTION";
+            } else if (definition.aetherShardCost > 0U) {
+                priceLine = "PRICE: " + std::to_string(definition.aetherShardCost) + " AETHER SHARDS";
+            } else {
+                priceLine = "PRICE: " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
+            }
+            DrawText(priceLine.c_str(), 66, 385, 12, unlocked ? kMuted : kAccent);
+
+            const float previewLeft = static_cast<float>(GetScreenWidth()) - 360.0F;
+            if (drawButton(Rectangle{previewLeft + 10.0F, 390, 34, 34}, "<", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 45), 390, 34, 34}, ">", false))
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()) - 104.0F, 390, 34, 34}, ">", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
@@ -1952,6 +2013,38 @@ int main() {
             const bool backClicked = drawButton(backBounds, "BACK", hangarFocus == 1);
             const bool backConfirmed = hangarFocus == 1 && confirmPressed();
             if (backClicked || backConfirmed || backPressed()) app.screens.pop();
+            break;
+        }
+        case tunrun::Screen::HangarPurchaseConfirm: {
+            const std::uint32_t shipId = std::min<std::uint32_t>(
+                app.pendingHangarShip, static_cast<std::uint32_t>(tunrun::kShipCatalog.size() - 1U));
+            const auto& definition = tunrun::shipDefinition(shipId);
+            drawHeader("01 / COLLECTION", "CONFIRM SHIP UNLOCK",
+                       "Confirming unlocks this ship only. Your active ship will not change.");
+            drawCentred(definition.name, 188.0F, 28, kText);
+            if (definition.aetherShardCost > 0U) {
+                DrawText(TextFormat("COST: %llu AETHER SHARDS",
+                    static_cast<unsigned long long>(definition.aetherShardCost)),
+                    GetScreenWidth() / 2 - 170, 232, 17, kAccent);
+                DrawText(TextFormat("YOUR BALANCE: %llu",
+                    static_cast<unsigned long long>(app.profile.aetherShards)),
+                    GetScreenWidth() / 2 - 170, 260, 14, kMuted);
+            } else {
+                DrawText(TextFormat("COST: %llu SINGULARITY CORES",
+                    static_cast<unsigned long long>(definition.singularityCoreCost)),
+                    GetScreenWidth() / 2 - 170, 232, 17, kAccent);
+                DrawText(TextFormat("YOUR BALANCE: %llu",
+                    static_cast<unsigned long long>(app.profile.singularityCores)),
+                    GetScreenWidth() / 2 - 170, 260, 14, kMuted);
+            }
+            drawCentred("CANCEL LEAVES YOUR WALLET AND HANGAR UNCHANGED.", 294.0F, 12, kMuted);
+            const int picked = drawMenu(hangarPurchaseItems, hangarPurchaseSelection, 330);
+            if (picked == 0 || (picked < 0 && backPressed())) {
+                app.screens.pop();
+            } else if (picked == 1) {
+                purchaseHangarShip(app, shipId);
+                app.screens.pop();
+            }
             break;
         }
         case tunrun::Screen::Records: {
