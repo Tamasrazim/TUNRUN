@@ -88,7 +88,7 @@ On a collision:
 
 Camera switch is presentation-only:
 - Do not reset seed, section index, position, velocity, obstacle phase, score, or collision state.
-- Smoothly blend position/orientation/FOV.
+- Smoothly blend position/orientation/FOV; the current implementation eases eye and focus over a frame-rate-independent transition and rechecks the blended look ray against outer walls and the active throat.
 - If TPP cannot find a clear view, temporarily use a safer offset without changing player control.
 - Both modes must preserve equivalent steering intent and must not give different collision sizes.
 

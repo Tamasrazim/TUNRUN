@@ -215,6 +215,35 @@ int main() {
     assert(std::abs(tunrun::cameraLookCourseOffset(
         false, 1.57079632679F, 0.0F)) < 0.0001);
 
+    // Camera mode transitions move smoothly and converge at the same rate
+    // regardless of render frequency; reversing direction stays monotonic.
+    const auto modeBlendAfterHalfSecond = [](int fps, float target) {
+        float blend = target == 1.0F ? 0.0F : 1.0F;
+        const float step = 1.0F / static_cast<float>(fps);
+        for (int frame = 0; frame < fps / 2; ++frame) {
+            blend = tunrun::smoothCameraModeBlend(blend, target, step);
+        }
+        return blend;
+    };
+    for (const int fps : {30, 60, 120}) {
+        const float toTpp = modeBlendAfterHalfSecond(fps, 1.0F);
+        const float toFpp = modeBlendAfterHalfSecond(fps, 0.0F);
+        assert(toTpp > 0.99F && toFpp < 0.01F);
+        assert(std::abs(toTpp - (1.0F - std::exp(-5.0F))) < 0.002F);
+        assert(std::abs(toFpp - std::exp(-5.0F)) < 0.002F);
+    }
+    float reversibleBlend = 0.0F;
+    for (int frame = 0; frame < 8; ++frame) {
+        const float previous = reversibleBlend;
+        reversibleBlend = tunrun::smoothCameraModeBlend(reversibleBlend, 1.0F, 1.0F / 60.0F);
+        assert(reversibleBlend >= previous);
+    }
+    for (int frame = 0; frame < 8; ++frame) {
+        const float previous = reversibleBlend;
+        reversibleBlend = tunrun::smoothCameraModeBlend(reversibleBlend, 0.0F, 1.0F / 60.0F);
+        assert(reversibleBlend <= previous);
+    }
+    assert(tunrun::smoothCameraModeBlend(0.4F, 1.0F, 0.0F) == 0.4F);
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);
     assert(std::abs(defaultOrbit.up) < 0.0001F);

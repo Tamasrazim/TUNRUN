@@ -81,6 +81,7 @@ struct AppState {
     float cameraLookYaw = 0.0F;
     float cameraLookPitch = 0.0F;
     tunrun::CameraFollowState tppCameraFollow;
+    float cameraModeBlend = 0.0F;
     std::uint64_t rootSeed = 0;
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
@@ -173,6 +174,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.cameraLookYaw = 0.0F;
     app.cameraLookPitch = 0.0F;
     app.tppCameraFollow = {};
+    app.cameraModeBlend = 0.0F;
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
@@ -959,7 +961,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp,
                 tunrun::CameraFollowState& tppCameraFollow,
-                float frameDeltaTime) {
+                float& cameraModeBlend, float frameDeltaTime) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
     const auto reticleFrame = tunrun::sampleTunnelFrame(
@@ -967,163 +969,189 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     const auto orbit = tunrun::cameraOrbitOffset(viewYaw, viewPitch);
-    if (tpp) {
-        tunrun::smoothCameraOrbitDistance(
-            tppCameraFollow, orbit.behindDistance, frameDeltaTime);
-    } else {
-        tppCameraFollow.initialized = false;
-        tppCameraFollow.depthInitialized = false;
-    }
-    // In TPP the eye moves around the craft; its cross-section and longitudinal
-    // offsets both ease toward the orbit target before the wall/throat clamps.
-    const double cameraDistance = static_cast<double>(distance) -
-        (tpp ? static_cast<double>(tppCameraFollow.behindDistance) : 1.25);
-    const auto rearSection = tunrun::sampleCourse(seed, cameraDistance);
-    const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, cameraDistance);
-    const auto cameraFrame = tunrun::sampleTunnelFrame(
-        seed, distance, static_cast<double>(distance) - 1.25);
-    // Camera look is independent from the spacecraft's heading: mouse motion
-    // never steers the ship, and ship rotation cannot drag the camera aim.
+    cameraModeBlend = tunrun::smoothCameraModeBlend(
+        cameraModeBlend, tpp ? 1.0F : 0.0F, frameDeltaTime);
+    const float modeBlend = cameraModeBlend;
     constexpr double cameraLookDistance = 8.0;
-    // FPP looks where the mouse points; TPP targets the craft's own course
-    // position so the ship stays centred while the camera eye orbits around it.
-    const double lookCourseOffset = tunrun::cameraLookCourseOffset(
-        tpp, viewYaw, viewPitch, cameraLookDistance);
-    const auto forwardFrame = tunrun::sampleTunnelFrame(
-        seed, distance, static_cast<double>(distance) + lookCourseOffset);
-    const auto lookOffset = tunrun::cameraLookOffset(
-        viewYaw, viewPitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
-    float lookTargetX = tpp ? shipX : lookOffset.right;
-    float lookTargetY = tpp ? shipY : lookOffset.up;
-    const auto lookThroat = tunrun::gateThroatSectionAtDistance(
-        seed, static_cast<double>(distance) + lookCourseOffset);
-    if (lookThroat.active) {
+
+    // Keep the orbit path warm in both modes. Switching to TPP therefore
+    // starts from the current look direction instead of resetting to a rear
+    // camera pose for one frame.
+    tunrun::smoothCameraOrbitDistance(
+        tppCameraFollow, orbit.behindDistance, frameDeltaTime);
+    const double fppEyeDistance = static_cast<double>(distance) - 1.25;
+    const double tppEyeDistance = static_cast<double>(distance) -
+        static_cast<double>(tppCameraFollow.behindDistance);
+    const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, fppEyeDistance);
+    const auto tppRearFrame = tunrun::sampleTunnelFrame(seed, distance, tppEyeDistance);
+    const auto tppRearSection = tunrun::sampleCourse(seed, tppEyeDistance);
+
+    // Construct both views every frame, then blend their eye and focus poses.
+    // This makes the V switch a short camera move, rather than a teleport.
+    const double fppTargetDistance = static_cast<double>(distance) +
+        tunrun::cameraLookCourseOffset(false, viewYaw, viewPitch, cameraLookDistance);
+    const auto fppTargetFrame = tunrun::sampleTunnelFrame(
+        seed, distance, fppTargetDistance);
+    const auto fppLookOffset = tunrun::cameraLookOffset(
+        viewYaw, viewPitch, fppTargetFrame.radius, static_cast<float>(cameraLookDistance));
+    float fppTargetX = fppLookOffset.right;
+    float fppTargetY = fppLookOffset.up;
+    const auto fppTargetThroat = tunrun::gateThroatSectionAtDistance(seed, fppTargetDistance);
+    if (fppTargetThroat.active) {
         const auto safeTarget = tunrun::cameraSafeOffset(
-            lookTargetX - lookThroat.centerX, lookTargetY - lookThroat.centerY,
-            lookThroat.radius, 0.60F);
-        lookTargetX = lookThroat.centerX + safeTarget.right;
-        lookTargetY = lookThroat.centerY + safeTarget.up;
-    } else if (tpp) {
-        const auto safeTarget = tunrun::cameraSafeOffset(
-            lookTargetX, lookTargetY, forwardFrame.radius, 0.60F);
-        lookTargetX = safeTarget.right;
-        lookTargetY = safeTarget.up;
-    }
-    Camera3D camera{};
-    if (tpp) {
-        const float rearCenterX = rearSection.centerX - playerSection.centerX;
-        const float rearCenterY = rearSection.centerY - playerSection.centerY;
-        // Mouse-look moves the camera eye around the craft as well as moving
-        // its look target. Ship heading stays independent; clamping below keeps
-        // the orbit inside the active tube/throat.
-        const auto chasePose = tunrun::thirdPersonCameraPose(
-            shipX, shipY, 0.0F, 0.0F, -1.0F,
-            rearCenterX, rearCenterY, rearSection.radius);
-        float chaseX = chasePose.x - rearCenterX + orbit.right;
-        float chaseY = chasePose.y - rearCenterY + orbit.up;
-        const auto chaseThroat = tunrun::gateThroatSectionAtDistance(
-            seed, cameraDistance);
-        float chaseCenterX = 0.0F;
-        float chaseCenterY = 0.0F;
-        float chaseRadius = rearSection.radius;
-        if (chaseThroat.active) {
-            chaseCenterX = chaseThroat.centerX;
-            chaseCenterY = chaseThroat.centerY;
-            chaseRadius = chaseThroat.radius;
-        }
-        const auto desiredChase = tunrun::cameraSafeOffset(
-            chaseX - chaseCenterX, chaseY - chaseCenterY, chaseRadius, 0.80F);
-        tunrun::smoothCameraFollow(tppCameraFollow,
-            desiredChase.right, desiredChase.up, frameDeltaTime);
-        const auto smoothedChase = tunrun::cameraSafeOffset(
-            tppCameraFollow.right, tppCameraFollow.up, chaseRadius, 0.80F);
-        chaseX = chaseCenterX + smoothedChase.right;
-        chaseY = chaseCenterY + smoothedChase.up;
-        camera.position = rayVector(tunrun::tunnelFramePoint(rearFrame, chaseX, chaseY));
-        camera.target = rayVector(tunrun::tunnelFramePoint(
-            forwardFrame, lookTargetX, lookTargetY));
+            fppTargetX - fppTargetThroat.centerX,
+            fppTargetY - fppTargetThroat.centerY,
+            fppTargetThroat.radius, 0.60F);
+        fppTargetX = fppTargetThroat.centerX + safeTarget.right;
+        fppTargetY = fppTargetThroat.centerY + safeTarget.up;
     } else {
-        float firstPersonX = shipX;
-        float firstPersonY = shipY;
-        const auto cameraThroat = tunrun::gateThroatSectionAtDistance(
-            seed, cameraDistance);
-        if (cameraThroat.active) {
-            const auto safeCameraOffset = tunrun::cameraSafeOffset(
-                firstPersonX - cameraThroat.centerX,
-                firstPersonY - cameraThroat.centerY,
-                cameraThroat.radius, 0.55F);
-            firstPersonX = cameraThroat.centerX + safeCameraOffset.right;
-            firstPersonY = cameraThroat.centerY + safeCameraOffset.up;
-        } else {
-            const auto safeCameraOffset = tunrun::cameraSafeOffset(
-                firstPersonX, firstPersonY, cameraFrame.radius, 0.55F);
-            firstPersonX = safeCameraOffset.right;
-            firstPersonY = safeCameraOffset.up;
-        }
-        camera.position = rayVector(tunrun::tunnelFramePoint(
-            cameraFrame, firstPersonX, firstPersonY));
-        camera.target = rayVector(tunrun::tunnelFramePoint(
-            forwardFrame, lookTargetX, lookTargetY));
+        const auto safeTarget = tunrun::cameraSafeOffset(
+            fppTargetX, fppTargetY, fppTargetFrame.radius, 0.60F);
+        fppTargetX = safeTarget.right;
+        fppTargetY = safeTarget.up;
     }
-    // Keep the camera's centre look ray inside the tunnel all the way to its
-    // target, not just at two individually safe end points. This matters when
-    // mouse-look points around a sharp bend or through a constricted sleeve.
-    double cameraOriginDistance = cameraDistance;
-    const double cameraTargetDistance = static_cast<double>(distance) + lookCourseOffset;
-    const tunrun::FrameVector3 originalCameraPosition{
-        camera.position.x, camera.position.y, camera.position.z};
-    const tunrun::FrameVector3 cameraTargetPosition{
-        camera.target.x, camera.target.y, camera.target.z};
-    const float eyeWallClearance = tpp ? 0.80F : 0.55F;
-    // A ship centre may approach the surface more closely than the camera eye:
-    // the collision hull already reserves its own radius around that point.
-    const float focusWallClearance = tpp ? 0.35F : 0.55F;
-    const auto cameraRayLimit = tunrun::limitCameraRayInsideTunnel(
-        seed, distance, cameraOriginDistance, originalCameraPosition,
-        cameraTargetDistance, cameraTargetPosition,
-        eyeWallClearance, 64U, focusWallClearance);
-    if (cameraRayLimit.clipped && tpp) {
-        // If a curved wall or sleeve blocks the direct view, scan from the
-        // intended focus back toward the eye and pull the eye to the last clear
-        // point. This preserves the ship as the focus instead of staring at
-        // the wall that hid it.
-        const auto reverseRayLimit = tunrun::limitCameraRayInsideTunnel(
-            seed, distance, cameraTargetDistance, cameraTargetPosition,
-            cameraOriginDistance, originalCameraPosition,
-            focusWallClearance, 64U, eyeWallClearance);
-        if (reverseRayLimit.clipped) {
-            const float t = std::clamp(reverseRayLimit.safeFraction, 0.05F, 0.95F);
-            camera.position = Vector3{
-                cameraTargetPosition.x + (originalCameraPosition.x - cameraTargetPosition.x) * t,
-                cameraTargetPosition.y + (originalCameraPosition.y - cameraTargetPosition.y) * t,
-                cameraTargetPosition.z + (originalCameraPosition.z - cameraTargetPosition.z) * t
-            };
-            cameraOriginDistance = cameraTargetDistance +
-                (cameraOriginDistance - cameraTargetDistance) * static_cast<double>(t);
-        } else {
-            // Protect against tiny sampling asymmetries at a curvature boundary.
-            camera.target = Vector3{
-                camera.position.x + (camera.target.x - camera.position.x) *
-                    cameraRayLimit.safeFraction,
-                camera.position.y + (camera.target.y - camera.position.y) *
-                    cameraRayLimit.safeFraction,
-                camera.position.z + (camera.target.z - camera.position.z) *
-                    cameraRayLimit.safeFraction
-            };
+
+    float tppTargetX = shipX;
+    float tppTargetY = shipY;
+    const double tppTargetDistance = static_cast<double>(distance);
+    const auto tppTargetThroat = tunrun::gateThroatSectionAtDistance(seed, tppTargetDistance);
+    if (tppTargetThroat.active) {
+        const auto safeTarget = tunrun::cameraSafeOffset(
+            tppTargetX - tppTargetThroat.centerX,
+            tppTargetY - tppTargetThroat.centerY,
+            tppTargetThroat.radius, 0.60F);
+        tppTargetX = tppTargetThroat.centerX + safeTarget.right;
+        tppTargetY = tppTargetThroat.centerY + safeTarget.up;
+    } else {
+        const auto safeTarget = tunrun::cameraSafeOffset(
+            tppTargetX, tppTargetY, playerFrame.radius, 0.60F);
+        tppTargetX = safeTarget.right;
+        tppTargetY = safeTarget.up;
+    }
+
+    Camera3D fppCamera{};
+    float fppEyeX = shipX;
+    float fppEyeY = shipY;
+    const auto fppEyeThroat = tunrun::gateThroatSectionAtDistance(seed, fppEyeDistance);
+    if (fppEyeThroat.active) {
+        const auto safeEye = tunrun::cameraSafeOffset(
+            fppEyeX - fppEyeThroat.centerX, fppEyeY - fppEyeThroat.centerY,
+            fppEyeThroat.radius, 0.55F);
+        fppEyeX = fppEyeThroat.centerX + safeEye.right;
+        fppEyeY = fppEyeThroat.centerY + safeEye.up;
+    } else {
+        const auto safeEye = tunrun::cameraSafeOffset(
+            fppEyeX, fppEyeY, cameraFrame.radius, 0.55F);
+        fppEyeX = safeEye.right;
+        fppEyeY = safeEye.up;
+    }
+    fppCamera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, fppEyeX, fppEyeY));
+    fppCamera.target = rayVector(tunrun::tunnelFramePoint(
+        fppTargetFrame, fppTargetX, fppTargetY));
+
+    Camera3D tppCamera{};
+    const float rearCenterX = tppRearSection.centerX - playerSection.centerX;
+    const float rearCenterY = tppRearSection.centerY - playerSection.centerY;
+    const auto chasePose = tunrun::thirdPersonCameraPose(
+        shipX, shipY, 0.0F, 0.0F, -1.0F,
+        rearCenterX, rearCenterY, tppRearSection.radius);
+    float chaseX = chasePose.x - rearCenterX + orbit.right;
+    float chaseY = chasePose.y - rearCenterY + orbit.up;
+    const auto chaseThroat = tunrun::gateThroatSectionAtDistance(seed, tppEyeDistance);
+    float chaseCenterX = 0.0F;
+    float chaseCenterY = 0.0F;
+    float chaseRadius = tppRearSection.radius;
+    if (chaseThroat.active) {
+        chaseCenterX = chaseThroat.centerX;
+        chaseCenterY = chaseThroat.centerY;
+        chaseRadius = chaseThroat.radius;
+    }
+    const auto desiredChase = tunrun::cameraSafeOffset(
+        chaseX - chaseCenterX, chaseY - chaseCenterY, chaseRadius, 0.80F);
+    tunrun::smoothCameraFollow(
+        tppCameraFollow, desiredChase.right, desiredChase.up, frameDeltaTime);
+    const auto smoothedChase = tunrun::cameraSafeOffset(
+        tppCameraFollow.right, tppCameraFollow.up, chaseRadius, 0.80F);
+    chaseX = chaseCenterX + smoothedChase.right;
+    chaseY = chaseCenterY + smoothedChase.up;
+    tppCamera.position = rayVector(tunrun::tunnelFramePoint(tppRearFrame, chaseX, chaseY));
+    tppCamera.target = rayVector(tunrun::tunnelFramePoint(
+        playerFrame, tppTargetX, tppTargetY));
+
+    // Clip each candidate camera before interpolation. This first pass keeps
+    // either endpoint safe; a second pass below also verifies the mixed ray.
+    auto clipCameraRay = [&](Camera3D& candidate, double& eyeDistance,
+                             double& targetDistance, bool thirdPerson,
+                             float eyeClearance, float focusClearance) {
+        const tunrun::FrameVector3 eye{
+            candidate.position.x, candidate.position.y, candidate.position.z};
+        const tunrun::FrameVector3 focus{
+            candidate.target.x, candidate.target.y, candidate.target.z};
+        const auto limit = tunrun::limitCameraRayInsideTunnel(
+            seed, distance, eyeDistance, eye, targetDistance, focus,
+            eyeClearance, 64U, focusClearance);
+        if (!limit.clipped) return;
+        if (thirdPerson) {
+            const auto reverse = tunrun::limitCameraRayInsideTunnel(
+                seed, distance, targetDistance, focus, eyeDistance, eye,
+                focusClearance, 64U, eyeClearance);
+            if (reverse.clipped) {
+                const float fraction = std::clamp(reverse.safeFraction, 0.05F, 0.95F);
+                candidate.position = Vector3{
+                    focus.x + (eye.x - focus.x) * fraction,
+                    focus.y + (eye.y - focus.y) * fraction,
+                    focus.z + (eye.z - focus.z) * fraction
+                };
+                eyeDistance = targetDistance +
+                    (eyeDistance - targetDistance) * static_cast<double>(fraction);
+                return;
+            }
         }
-    } else if (cameraRayLimit.clipped) {
-        // In first person, the eye is the pilot's viewpoint: clip the look target
-        // at a wall instead of moving the camera away from the craft.
-        const float t = cameraRayLimit.safeFraction;
-        camera.target = Vector3{
-            camera.position.x + (camera.target.x - camera.position.x) * t,
-            camera.position.y + (camera.target.y - camera.position.y) * t,
-            camera.position.z + (camera.target.z - camera.position.z) * t
+        const float fraction = limit.safeFraction;
+        candidate.target = Vector3{
+            eye.x + (focus.x - eye.x) * fraction,
+            eye.y + (focus.y - eye.y) * fraction,
+            eye.z + (focus.z - eye.z) * fraction
         };
-    }
-    const auto cameraBasisFrame = tpp
-        ? tunrun::sampleTunnelFrame(seed, distance, cameraOriginDistance)
-        : cameraFrame;
+        targetDistance = eyeDistance +
+            (targetDistance - eyeDistance) * static_cast<double>(fraction);
+    };
+
+    double fppEyePositionDistance = fppEyeDistance;
+    double tppEyePositionDistance = tppEyeDistance;
+    double fppFocusDistance = fppTargetDistance;
+    double tppFocusDistance = tppTargetDistance;
+    clipCameraRay(fppCamera, fppEyePositionDistance, fppFocusDistance,
+                  false, 0.55F, 0.55F);
+    clipCameraRay(tppCamera, tppEyePositionDistance, tppFocusDistance,
+                  true, 0.80F, 0.35F);
+
+    const auto mix = [modeBlend](float a, float b) {
+        return a + (b - a) * modeBlend;
+    };
+    Camera3D camera{};
+    camera.position = Vector3{
+        mix(fppCamera.position.x, tppCamera.position.x),
+        mix(fppCamera.position.y, tppCamera.position.y),
+        mix(fppCamera.position.z, tppCamera.position.z)
+    };
+    camera.target = Vector3{
+        mix(fppCamera.target.x, tppCamera.target.x),
+        mix(fppCamera.target.y, tppCamera.target.y),
+        mix(fppCamera.target.z, tppCamera.target.z)
+    };
+    double cameraOriginDistance = fppEyePositionDistance +
+        (tppEyePositionDistance - fppEyePositionDistance) * static_cast<double>(modeBlend);
+    double cameraTargetDistance = fppFocusDistance +
+        (tppFocusDistance - fppFocusDistance) * static_cast<double>(modeBlend);
+    const float blendEyeClearance = 0.55F + (0.80F - 0.55F) * modeBlend;
+    const float blendFocusClearance = 0.55F + (0.35F - 0.55F) * modeBlend;
+    // A blend between two safe rays can still cut a corner at an S-bend.
+    // Validate the final blended ray instead of trusting the endpoints.
+    clipCameraRay(camera, cameraOriginDistance, cameraTargetDistance,
+                  modeBlend >= 0.5F, blendEyeClearance, blendFocusClearance);
+    const auto cameraBasisFrame = tunrun::sampleTunnelFrame(
+        seed, distance, cameraOriginDistance);
     camera.up = rayVector(tunrun::frameAdd(
         tunrun::frameScale(cameraBasisFrame.up, std::cos(roll)),
         tunrun::frameScale(cameraBasisFrame.right, -std::sin(roll))));
@@ -1248,7 +1276,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawProceduralHazard(seed, distance, elapsedSeconds,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
-    if (tpp) {
+    if (cameraModeBlend > 0.02F) {
         drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll + shipBank, &playerFrame);
     }
     if (showAimReticle) {
@@ -1277,7 +1305,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(TextFormat("%s / CAMERA: %s",
-             modeName ? modeName : "FLIGHT", tpp ? "TPP" : "FPP"),
+             modeName ? modeName : "FLIGHT",
+             cameraModeBlend > 0.5F ? "TPP" : "FPP"),
              35, 52, 12, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
@@ -1674,7 +1703,7 @@ int main() {
                        app.flight.bank, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward,
-                       app.tppCameraFollow, dt);
+                       app.tppCameraFollow, app.cameraModeBlend, dt);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };

@@ -180,6 +180,27 @@ struct CameraOrbitOffset {
     };
 }
 
+// Frame-rate-independent blend for changing camera modes. A 10/s response
+// reaches approximately 97% of its target in 0.35 seconds, without snapping.
+[[nodiscard]] inline float smoothCameraModeBlend(
+    float current, float target, float deltaTime,
+    float responsiveness = 10.0F) noexcept {
+    if (!std::isfinite(current)) current = 0.0F;
+    if (!std::isfinite(target)) target = 0.0F;
+    current = std::clamp(current, 0.0F, 1.0F);
+    target = std::clamp(target, 0.0F, 1.0F);
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0F) return current;
+    deltaTime = std::min(deltaTime, 0.1F);
+    if (!std::isfinite(responsiveness) || responsiveness <= 0.0F) {
+        responsiveness = 10.0F;
+    }
+    responsiveness = std::clamp(responsiveness, 0.1F, 40.0F);
+    const float blend = 1.0F - std::exp(-responsiveness * deltaTime);
+    const float next = current + (target - current) * blend;
+    return std::abs(next - target) < 0.001F
+        ? target : std::clamp(next, 0.0F, 1.0F);
+}
+
 struct CameraFollowState {
     float right = 0.0F;
     float up = 0.0F;
