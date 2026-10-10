@@ -461,6 +461,21 @@ int main() {
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
     assert(tunrun::kHazardGeneratorVersion == 2U);
+    assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
+           tunrun::hazardVisualFamilyAt(seed, 0U));
+    bool seenOrbitalMine = false, seenPrismMine = false;
+    bool seenRotorMine = false, seenCrossMine = false;
+    for (std::uint32_t index = 0U; index < 512U; ++index) {
+        switch (tunrun::hazardVisualFamilyAt(seed, index)) {
+        case tunrun::HazardVisualFamily::Orbital: seenOrbitalMine = true; break;
+        case tunrun::HazardVisualFamily::Prism: seenPrismMine = true; break;
+        case tunrun::HazardVisualFamily::Rotor: seenRotorMine = true; break;
+        case tunrun::HazardVisualFamily::Cross: seenCrossMine = true; break;
+        }
+    }
+    assert(seenOrbitalMine && seenPrismMine && seenRotorMine && seenCrossMine);
+    assert(std::string_view(tunrun::hazardVisualFamilyName(
+        tunrun::hazardVisualFamilyAt(seed, 0U))).size() > 0U);
     const auto hazardCenter = tunrun::hazardCenterAt(hazard, 1.25);
     const auto hazardCenterAgain = tunrun::hazardCenterAt(hazardAgain, 1.25);
     assert(hazardCenter.x == hazardCenterAgain.x &&
