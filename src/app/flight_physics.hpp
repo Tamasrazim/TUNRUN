@@ -426,6 +426,12 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         0.0F, 0.0F, kCourseMinRadius, 0.0F
     };
     ProceduralGate activeGate = gateAt(seed, 0U);
+    // These values are seed/run invariant; keep them outside the candidate
+    // loop so the search doesn't regenerate the first hazard every physics step.
+    const auto firstHazard = hazardAt(seed, 0U);
+    const double hazardLongitudinalReach =
+        kHazardMaximumRadius + kHazardCraftCollisionRadius;
+    constexpr double kMineAvoidanceLookahead = 24.0;
     const std::uint64_t stepBudget = std::min<std::uint64_t>(
         1000000ULL, 1024ULL + static_cast<std::uint64_t>(gateCount) * 900ULL);
 
@@ -510,11 +516,9 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             // target ray would thread the mine's collision envelope, bias the
             // steering target around it. This is a policy sample, not an
             // oracle: the same swept collision test below still decides safety.
-            constexpr double kMineAvoidanceLookahead = 24.0;
-            const auto firstHazardForAim = hazardAt(seed, 0U);
             const int firstAimHazard = std::max(0, static_cast<int>(std::floor(
                 (static_cast<double>(candidate.state.distance) -
-                 firstHazardForAim.distance) / kHazardSpacing)));
+                 firstHazard.distance) / kHazardSpacing)));
             for (int hazardIndex = firstAimHazard;
                  hazardIndex <= firstAimHazard + 1; ++hazardIndex) {
                 const auto hazard = hazardAt(seed, static_cast<std::uint32_t>(hazardIndex));
@@ -608,9 +612,6 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             // Apply live swept moving-mine collision during route search. Each
             // candidate owns a clock because paths cross gates at different
             // elapsed times, changing the mines' deterministic positions.
-            const auto firstHazard = hazardAt(seed, 0U);
-            const double hazardLongitudinalReach =
-                kHazardMaximumRadius + kHazardCraftCollisionRadius;
             const int firstHazardIndex = std::max(0, static_cast<int>(std::floor(
                 (previousDistance - hazardLongitudinalReach -
                  firstHazard.distance) / kHazardSpacing)) - 1);
