@@ -980,13 +980,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // Camera look is independent from the spacecraft's heading: mouse motion
     // never steers the ship, and ship rotation cannot drag the camera aim.
     constexpr double cameraLookDistance = 8.0;
-    constexpr double tppLookAheadDistance = 3.5;
-    // FPP looks where the mouse points. TPP instead orbits around the ship and
-    // keeps a stable focus slightly ahead along the chosen lane, so a full
-    // orbit doesn't lose the spacecraft or turn into a fixed-eye free-look.
-    const double lookCourseOffset = tpp ? tppLookAheadDistance
-        : cameraLookDistance *
-            static_cast<double>(std::cos(viewYaw) * std::cos(viewPitch));
+    // FPP looks where the mouse points; TPP targets the craft's own course
+    // position so the ship stays centred while the camera eye orbits around it.
+    const double lookCourseOffset = tunrun::cameraLookCourseOffset(
+        tpp, viewYaw, viewPitch, cameraLookDistance);
     const auto forwardFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + lookCourseOffset);
     const auto lookOffset = tunrun::cameraLookOffset(
@@ -1066,15 +1063,46 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // Keep the camera's centre look ray inside the tunnel all the way to its
     // target, not just at two individually safe end points. This matters when
     // mouse-look points around a sharp bend or through a constricted sleeve.
-    const double cameraOriginDistance = cameraDistance;
+    double cameraOriginDistance = cameraDistance;
     const double cameraTargetDistance = static_cast<double>(distance) + lookCourseOffset;
+    const tunrun::FrameVector3 originalCameraPosition{
+        camera.position.x, camera.position.y, camera.position.z};
+    const tunrun::FrameVector3 cameraTargetPosition{
+        camera.target.x, camera.target.y, camera.target.z};
     const auto cameraRayLimit = tunrun::limitCameraRayInsideTunnel(
-        seed, distance, cameraOriginDistance,
-        tunrun::FrameVector3{camera.position.x, camera.position.y, camera.position.z},
-        cameraTargetDistance,
-        tunrun::FrameVector3{camera.target.x, camera.target.y, camera.target.z},
-        0.55F, 64U);
-    if (cameraRayLimit.clipped) {
+        seed, distance, cameraOriginDistance, originalCameraPosition,
+        cameraTargetDistance, cameraTargetPosition, 0.55F, 64U);
+    if (cameraRayLimit.clipped && tpp) {
+        // If a curved wall or sleeve blocks the direct view, scan from the
+        // intended focus back toward the eye and pull the eye to the last clear
+        // point. This preserves the ship as the focus instead of staring at
+        // the wall that hid it.
+        const auto reverseRayLimit = tunrun::limitCameraRayInsideTunnel(
+            seed, distance, cameraTargetDistance, cameraTargetPosition,
+            cameraOriginDistance, originalCameraPosition, 0.55F, 64U);
+        if (reverseRayLimit.clipped) {
+            const float t = std::clamp(reverseRayLimit.safeFraction, 0.05F, 0.95F);
+            camera.position = Vector3{
+                cameraTargetPosition.x + (originalCameraPosition.x - cameraTargetPosition.x) * t,
+                cameraTargetPosition.y + (originalCameraPosition.y - cameraTargetPosition.y) * t,
+                cameraTargetPosition.z + (originalCameraPosition.z - cameraTargetPosition.z) * t
+            };
+            cameraOriginDistance = cameraTargetDistance +
+                (cameraOriginDistance - cameraTargetDistance) * static_cast<double>(t);
+        } else {
+            // Protect against tiny sampling asymmetries at a curvature boundary.
+            camera.target = Vector3{
+                camera.position.x + (camera.target.x - camera.position.x) *
+                    cameraRayLimit.safeFraction,
+                camera.position.y + (camera.target.y - camera.position.y) *
+                    cameraRayLimit.safeFraction,
+                camera.position.z + (camera.target.z - camera.position.z) *
+                    cameraRayLimit.safeFraction
+            };
+        }
+    } else if (cameraRayLimit.clipped) {
+        // In first person, the eye is the pilot's viewpoint: clip the look target
+        // at a wall instead of moving the camera away from the craft.
         const float t = cameraRayLimit.safeFraction;
         camera.target = Vector3{
             camera.position.x + (camera.target.x - camera.position.x) * t,
@@ -1082,7 +1110,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             camera.position.z + (camera.target.z - camera.position.z) * t
         };
     }
-    const auto& cameraBasisFrame = tpp ? rearFrame : cameraFrame;
+    const auto cameraBasisFrame = tpp
+        ? tunrun::sampleTunnelFrame(seed, distance, cameraOriginDistance)
+        : cameraFrame;
     camera.up = rayVector(tunrun::frameAdd(
         tunrun::frameScale(cameraBasisFrame.up, std::cos(roll)),
         tunrun::frameScale(cameraBasisFrame.right, -std::sin(roll))));

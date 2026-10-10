@@ -141,6 +141,17 @@ int main() {
     assert(narrowSleeveRay.clipped);
     assert(narrowSleeveRay.safeFraction > 0.05F && narrowSleeveRay.safeFraction < 1.0F);
     assert(narrowSleeveRay.minimumWallClearance < 0.0F);
+    const auto reverseSleeveRay = tunrun::limitCameraRayInsideTunnel(
+        frameSeed, throatCameraDistance, cameraTestGate.distance,
+        tunrun::tunnelFramePoint(throatTargetFrame,
+            throatTargetSection.centerX + cameraTestGate.apertureRadius - 0.20F,
+            throatTargetSection.centerY),
+        throatCameraDistance,
+        tunrun::tunnelFramePoint(throatCameraFrame,
+            throatCameraSection.centerX, throatCameraSection.centerY),
+        0.55F, 64U);
+    assert(reverseSleeveRay.clipped);
+    assert(reverseSleeveRay.safeFraction > 0.05F && reverseSleeveRay.safeFraction < 1.0F);
 
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
@@ -156,6 +167,13 @@ int main() {
         std::numeric_limits<float>::infinity(),
         std::numeric_limits<float>::quiet_NaN());
     assert(std::isfinite(invalidLook.right) && std::isfinite(invalidLook.up));
+
+    assert(std::abs(tunrun::cameraLookCourseOffset(true, 1.2F, 0.8F)) < 0.0001);
+    assert(std::abs(tunrun::cameraLookCourseOffset(false, 0.0F, 0.0F) - 8.0) < 0.0001);
+    assert(std::abs(tunrun::cameraLookCourseOffset(
+        false, 3.14159265359F, 0.0F) + 8.0) < 0.0001);
+    assert(std::abs(tunrun::cameraLookCourseOffset(
+        false, 1.57079632679F, 0.0F)) < 0.0001);
 
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);

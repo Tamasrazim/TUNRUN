@@ -146,6 +146,21 @@ struct CameraOrbitOffset {
     float behindDistance = 6.0F;
 };
 
+// FPP looks along the mouse-selected direction. TPP focuses on the spacecraft
+// itself while its eye orbits, so the ship cannot slide away from the centre
+// of the view when the player looks around or behind.
+[[nodiscard]] inline double cameraLookCourseOffset(
+    bool thirdPerson, float yaw, float pitch,
+    double lookDistance = 8.0) noexcept {
+    if (thirdPerson) return 0.0;
+    if (!std::isfinite(yaw)) yaw = 0.0F;
+    if (!std::isfinite(pitch)) pitch = 0.0F;
+    if (!std::isfinite(lookDistance) || lookDistance <= 0.0) lookDistance = 8.0;
+    yaw = std::remainder(yaw, 6.28318530717958647692F);
+    pitch = std::clamp(pitch, -1.20F, 1.20F);
+    return lookDistance * static_cast<double>(std::cos(yaw) * std::cos(pitch));
+}
+
 // Convert mouse-look yaw/pitch into an orbit around the spacecraft.
 // Positive yaw moves the camera right; positive pitch lifts it above the ship.
 // behindDistance can become negative to look around toward the front. The
