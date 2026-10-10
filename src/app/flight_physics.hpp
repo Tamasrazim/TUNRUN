@@ -4,6 +4,7 @@
 #include "app/ship_catalog.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -281,6 +282,218 @@ inline SimulatedRouteValidation validateSimulatedRouteReachability(
 
     result.firstFailedGate = result.gatesChecked;
     result.failure = "route simulation step budget exhausted";
+    return result;
+}
+
+ 
+// Bounded state-propagating route search. Each viable gate-crossing state
+// branches into multiple in-aperture target policies for the next gate. The
+// beam cap keeps validation deterministic and bounded; this is multi-trajectory
+// coverage, not a formal proof of every physically reachable state.
+struct StateGraphRouteValidation {
+    bool valid = false;
+    std::uint32_t gatesChecked = 0U;
+    std::uint32_t transitionsChecked = 0U;
+    std::uint32_t simulationSteps = 0U;
+    std::uint32_t candidateStatesGenerated = 0U;
+    std::uint32_t discardedStates = 0U;
+    std::uint32_t peakStateCount = 0U;
+    std::uint32_t gatesWithMultiplePassingStates = 0U;
+    std::uint32_t maximumPassingStatesAtGate = 0U;
+    std::uint32_t firstFailedGate = 0U;
+    float minimumGateClearance = std::numeric_limits<float>::infinity();
+    float maximumLateralOffset = 0.0F;
+    double simulatedDistance = 0.0;
+    const char* failure = "not validated";
+};
+
+inline StateGraphRouteValidation validateStateGraphRouteReachability(
+    std::uint64_t seed, std::uint32_t gateCount = 12U,
+    std::uint32_t shipId = kStarterShipId) noexcept {
+    StateGraphRouteValidation result;
+    if (gateCount == 0U || gateCount > 512U) {
+        result.failure = "invalid gate count";
+        return result;
+    }
+    if (shipId >= kShipCatalog.size()) {
+        result.failure = "unknown ship profile";
+        return result;
+    }
+    const auto obstacleValidation = validateObstacleSet(seed, gateCount);
+    if (!obstacleValidation.valid) {
+        result.failure = obstacleValidation.failure;
+        return result;
+    }
+
+    constexpr std::size_t kMaximumStates = 32U;
+    constexpr std::array<std::array<float, 2>, 9> kAimBiases{{
+        {{ 0.00F,  0.00F}},
+        {{-0.55F,  0.00F}},
+        {{ 0.55F,  0.00F}},
+        {{ 0.00F, -0.55F}},
+        {{ 0.00F,  0.55F}},
+        {{-0.35F, -0.35F}},
+        {{-0.35F,  0.35F}},
+        {{ 0.35F, -0.35F}},
+        {{ 0.35F,  0.35F}}
+    }};
+    struct CandidateState {
+        FlightState state{};
+        float aimBiasX = 0.0F;
+        float aimBiasY = 0.0F;
+        bool active = true;
+    };
+    std::array<CandidateState, kMaximumStates> states{};
+    std::array<FlightState, kMaximumStates> passingStates{};
+    std::size_t stateCount = kAimBiases.size();
+    std::size_t passingCount = 0U;
+    const FlightState initialState{};
+    for (std::size_t i = 0U; i < stateCount; ++i) {
+        states[i].state = initialState;
+        states[i].aimBiasX = kAimBiases[i][0];
+        states[i].aimBiasY = kAimBiases[i][1];
+    }
+    result.candidateStatesGenerated = static_cast<std::uint32_t>(stateCount);
+    result.peakStateCount = static_cast<std::uint32_t>(stateCount);
+
+    const TunnelCrossSection conservativeTunnel{
+        0.0F, 0.0F, kCourseMinRadius, 0.0F
+    };
+    ProceduralGate activeGate = gateAt(seed, 0U);
+    const std::uint64_t stepBudget = std::min<std::uint64_t>(
+        1000000ULL, 1024ULL + static_cast<std::uint64_t>(gateCount) * 900ULL);
+
+    for (std::uint64_t step = 0U; step < stepBudget; ++step) {
+        std::size_t activeCount = 0U;
+        for (std::size_t i = 0U; i < stateCount; ++i) {
+            if (states[i].active) ++activeCount;
+        }
+
+        if (activeCount == 0U) {
+            if (passingCount == 0U) {
+                result.firstFailedGate = activeGate.index;
+                result.failure = "no candidate state clears the next gate";
+                return result;
+            }
+
+            result.gatesChecked = activeGate.index + 1U;
+            result.maximumPassingStatesAtGate = std::max(
+                result.maximumPassingStatesAtGate,
+                static_cast<std::uint32_t>(passingCount));
+            if (passingCount > 1U) ++result.gatesWithMultiplePassingStates;
+            if (result.gatesChecked >= gateCount) {
+                result.valid = true;
+                result.failure = "ok (bounded state graph)";
+                return result;
+            }
+
+            ++result.transitionsChecked;
+            activeGate = gateAt(seed, result.gatesChecked);
+            std::array<CandidateState, kMaximumStates> nextStates{};
+            std::size_t nextCount = 0U;
+            // Bias outermost so beam pruning retains varied target policies
+            // even when many parent states pass the previous aperture.
+            for (const auto& bias : kAimBiases) {
+                for (std::size_t parent = 0U;
+                     parent < passingCount && nextCount < kMaximumStates;
+                     ++parent) {
+                    nextStates[nextCount].state = passingStates[parent];
+                    nextStates[nextCount].aimBiasX = bias[0];
+                    nextStates[nextCount].aimBiasY = bias[1];
+                    nextStates[nextCount].active = true;
+                    ++nextCount;
+                }
+                if (nextCount >= kMaximumStates) break;
+            }
+            states = nextStates;
+            stateCount = nextCount;
+            passingCount = 0U;
+            result.candidateStatesGenerated += static_cast<std::uint32_t>(nextCount);
+            result.peakStateCount = std::max(
+                result.peakStateCount, static_cast<std::uint32_t>(stateCount));
+            continue;
+        }
+
+        ++result.simulationSteps;
+        for (std::size_t i = 0U; i < stateCount; ++i) {
+            auto& candidate = states[i];
+            if (!candidate.active) continue;
+
+            const double previousDistance =
+                static_cast<double>(candidate.state.distance);
+            const float previousX = candidate.state.x;
+            const float previousY = candidate.state.y;
+            const auto& ship = shipDefinition(shipId);
+            const float maximumLateralSpeed =
+                (candidate.state.boostEnergy > 0.0F ? 6.0F : 4.0F) *
+                ship.speedMultiplier;
+            const float aimSpan = std::max(
+                0.0F, activeGate.apertureRadius - kCraftCollisionRadius - 0.16F);
+            const float aimX = activeGate.offsetX + candidate.aimBiasX * aimSpan;
+            const float aimY = activeGate.offsetY + candidate.aimBiasY * aimSpan;
+            const float steerX = std::clamp(
+                ((aimX - candidate.state.x) * 2.8F -
+                 candidate.state.velocityX * 1.25F) / maximumLateralSpeed,
+                -1.0F, 1.0F);
+            const float steerY = std::clamp(
+                ((aimY - candidate.state.y) * 2.8F -
+                 candidate.state.velocityY * 1.25F) / maximumLateralSpeed,
+                -1.0F, 1.0F);
+            updateFlight(candidate.state,
+                FlightInput{steerX, steerY, true, false, shipId},
+                kFlightFixedStep);
+
+            const auto& state = candidate.state;
+            if (!std::isfinite(state.x) || !std::isfinite(state.y) ||
+                !std::isfinite(state.velocityX) || !std::isfinite(state.velocityY) ||
+                !std::isfinite(state.distance) || !std::isfinite(state.boostEnergy)) {
+                candidate.active = false;
+                ++result.discardedStates;
+                continue;
+            }
+            result.maximumLateralOffset = std::max(
+                result.maximumLateralOffset, std::hypot(state.x, state.y));
+            result.simulatedDistance = static_cast<double>(state.distance);
+            if (collidesWithTunnelWall(state.x, state.y, conservativeTunnel)) {
+                candidate.active = false;
+                ++result.discardedStates;
+                continue;
+            }
+
+            if (!crossesGatePlane(previousDistance,
+                                  static_cast<double>(state.distance), activeGate)) {
+                continue;
+            }
+
+            const double travel =
+                static_cast<double>(state.distance) - previousDistance;
+            const float fraction = travel > 1.0e-6
+                ? static_cast<float>(std::clamp(
+                    (activeGate.distance - previousDistance) / travel,
+                    0.0, 1.0))
+                : 0.0F;
+            const float crossingX = previousX + (state.x - previousX) * fraction;
+            const float crossingY = previousY + (state.y - previousY) * fraction;
+            const float offsetX = crossingX - activeGate.offsetX;
+            const float offsetY = crossingY - activeGate.offsetY;
+            const float clearance = activeGate.apertureRadius -
+                kCraftCollisionRadius - std::hypot(offsetX, offsetY);
+            candidate.active = false;
+            if (collidesWithGate(crossingX, crossingY, activeGate)) {
+                ++result.discardedStates;
+                continue;
+            }
+
+            result.minimumGateClearance = std::min(
+                result.minimumGateClearance, clearance);
+            if (passingCount < kMaximumStates) {
+                passingStates[passingCount++] = candidate.state;
+            }
+        }
+    }
+
+    result.firstFailedGate = activeGate.index;
+    result.failure = "bounded state graph step budget exhausted";
     return result;
 }
 

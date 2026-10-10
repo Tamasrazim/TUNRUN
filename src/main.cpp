@@ -1857,7 +1857,7 @@ int main() {
             static tunrun::ObstacleValidation cachedGateValidation;
             static tunrun::HazardValidation cachedHazardValidation;
             static tunrun::ReachabilityValidation cachedReachability;
-            static tunrun::SimulatedRouteValidation cachedRouteState;
+            static tunrun::StateGraphRouteValidation cachedRouteGraph;
             if (!validationCacheValid || validationCacheSeed != app.courseSeed ||
                 validationCacheShip != currentShipId) {
                 cachedCourseValidation = tunrun::validateCourse(app.courseSeed, 360.0);
@@ -1865,8 +1865,8 @@ int main() {
                 cachedHazardValidation = tunrun::validateHazardSet(app.courseSeed, 32U);
                 cachedReachability = tunrun::validateGateReachability(
                     app.courseSeed, 32U, currentShipId);
-                cachedRouteState = tunrun::validateSimulatedRouteReachability(
-                    app.courseSeed, 32U, currentShipId);
+                cachedRouteGraph = tunrun::validateStateGraphRouteReachability(
+                    app.courseSeed, 12U, currentShipId);
                 validationCacheSeed = app.courseSeed;
                 validationCacheShip = currentShipId;
                 validationCacheValid = true;
@@ -1875,7 +1875,7 @@ int main() {
             const auto& gateValidation = cachedGateValidation;
             const auto& hazardValidation = cachedHazardValidation;
             const auto& reachability = cachedReachability;
-            const auto& routeState = cachedRouteState;
+            const auto& routeGraph = cachedRouteGraph;
             drawCentred(TextFormat("SEED  %016llX", static_cast<unsigned long long>(app.courseSeed)),
                         160.0F, 20, kText);
             drawCentred(TextFormat("COURSE V%u   HASH %016llX",
@@ -1901,11 +1901,12 @@ int main() {
                                    reachability.valid ? "PASS" : "FAIL",
                                    reachability.minimumReachableSlack),
                         249.0F, 10, reachability.valid ? kAccent : kDanger);
-            drawCentred(TextFormat("STATE ROUTE: %s   CLEARANCE %.2F   STEPS %u",
-                                   routeState.valid ? "PASS" : "FAIL",
-                                   routeState.minimumGateClearance,
-                                   routeState.simulationSteps),
-                        269.0F, 10, routeState.valid ? kAccent : kDanger);
+            drawCentred(TextFormat("STATE GRAPH: %s   GATES %u/12   PEAK %u   MULTI %u",
+                                   routeGraph.valid ? "PASS" : "FAIL",
+                                   routeGraph.gatesChecked,
+                                   routeGraph.peakStateCount,
+                                   routeGraph.gatesWithMultiplePassingStates),
+                        269.0F, 10, routeGraph.valid ? kAccent : kDanger);
             drawCentred(TextFormat("MINES V%u %s %u/32 H %016llX   REWARDS V%u H %016llX",
                                    tunrun::kHazardGeneratorVersion,
                                    hazardValidation.valid ? "PASS" : "FAIL",

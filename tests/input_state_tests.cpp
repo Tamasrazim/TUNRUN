@@ -673,6 +673,34 @@ int main() {
     assert(!tunrun::validateGateReachability(seed, 10001U).valid);
     assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
 
+
+    // Bounded state-propagating route graph: viable gate crossings branch
+    // into multiple target policies while preserving the actual flight state.
+    for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
+        const auto graph =
+            tunrun::validateStateGraphRouteReachability(seed, 12U, shipId);
+        assert(graph.valid);
+        assert(graph.gatesChecked == 12U);
+        assert(graph.transitionsChecked == 11U);
+        assert(graph.candidateStatesGenerated >= 9U);
+        assert(graph.peakStateCount >= 9U && graph.peakStateCount <= 32U);
+        assert(graph.maximumPassingStatesAtGate > 0U);
+        assert(graph.minimumGateClearance >= 0.0F);
+        assert(graph.maximumLateralOffset < tunrun::kFlightLimit);
+    }
+    assert(!tunrun::validateStateGraphRouteReachability(seed, 0U).valid);
+    assert(!tunrun::validateStateGraphRouteReachability(seed, 513U).valid);
+    assert(!tunrun::validateStateGraphRouteReachability(seed, 12U, 999U).valid);
+    for (std::uint64_t graphSeedIndex = 0U; graphSeedIndex < 4U; ++graphSeedIndex) {
+        const auto graphSeed = tunrun::deriveCourseSeed(seed, 300U + graphSeedIndex);
+        const auto graph =
+            tunrun::validateStateGraphRouteReachability(graphSeed, 8U);
+        assert(graph.valid && graph.gatesChecked == 8U);
+        assert(graph.transitionsChecked == 7U);
+        assert(graph.peakStateCount <= 32U);
+        assert(graph.minimumGateClearance >= 0.0F);
+    }
+
     // The fixed-step probe carries lateral position and velocity across gate
     // crossings using the actual gameplay physics for every ship profile.
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
