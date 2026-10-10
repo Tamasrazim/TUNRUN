@@ -73,3 +73,8 @@ Audio should be generated or licensed for distribution. Do not ship copyrighted 
 ## Performance fallback
 
 Quality settings should reduce nonessential detail, particles, fog, and expensive screen effects before weakening tunnel collision or skipping obstacle simulation. High-contrast hazard edges and core route readability must remain available at every quality preset.
+
+
+## Mine silhouette readability
+
+The prototype renders six deterministic shell silhouettes: Orbital, Prism, Rotor, Cross, Halo Array, and Shard Cluster. Halo Array uses three intersecting hoops with depth offsets; Shard Cluster uses six individual triangular fins. Keep the original collision proxy visually obvious through a compact core, readable edges, and the separate proximity-warning beacon. Extra facets must not expand the collision shape or obscure the warning ring.
