@@ -674,41 +674,41 @@ int main() {
     assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
 
 
-    // Route graph control policies cover every aim offset in cruise, boost,
-    // and precision modes while keeping boost and precision mutually exclusive.
-    std::uint32_t cruisePolicyCount = 0U;
-    std::uint32_t boostPolicyCount = 0U;
-    std::uint32_t precisionPolicyCount = 0U;
-    assert(tunrun::kRouteGraphPolicies.size() == 27U);
+    // Route graph policies cover every aim offset in cruise, boost,
+    // precision and one-shot dash modes. Dash cannot combine with precision.
+    std::array<std::uint32_t, 4U> policyModes{};
+    assert(tunrun::kRouteGraphPolicies.size() == 36U);
     for (const auto& policy : tunrun::kRouteGraphPolicies) {
         assert(std::isfinite(policy.aimBiasX) && std::isfinite(policy.aimBiasY));
         assert(!(policy.boost && policy.precision));
-        if (policy.precision) ++precisionPolicyCount;
-        else if (policy.boost) ++boostPolicyCount;
-        else ++cruisePolicyCount;
+        assert(!(policy.dash && policy.precision));
+        const std::size_t mode = policy.precision ? 2U :
+            policy.dash ? 3U : policy.boost ? 1U : 0U;
+        ++policyModes[mode];
     }
-    assert(cruisePolicyCount == 9U);
-    assert(boostPolicyCount == 9U);
-    assert(precisionPolicyCount == 9U);
+    for (const auto count : policyModes) assert(count == 9U);
 
-    // The 32-slot beam visits every control policy before repeating and keeps
-    // the three flight modes balanced when it has to prune branches.
-    std::array<bool, 27U> policySeen{};
-    std::array<std::uint32_t, 3U> modeSlots{};
-    for (std::size_t slot = 0U; slot < 32U; ++slot) {
-        const auto policyIndex = tunrun::routeGraphPolicyIndexForSlot(slot);
-        assert(policyIndex < tunrun::kRouteGraphPolicies.size());
-        if (slot < policySeen.size()) {
-            assert(!policySeen[policyIndex]);
+    // Each 32-state gate beam remains balanced (eight slots per mode), and
+    // rotating the omitted offset visits all policies over nine gate indices.
+    std::array<bool, 36U> policySeen{};
+    for (std::size_t gateIndex = 0U; gateIndex < 9U; ++gateIndex) {
+        std::array<std::uint32_t, 4U> modeSlots{};
+        std::array<bool, 36U> uniqueInBeam{};
+        for (std::size_t slot = 0U; slot < 32U; ++slot) {
+            const auto policyIndex =
+                tunrun::routeGraphPolicyIndexForSlot(slot, gateIndex);
+            assert(policyIndex < tunrun::kRouteGraphPolicies.size());
+            assert(!uniqueInBeam[policyIndex]);
+            uniqueInBeam[policyIndex] = true;
             policySeen[policyIndex] = true;
+            const auto& policy = tunrun::kRouteGraphPolicies[policyIndex];
+            const std::size_t mode = policy.precision ? 2U :
+                policy.dash ? 3U : policy.boost ? 1U : 0U;
+            ++modeSlots[mode];
         }
-        const auto& policy = tunrun::kRouteGraphPolicies[policyIndex];
-        const std::size_t mode = policy.precision ? 2U : policy.boost ? 1U : 0U;
-        ++modeSlots[mode];
+        for (const auto count : modeSlots) assert(count == 8U);
     }
     for (const bool seen : policySeen) assert(seen);
-    assert(modeSlots[0] >= 10U && modeSlots[1] >= 10U && modeSlots[2] >= 10U);
-    assert(modeSlots[0] <= 11U && modeSlots[1] <= 11U && modeSlots[2] <= 11U);
 
     // The local mine-avoidance projection must be stable at the singular
     // case where the requested target is exactly on the mine center.

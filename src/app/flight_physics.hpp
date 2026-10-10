@@ -365,29 +365,33 @@ struct RouteGraphPolicy {
     float aimBiasY = 0.0F;
     bool boost = false;
     bool precision = false;
+    bool dash = false;
 };
 
-inline constexpr std::array<RouteGraphPolicy, 27> kRouteGraphPolicies = []() constexpr {
-    std::array<RouteGraphPolicy, 27> policies{};
-    for (std::size_t mode = 0U; mode < 3U; ++mode) {
+inline constexpr std::array<RouteGraphPolicy, 36> kRouteGraphPolicies = []() constexpr {
+    std::array<RouteGraphPolicy, 36> policies{};
+    for (std::size_t mode = 0U; mode < 4U; ++mode) {
         for (std::size_t bias = 0U; bias < kRouteGraphAimBiases.size(); ++bias) {
             const std::size_t index = mode * kRouteGraphAimBiases.size() + bias;
             policies[index] = RouteGraphPolicy{
                 kRouteGraphAimBiases[bias][0],
                 kRouteGraphAimBiases[bias][1],
-                mode == 1U, mode == 2U
+                mode == 1U, mode == 2U, mode == 3U
             };
         }
     }
     return policies;
 }();
 
-// Rotate modes for each aim offset so a capped beam does not spend several
-// parent slots on cruise-only targets before it reaches boost/precision policies.
+// The cap holds 32 candidates while each gate has 36 policies. Rotate the
+// omitted aim offset per gate so no control/offset policy is always excluded.
 [[nodiscard]] inline constexpr std::size_t routeGraphPolicyIndexForSlot(
-    std::size_t slot) noexcept {
-    return (slot % 3U) * kRouteGraphAimBiases.size() +
-           ((slot / 3U) % kRouteGraphAimBiases.size());
+    std::size_t slot, std::size_t gateIndex = 0U) noexcept {
+    const std::size_t mode = slot % 4U;
+    const std::size_t bias =
+        ((slot / 4U) + (gateIndex % kRouteGraphAimBiases.size())) %
+        kRouteGraphAimBiases.size();
+    return mode * kRouteGraphAimBiases.size() + bias;
 }
 
 // Bounded state-propagating route search. Each viable gate-crossing state
@@ -442,11 +446,12 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         float minimumRouteClearance = std::numeric_limits<float>::infinity();
         bool boost = false;
         bool precision = false;
+        bool dashPulsePending = false;
         bool active = true;
     };
     std::array<CandidateState, kMaximumStates> states{};
     std::array<CandidateState, kMaximumStates> passingStates{};
-    std::size_t stateCount = kRouteGraphPolicies.size();
+    std::size_t stateCount = std::min(kMaximumStates, kRouteGraphPolicies.size());
     std::size_t passingCount = 0U;
     const FlightState initialState{};
     for (std::size_t i = 0U; i < stateCount; ++i) {
@@ -456,6 +461,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         states[i].aimBiasY = policy.aimBiasY;
         states[i].boost = policy.boost;
         states[i].precision = policy.precision;
+        states[i].dashPulsePending = policy.dash;
     }
     result.candidateStatesGenerated = static_cast<std::uint32_t>(stateCount);
     result.peakStateCount = static_cast<std::uint32_t>(stateCount);
@@ -530,12 +536,13 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             for (std::size_t slot = 0U; slot < nextCount; ++slot) {
                 const std::size_t parent = (slot * passingCount) / nextCount;
                 const auto& policy = kRouteGraphPolicies[
-                    routeGraphPolicyIndexForSlot(slot)];
+                    routeGraphPolicyIndexForSlot(slot, activeGate.index)];
                 nextStates[slot] = passingStates[parent];
                 nextStates[slot].aimBiasX = policy.aimBiasX;
                 nextStates[slot].aimBiasY = policy.aimBiasY;
                 nextStates[slot].boost = policy.boost;
                 nextStates[slot].precision = policy.precision;
+                nextStates[slot].dashPulsePending = policy.dash;
                 nextStates[slot].active = true;
             }
             result.beamPrunedStates += static_cast<std::uint32_t>(
@@ -597,11 +604,29 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 // Flight advances longitudinally faster than the lateral
                 // controller's speed cap. Predict mine phase at forward arrival
                 // time, then test the craft's projected path, not just its aim.
-                const float predictedForwardSpeed =
+                const float normalForwardSpeed =
                     (candidate.precision ? 8.0F : (boosting ? 16.0F : 11.0F)) *
                     ship.speedMultiplier;
-                const double timeToMine = ahead /
-                    std::max(0.25F, predictedForwardSpeed);
+                const float dashForwardSpeed =
+                    (boosting ? 24.0F : 19.0F) * ship.speedMultiplier;
+                const bool dashCanStart = candidate.dashPulsePending &&
+                    !candidate.precision && !candidate.state.dashButtonWasDown &&
+                    candidate.state.boostEnergy >= kDashEnergyCost &&
+                    candidate.state.dashCooldownRemaining <= kFlightFixedStep;
+                const double availableDashSeconds = dashCanStart
+                    ? static_cast<double>(kDashDuration)
+                    : static_cast<double>(candidate.state.dashRemaining);
+                double timeToMine = ahead /
+                    std::max(0.25F, normalForwardSpeed);
+                if (availableDashSeconds > 0.0) {
+                    const double dashDistance =
+                        availableDashSeconds * dashForwardSpeed;
+                    timeToMine = ahead <= dashDistance
+                        ? ahead / std::max(0.25F, dashForwardSpeed)
+                        : availableDashSeconds +
+                            (ahead - dashDistance) /
+                                std::max(0.25F, normalForwardSpeed);
+                }
                 const double predictedMineTime =
                     candidate.elapsedSeconds + timeToMine;
                 const auto movingCenter = hazardCenterAt(hazard, predictedMineTime);
@@ -656,9 +681,11 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 ((aimY - candidate.state.y) * 2.8F -
                  candidate.state.velocityY * 1.25F) / maximumLateralSpeed,
                 -1.0F, 1.0F);
+            const bool dashPulse = candidate.dashPulsePending;
+            candidate.dashPulsePending = false;
             updateFlight(candidate.state,
                 FlightInput{steerX, steerY, candidate.boost,
-                            candidate.precision, shipId},
+                            candidate.precision, shipId, dashPulse},
                 kFlightFixedStep);
             candidate.elapsedSeconds += static_cast<double>(kFlightFixedStep);
 
