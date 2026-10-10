@@ -582,6 +582,12 @@ int main() {
     assert(stack.current() == Screen::Controls);
     assert(stack.contains(Screen::Pause) && stack.contains(Screen::Controls));
     assert(stack.pop() && stack.current() == Screen::Pause);
+    stack.push(Screen::Hangar);
+    stack.push(Screen::HangarPurchaseConfirm);
+    assert(stack.current() == Screen::HangarPurchaseConfirm);
+    assert(stack.contains(Screen::Hangar));
+    assert(stack.pop() && stack.current() == Screen::Hangar);
+    stack.pop();
     stack.push(Screen::RunConfirm);
     assert(stack.current() == Screen::RunConfirm);
     assert(stack.contains(Screen::Pause) && stack.contains(Screen::RunConfirm));
@@ -1700,6 +1706,7 @@ int main() {
     const auto purchase = tunrun::purchaseShip(economyProfile, 1U);
     assert(purchase == tunrun::ShipTransactionStatus::Purchased);
     assert(economyProfile.aetherShards == 2000U && economyProfile.unlockedShips[1U]);
+    assert(economyProfile.selectedShip == 0U); // Unlocking does not equip the new ship.
     assert(tunrun::purchaseShip(economyProfile, 1U) ==
            tunrun::ShipTransactionStatus::AlreadyUnlocked);
     assert(economyProfile.aetherShards == 2000U); // duplicate activation cannot charge twice
