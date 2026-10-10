@@ -9,6 +9,7 @@
 #include "app/scoring.hpp"
 #include "app/run_results.hpp"
 #include "app/raw_mouse.hpp"
+#include "app/tunnel_frame.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
 
@@ -365,158 +366,112 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
     DrawLine(50, 143, GetScreenWidth() - 50, 143, kEdge);
 }
 
-Vector3 tunnelPoint(std::uint64_t seed, float distance, int ring, int side,
-                    const tunrun::TunnelCrossSection& playerSection) {
-    constexpr int sides = 16;
-    constexpr float ringSpacing = 3.0F;
-    const float depth = static_cast<float>(ring) * ringSpacing;
-    const auto section = tunrun::sampleCourse(seed, static_cast<double>(distance) + depth);
-    const float angle = static_cast<float>(side) * 2.0F * PI / sides + section.twist;
-    return Vector3{section.centerX - playerSection.centerX + std::cos(angle) * section.radius,
-                   section.centerY - playerSection.centerY + std::sin(angle) * section.radius,
-                   -depth};
-}
-void drawProceduralGate(std::uint64_t seed, float playerDistance,
-                        const tunrun::TunnelCrossSection& playerSection,
-                        const tunrun::ProceduralGate& gate) {
-    const float ahead = static_cast<float>(gate.distance - static_cast<double>(playerDistance));
-    if (ahead < -1.0F || ahead > 108.0F) return;
-    const auto courseAtGate = tunrun::sampleCourse(seed, gate.distance);
-    const float outerRadius = courseAtGate.radius - 0.24F;
-    const float gateCenterX = courseAtGate.centerX - playerSection.centerX + gate.offsetX;
-    const float gateCenterY = courseAtGate.centerY - playerSection.centerY + gate.offsetY;
-    const float courseCenterX = courseAtGate.centerX - playerSection.centerX;
-    const float courseCenterY = courseAtGate.centerY - playerSection.centerY;
-    constexpr int segments = 24;
-    const float z = -ahead;
-    for (int side = 0; side < segments; ++side) {
-        const float a0 = static_cast<float>(side) * 2.0F * PI / segments + courseAtGate.twist;
-        const float a1 = static_cast<float>(side + 1) * 2.0F * PI / segments + courseAtGate.twist;
-        const Vector3 outer0{courseCenterX + std::cos(a0) * outerRadius, courseCenterY + std::sin(a0) * outerRadius, z};
-        const Vector3 outer1{courseCenterX + std::cos(a1) * outerRadius, courseCenterY + std::sin(a1) * outerRadius, z};
-        const Vector3 inner0{gateCenterX + std::cos(a0) * gate.apertureRadius, gateCenterY + std::sin(a0) * gate.apertureRadius, z};
-        const Vector3 inner1{gateCenterX + std::cos(a1) * gate.apertureRadius, gateCenterY + std::sin(a1) * gate.apertureRadius, z};
-        Color outerColor{100, 130, 164, 220};
-        Color innerColor{200, 229, 255, 255};
-        switch (gate.kind) {
-        case tunrun::GateKind::Standard:
-            break;
-        case tunrun::GateKind::Precision:
-            outerColor = Color{146, 81, 66, 225};
-            innerColor = Color{255, 171, 131, 255};
-            break;
-        case tunrun::GateKind::Offset:
-            outerColor = Color{108, 92, 154, 225};
-            innerColor = Color{194, 172, 255, 255};
-            break;
-        case tunrun::GateKind::Wide:
-            outerColor = Color{70, 133, 120, 220};
-            innerColor = Color{150, 245, 213, 255};
-            break;
-        }
-        DrawLine3D(outer0, outer1, outerColor);
-        DrawLine3D(inner0, inner1, innerColor);
-        if (side % 2 == 0) DrawLine3D(outer0, inner0, Color{76, 99, 125, 205});
-    }
+Vector3 rayVector(tunrun::FrameVector3 p) { return Vector3{p.x,p.y,p.z}; }
 
-    // Gate families share the same circular collision aperture but use
-    // distinct physical supports, so they read differently at a distance.
-    const auto gatePoint = [&](float angle, float radius) {
-        const float twistedAngle = angle + courseAtGate.twist;
-        return Vector3{
-            gateCenterX + std::cos(twistedAngle) * radius,
-            gateCenterY + std::sin(twistedAngle) * radius, z
-        };
+Vector3 tunnelPoint(std::uint64_t seed,float distance,int ring,int side) {
+    constexpr int sides=20;
+    constexpr float ringSpacing=3.0F;
+    const float sampleDistance=distance+static_cast<float>(ring)*ringSpacing;
+    const auto frame=tunrun::sampleTunnelFrame(seed,distance,sampleDistance);
+    const float angle=static_cast<float>(side)*2.0F*PI/sides;
+    return rayVector(tunrun::tunnelFramePoint(frame,
+        std::cos(angle)*frame.radius,std::sin(angle)*frame.radius));
+}
+void drawProceduralGate(std::uint64_t seed,float playerDistance,
+                         const tunrun::ProceduralGate& gate) {
+    const float ahead=static_cast<float>(gate.distance-static_cast<double>(playerDistance));
+    if(ahead < -1.0F || ahead > 108.0F) return;
+    const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,gate.distance);
+    const float outerRadius=frame.radius-0.24F;
+    constexpr int segments=24;
+    const auto p=[&](float angle,float radius,float ox,float oy) {
+        return rayVector(tunrun::tunnelFramePoint(frame,
+            ox+std::cos(angle)*radius,oy+std::sin(angle)*radius));
     };
-    const auto drawHalo = [&](float radius, Color haloColor) {
-        for (int side = 0; side < segments; ++side) {
-            const float a0 = static_cast<float>(side) * 2.0F * PI / segments;
-            const float a1 = static_cast<float>(side + 1) * 2.0F * PI / segments;
-            DrawLine3D(gatePoint(a0, radius), gatePoint(a1, radius), haloColor);
+    Color outer{100,130,164,220},inner{200,229,255,255};
+    switch(gate.kind) {
+    case tunrun::GateKind::Standard: break;
+    case tunrun::GateKind::Precision: outer={146,81,66,225}; inner={255,171,131,255}; break;
+    case tunrun::GateKind::Offset: outer={108,92,154,225}; inner={194,172,255,255}; break;
+    case tunrun::GateKind::Wide: outer={70,133,120,220}; inner={150,245,213,255}; break;
+    }
+    for(int i=0;i<segments;++i) {
+        const float a0=static_cast<float>(i)*2.0F*PI/segments;
+        const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
+        const Vector3 o0=p(a0,outerRadius,0,0),o1=p(a1,outerRadius,0,0);
+        const Vector3 i0=p(a0,gate.apertureRadius,gate.offsetX,gate.offsetY);
+        const Vector3 i1=p(a1,gate.apertureRadius,gate.offsetX,gate.offsetY);
+        DrawLine3D(o0,o1,outer); DrawLine3D(i0,i1,inner);
+        if(i%2==0) DrawLine3D(o0,i0,Color{76,99,125,205});
+    }
+    const auto halo=[&](float radius,Color c) {
+        for(int i=0;i<segments;++i) {
+            const float a0=static_cast<float>(i)*2.0F*PI/segments;
+            const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
+            DrawLine3D(p(a0,radius,gate.offsetX,gate.offsetY),
+                       p(a1,radius,gate.offsetX,gate.offsetY),c);
         }
     };
-    if (gate.kind == tunrun::GateKind::Precision) {
-        const Color safetyRing{255, 171, 131, 180};
-        drawHalo(gate.apertureRadius + 0.22F, safetyRing);
-        for (int side = 0; side < segments; side += 3) {
-            const float angle = static_cast<float>(side) * 2.0F * PI / segments;
-            DrawLine3D(gatePoint(angle, gate.apertureRadius),
-                       gatePoint(angle, gate.apertureRadius + 0.22F), safetyRing);
+    if(gate.kind==tunrun::GateKind::Precision) {
+        const Color c{255,171,131,180}; halo(gate.apertureRadius+0.22F,c);
+        for(int i=0;i<segments;i+=3) {
+            const float a=static_cast<float>(i)*2.0F*PI/segments;
+            DrawLine3D(p(a,gate.apertureRadius,gate.offsetX,gate.offsetY),
+                       p(a,gate.apertureRadius+0.22F,gate.offsetX,gate.offsetY),c);
         }
-    } else if (gate.kind == tunrun::GateKind::Wide) {
-        const Color haloColor{150, 245, 213, 180};
-        drawHalo(gate.apertureRadius + 0.34F, haloColor);
-        for (int side = 0; side < segments; side += 6) {
-            const float angle = static_cast<float>(side) * 2.0F * PI / segments;
-            DrawLine3D(gatePoint(angle, gate.apertureRadius),
-                       gatePoint(angle, gate.apertureRadius + 0.34F), haloColor);
+    } else if(gate.kind==tunrun::GateKind::Wide) {
+        const Color c{150,245,213,180}; halo(gate.apertureRadius+0.34F,c);
+        for(int i=0;i<segments;i+=6) {
+            const float a=static_cast<float>(i)*2.0F*PI/segments;
+            DrawLine3D(p(a,gate.apertureRadius,gate.offsetX,gate.offsetY),
+                       p(a,gate.apertureRadius+0.34F,gate.offsetX,gate.offsetY),c);
         }
-    } else if (gate.kind == tunrun::GateKind::Offset) {
-        const Color markerColor{194, 172, 255, 235};
-        for (int marker = 0; marker < 4; ++marker) {
-            const float angle = static_cast<float>(marker) * PI * 0.5F;
-            const Vector3 tip = gatePoint(angle, gate.apertureRadius + 0.48F);
-            const Vector3 base = gatePoint(angle, gate.apertureRadius + 0.12F);
-            const Vector3 wingA = gatePoint(angle + 0.27F, gate.apertureRadius + 0.22F);
-            const Vector3 wingB = gatePoint(angle - 0.27F, gate.apertureRadius + 0.22F);
-            DrawLine3D(base, tip, markerColor);
-            DrawLine3D(wingA, tip, markerColor);
-            DrawLine3D(wingB, tip, markerColor);
+    } else if(gate.kind==tunrun::GateKind::Offset) {
+        const Color c{194,172,255,235};
+        for(int i=0;i<4;++i) {
+            const float a=static_cast<float>(i)*PI*0.5F;
+            DrawLine3D(p(a,gate.apertureRadius+0.12F,gate.offsetX,gate.offsetY),
+                       p(a,gate.apertureRadius+0.48F,gate.offsetX,gate.offsetY),c);
+            DrawLine3D(p(a+0.27F,gate.apertureRadius+0.22F,gate.offsetX,gate.offsetY),
+                       p(a,gate.apertureRadius+0.48F,gate.offsetX,gate.offsetY),c);
+            DrawLine3D(p(a-0.27F,gate.apertureRadius+0.22F,gate.offsetX,gate.offsetY),
+                       p(a,gate.apertureRadius+0.48F,gate.offsetX,gate.offsetY),c);
         }
     }
 }
-void drawProceduralReward(std::uint64_t seed, float playerDistance,
-                          const tunrun::TunnelCrossSection& playerSection,
+void drawProceduralReward(std::uint64_t seed,float playerDistance,
                           const tunrun::ProceduralReward& reward) {
-    const float ahead = static_cast<float>(reward.distance - static_cast<double>(playerDistance));
-    if (ahead < 0.0F || ahead > 108.0F) return;
-    const auto section = tunrun::sampleCourse(seed, reward.distance);
-    const float x = section.centerX - playerSection.centerX + reward.offsetX;
-    const float y = section.centerY - playerSection.centerY + reward.offsetY;
-    const float z = -ahead;
-    const float size = reward.kind == tunrun::RewardKind::SingularityCore ? 0.48F : 0.34F;
-    const Color color = reward.kind == tunrun::RewardKind::SingularityCore
-        ? Color{255, 174, 108, 255} : Color{111, 225, 255, 255};
-    const Vector3 top{x, y + size, z};
-    const Vector3 right{x + size * 0.72F, y, z};
-    const Vector3 bottom{x, y - size, z};
-    const Vector3 left{x - size * 0.72F, y, z};
-    const Vector3 front{x, y, z + size * 0.42F};
-    const Vector3 back{x, y, z - size * 0.42F};
-    const bool singularityCore = reward.kind == tunrun::RewardKind::SingularityCore;
-    const Color faceBright = singularityCore
-        ? Color{255, 204, 140, 255} : Color{165, 243, 255, 255};
-    const Color faceDark = singularityCore
-        ? Color{132, 57, 29, 255} : Color{27, 107, 153, 255};
-    // Faceted volumetric pickup models: the shard is a cyan cut gem, while the
-    // larger core has warmer metallic faces and a distinctive orbit ring.
-    DrawTriangle3D(top, front, right, faceBright);
-    DrawTriangle3D(top, left, front, color);
-    DrawTriangle3D(top, back, left, faceDark);
-    DrawTriangle3D(top, right, back, faceBright);
-    DrawTriangle3D(bottom, right, front, faceDark);
-    DrawTriangle3D(bottom, front, left, faceBright);
-    DrawTriangle3D(bottom, left, back, faceDark);
-    DrawTriangle3D(bottom, back, right, color);
-    if (singularityCore) {
-        DrawSphereWires(Vector3{x, y, z}, size * 0.82F, 6, 12, faceBright);
-    }
-    DrawLine3D(top, right, color);
-    DrawLine3D(right, bottom, color);
-    DrawLine3D(bottom, left, color);
-    DrawLine3D(left, top, color);
-    DrawLine3D(top, front, color);
-    DrawLine3D(right, front, color);
-    DrawLine3D(bottom, front, color);
-    DrawLine3D(left, front, color);
-    DrawLine3D(top, back, color);
-    DrawLine3D(right, back, color);
-    DrawLine3D(bottom, back, color);
-    DrawLine3D(left, back, color);
+    const float ahead=static_cast<float>(reward.distance-static_cast<double>(playerDistance));
+    if(ahead<0.0F||ahead>108.0F) return;
+    const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,reward.distance);
+    const auto p=[&](float x,float y,float z=0.0F) {
+        return rayVector(tunrun::tunnelFramePoint(frame,x,y,z));
+    };
+    const float x=reward.offsetX,y=reward.offsetY;
+    const float size=reward.kind==tunrun::RewardKind::SingularityCore?0.48F:0.34F;
+    const bool core=reward.kind==tunrun::RewardKind::SingularityCore;
+    const Color color=core?Color{255,174,108,255}:Color{111,225,255,255};
+    const Color bright=core?Color{255,204,140,255}:Color{165,243,255,255};
+    const Color dark=core?Color{132,57,29,255}:Color{27,107,153,255};
+    const Vector3 top=p(x,y+size),right=p(x+size*0.72F,y);
+    const Vector3 bottom=p(x,y-size),left=p(x-size*0.72F,y);
+    const Vector3 front=p(x,y,size*0.42F),back=p(x,y,-size*0.42F);
+    DrawTriangle3D(top,front,right,bright); DrawTriangle3D(top,left,front,color);
+    DrawTriangle3D(top,back,left,dark); DrawTriangle3D(top,right,back,bright);
+    DrawTriangle3D(bottom,right,front,dark); DrawTriangle3D(bottom,front,left,bright);
+    DrawTriangle3D(bottom,left,back,dark); DrawTriangle3D(bottom,back,right,color);
+    if(core) DrawSphereWires(p(x,y),size*0.82F,6,12,bright);
+    DrawLine3D(top,right,color); DrawLine3D(right,bottom,color);
+    DrawLine3D(bottom,left,color); DrawLine3D(left,top,color);
+    DrawLine3D(top,front,color); DrawLine3D(right,front,color);
+    DrawLine3D(bottom,front,color); DrawLine3D(left,front,color);
+    DrawLine3D(top,back,color); DrawLine3D(right,back,color);
+    DrawLine3D(bottom,back,color); DrawLine3D(left,back,color);
 }
 
 void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
-                    float pitch, float yaw, float roll) {
+                    float pitch, float yaw, float roll,
+                    const tunrun::TunnelFrame* tunnelFrame = nullptr) {
     const Color hullColors[] = {
         kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
         Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
@@ -542,7 +497,12 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         const float yawedZ = -x * sy + pitchedZ * cy;
         const float rolledX = yawedX * cr - pitchedY * sr;
         const float rolledY = yawedX * sr + pitchedY * cr;
-        return Vector3{shipX + rolledX, shipY + rolledY, yawedZ};
+        const float localX = shipX + rolledX;
+        const float localY = shipY + rolledY;
+        if (tunnelFrame != nullptr) {
+            return rayVector(tunrun::tunnelFramePoint(*tunnelFrame, localX, localY, yawedZ));
+        }
+        return Vector3{localX, localY, yawedZ};
     };
     const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
     // A shaded faceted fuselage under the distinct wireframe silhouette makes
@@ -707,90 +667,70 @@ void drawHangarShipPreview3D(std::uint32_t shipId, int centerX, int centerY,
              static_cast<int>(bounds.y) + 10, 10, kAccent);
 }
 
-void drawProceduralHazard(std::uint64_t seed, float playerDistance,
-                           float elapsedSeconds,
-                           const tunrun::TunnelCrossSection& playerSection,
-                           const tunrun::ProceduralHazard& hazard) {
-    const float ahead = static_cast<float>(hazard.distance - static_cast<double>(playerDistance));
-    if (ahead < -1.5F || ahead > 108.0F) return;
-    const auto courseAtHazard = tunrun::sampleCourse(seed, hazard.distance);
-    const auto movingCenter = tunrun::hazardCenterAt(hazard, elapsedSeconds);
-    const Vector3 center{
-        courseAtHazard.centerX - playerSection.centerX + movingCenter.x,
-        courseAtHazard.centerY - playerSection.centerY + movingCenter.y,
-        -ahead
+void drawProceduralHazard(std::uint64_t seed,float playerDistance,
+                           float elapsedSeconds,const tunrun::ProceduralHazard& hazard) {
+    const float ahead=static_cast<float>(hazard.distance-static_cast<double>(playerDistance));
+    if(ahead < -1.5F || ahead > 108.0F) return;
+    const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,hazard.distance);
+    const auto moving=tunrun::hazardCenterAt(hazard,elapsedSeconds);
+    const auto p=[&](float x,float y,float z=0.0F) {
+        return rayVector(tunrun::tunnelFramePoint(frame,x,y,z));
     };
-    const Color color{255, 103, 91, 255};
-    const float phase = elapsedSeconds * (1.1F + hazard.frequency * 0.4F) +
-                        static_cast<float>(hazard.index) * 0.73F;
-    const Color bladeColor{255, 167, 119, 230};
-    switch (hazard.index % 4U) {
+    const float cx=moving.x,cy=moving.y;
+    const Vector3 center=p(cx,cy);
+    const Color color{255,103,91,255};
+    const float phase=elapsedSeconds*(1.1F+hazard.frequency*0.4F)+
+                      static_cast<float>(hazard.index)*0.73F;
+    const Color blade{255,167,119,230};
+    switch(hazard.index%4U) {
     case 0U:
-        DrawSphere(center, hazard.radius * 0.72F, Color{112, 35, 38, 255});
-        DrawSphereWires(center, hazard.radius, 8, 12, color);
-        DrawLine3D(Vector3{center.x - hazard.radius, center.y, center.z},
-                   Vector3{center.x + hazard.radius, center.y, center.z}, bladeColor);
-        DrawLine3D(Vector3{center.x, center.y - hazard.radius, center.z},
-                   Vector3{center.x, center.y + hazard.radius, center.z}, bladeColor);
+        DrawSphere(center,hazard.radius*0.72F,Color{112,35,38,255});
+        DrawSphereWires(center,hazard.radius,8,12,color);
+        DrawLine3D(p(cx-hazard.radius,cy),p(cx+hazard.radius,cy),blade);
+        DrawLine3D(p(cx,cy-hazard.radius),p(cx,cy+hazard.radius),blade);
         break;
     case 1U: {
-        const Vector3 top{center.x, center.y + hazard.radius, center.z};
-        const Vector3 right{center.x + hazard.radius * 0.78F, center.y, center.z};
-        const Vector3 bottom{center.x, center.y - hazard.radius, center.z};
-        const Vector3 left{center.x - hazard.radius * 0.78F, center.y, center.z};
-        const Vector3 front{center.x, center.y, center.z + hazard.radius * 0.55F};
-        const Vector3 back{center.x, center.y, center.z - hazard.radius * 0.55F};
-        const Color bodyLight{183, 61, 52, 245};
-        const Color bodyShade{79, 27, 36, 255};
-        DrawTriangle3D(top, right, front, bodyLight);
-        DrawTriangle3D(right, bottom, front, color);
-        DrawTriangle3D(bottom, left, front, bodyShade);
-        DrawTriangle3D(left, top, front, bodyLight);
-        DrawTriangle3D(top, back, right, bodyShade);
-        DrawTriangle3D(right, back, bottom, bodyLight);
-        DrawTriangle3D(bottom, back, left, color);
-        DrawTriangle3D(left, back, top, bodyShade);
-        DrawLine3D(top, right, color); DrawLine3D(right, bottom, color);
-        DrawLine3D(bottom, left, color); DrawLine3D(left, top, color);
-        DrawLine3D(top, bottom, bladeColor); DrawLine3D(left, right, bladeColor);
-        DrawSphereWires(center, hazard.radius * 0.34F, 6, 8, color);
+        const Vector3 top=p(cx,cy+hazard.radius),right=p(cx+hazard.radius*0.78F,cy);
+        const Vector3 bottom=p(cx,cy-hazard.radius),left=p(cx-hazard.radius*0.78F,cy);
+        const Vector3 front=p(cx,cy,hazard.radius*0.55F),back=p(cx,cy,-hazard.radius*0.55F);
+        const Color light{183,61,52,245},shade{79,27,36,255};
+        DrawTriangle3D(top,right,front,light);DrawTriangle3D(right,bottom,front,color);
+        DrawTriangle3D(bottom,left,front,shade);DrawTriangle3D(left,top,front,light);
+        DrawTriangle3D(top,back,right,shade);DrawTriangle3D(right,back,bottom,light);
+        DrawTriangle3D(bottom,back,left,color);DrawTriangle3D(left,back,top,shade);
+        DrawLine3D(top,right,color);DrawLine3D(right,bottom,color);
+        DrawLine3D(bottom,left,color);DrawLine3D(left,top,color);
+        DrawLine3D(top,bottom,blade);DrawLine3D(left,right,blade);
+        DrawSphereWires(center,hazard.radius*0.34F,6,8,color);
         break;
     }
     case 2U: {
-        for (int blade = 0; blade < 3; ++blade) {
-            const float angle = phase + static_cast<float>(blade) * 2.0F * PI / 3.0F;
-            const Vector3 tip{center.x + std::cos(angle) * hazard.radius,
-                              center.y + std::sin(angle) * hazard.radius, center.z};
-            const Vector3 shoulder{center.x - std::cos(angle) * hazard.radius * 0.55F,
-                                   center.y - std::sin(angle) * hazard.radius * 0.55F,
-                                   center.z + std::sin(phase) * hazard.radius * 0.28F};
-            const Vector3 bladeBack{tip.x, tip.y,
-                                    tip.z - hazard.radius * 0.22F};
-            DrawTriangle3D(center, tip, shoulder, bladeColor);
-            DrawTriangle3D(center, shoulder, bladeBack, Color{142, 43, 39, 255});
-            DrawLine3D(center, tip, color);
-            DrawLine3D(tip, shoulder, bladeColor);
-            DrawLine3D(shoulder, center, color);
+        for(int i=0;i<3;++i) {
+            const float a=phase+static_cast<float>(i)*2.0F*PI/3.0F;
+            const float tx=cx+std::cos(a)*hazard.radius,ty=cy+std::sin(a)*hazard.radius;
+            const Vector3 tip=p(tx,ty);
+            const Vector3 shoulder=p(cx-std::cos(a)*hazard.radius*0.55F,
+                cy-std::sin(a)*hazard.radius*0.55F,std::sin(phase)*hazard.radius*0.28F);
+            const Vector3 back=p(tx,ty,-hazard.radius*0.22F);
+            DrawTriangle3D(center,tip,shoulder,blade);
+            DrawTriangle3D(center,shoulder,back,Color{142,43,39,255});
+            DrawLine3D(center,tip,color);DrawLine3D(tip,shoulder,blade);DrawLine3D(shoulder,center,color);
         }
-        DrawSphereWires(center, hazard.radius * 0.24F, 6, 8, bladeColor);
+        DrawSphereWires(center,hazard.radius*0.24F,6,8,blade);
         break;
     }
     default: {
-        const float cs = std::cos(phase), sn = std::sin(phase);
-        const Vector3 a{center.x + cs * hazard.radius, center.y + sn * hazard.radius, center.z};
-        const Vector3 b{center.x - cs * hazard.radius, center.y - sn * hazard.radius, center.z};
-        const Vector3 c{center.x - sn * hazard.radius, center.y + cs * hazard.radius, center.z};
-        const Vector3 d{center.x + sn * hazard.radius, center.y - cs * hazard.radius, center.z};
-        const Vector3 centerFront{center.x, center.y, center.z + hazard.radius * 0.30F};
-        const Vector3 centerBack{center.x, center.y, center.z - hazard.radius * 0.30F};
-        DrawTriangle3D(a, centerFront, c, color);
-        DrawTriangle3D(c, centerBack, b, bladeColor);
-        DrawTriangle3D(b, centerFront, d, Color{178, 52, 45, 255});
-        DrawTriangle3D(d, centerBack, a, color);
-        DrawSphere(center, hazard.radius * 0.22F, Color{92, 25, 32, 255});
-        DrawLine3D(a, c, color); DrawLine3D(c, b, bladeColor);
-        DrawLine3D(b, d, color); DrawLine3D(d, a, bladeColor);
-        DrawSphereWires(center, hazard.radius * 0.42F, 6, 8, color);
+        const float cs=std::cos(phase),sn=std::sin(phase);
+        const Vector3 a=p(cx+cs*hazard.radius,cy+sn*hazard.radius);
+        const Vector3 b=p(cx-cs*hazard.radius,cy-sn*hazard.radius);
+        const Vector3 c=p(cx-sn*hazard.radius,cy+cs*hazard.radius);
+        const Vector3 d=p(cx+sn*hazard.radius,cy-cs*hazard.radius);
+        const Vector3 front=p(cx,cy,hazard.radius*0.30F),back=p(cx,cy,-hazard.radius*0.30F);
+        DrawTriangle3D(a,front,c,color);DrawTriangle3D(c,back,b,blade);
+        DrawTriangle3D(b,front,d,Color{178,52,45,255});DrawTriangle3D(d,back,a,color);
+        DrawSphere(center,hazard.radius*0.22F,Color{92,25,32,255});
+        DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
+        DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
         break;
     }
     }
@@ -805,7 +745,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto rearSection = tunrun::sampleCourse(seed, static_cast<double>(distance) - 6.0);
-    const auto forwardSection = tunrun::sampleCourse(seed, static_cast<double>(distance) + 24.0);
+    const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
+    const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
+    const auto forwardFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) + 24.0);
+    const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
     const float forwardX = std::sin(yaw) * std::cos(pitch);
     const float forwardY = std::sin(pitch);
     const float forwardZ = -std::cos(yaw) * std::cos(pitch);
@@ -816,24 +759,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const auto chasePose = tunrun::thirdPersonCameraPose(
             shipX, shipY, forwardX, forwardY, forwardZ,
             rearCenterX, rearCenterY, rearSection.radius);
-        camera.position = Vector3{chasePose.x, chasePose.y, chasePose.z};
-        // Aim along the tunnel centreline rather than the ship's raw heading.
-        // This prevents hard turns from pointing the chase view through a wall.
-        camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX,
-            forwardSection.centerY - playerSection.centerY,
-            -24.0F};
+        camera.position = rayVector(tunrun::tunnelFramePoint(
+            rearFrame, chasePose.x - rearCenterX, chasePose.y - rearCenterY));
+        camera.target = rayVector(forwardFrame.center);
     } else {
-        camera.position = Vector3{shipX, shipY, 1.25F};
-        // Aim directly at the generated centerline. The ship can yaw, pitch,
-        // and roll independently without sending the view through a tunnel wall.
-        camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX,
-            forwardSection.centerY - playerSection.centerY,
-            1.25F + forwardZ * 24.0F};
+        camera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, shipX, shipY));
+        camera.target = rayVector(forwardFrame.center);
     }
-    const float tunnelRoll = roll + playerSection.twist;
-    camera.up = Vector3{-std::sin(tunnelRoll), std::cos(tunnelRoll), 0.0F};
+    camera.up = rayVector(tunrun::frameAdd(
+        tunrun::frameScale(playerFrame.up, std::cos(roll)),
+        tunrun::frameScale(playerFrame.right, -std::sin(roll))));
     camera.fovy = 70.0F;
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
@@ -846,11 +781,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
         for (int side = 0; side < sideCount; ++side) {
             const int nextSide = (side + 1) % sideCount;
-            const Vector3 a = tunnelPoint(seed, distance, ring, side, playerSection);
-            const Vector3 b = tunnelPoint(seed, distance, ring, nextSide, playerSection);
+            const Vector3 a = tunnelPoint(seed, distance, ring, side);
+            const Vector3 b = tunnelPoint(seed, distance, ring, nextSide);
             if (ring + 1 < lastRing) {
-                const Vector3 d = tunnelPoint(seed, distance, ring + 1, side, playerSection);
-                const Vector3 c = tunnelPoint(seed, distance, ring + 1, nextSide, playerSection);
+                const Vector3 d = tunnelPoint(seed, distance, ring + 1, side);
+                const Vector3 c = tunnelPoint(seed, distance, ring + 1, nextSide);
                 const bool panelRidge = (side % 5 == 0) || (ring % 8 == 0);
                 const Color panel = panelRidge
                     ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255};
@@ -890,14 +825,14 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                   tunrun::kGateSpacing)));
     const auto nextGate = tunrun::gateAt(seed, static_cast<std::uint32_t>(nextGateIndex));
     for (int i = firstVisibleIndex; i < firstVisibleIndex + 4; ++i) {
-        drawProceduralGate(seed, distance, playerSection,
+        drawProceduralGate(seed, distance,
                            tunrun::gateAt(seed, static_cast<std::uint32_t>(i)));
     }
     const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
         (static_cast<double>(distance) - tunrun::kRewardStartDistance) /
         tunrun::kRewardSpacing)));
     for (int i = firstRewardIndex; i < firstRewardIndex + 6; ++i) {
-        drawProceduralReward(seed, distance, playerSection,
+        drawProceduralReward(seed, distance,
             tunrun::rewardAt(seed, static_cast<std::uint32_t>(i)));
     }
     const auto firstHazard = tunrun::hazardAt(seed, 0U);
@@ -905,11 +840,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         (static_cast<double>(distance) - firstHazard.distance) /
         tunrun::kHazardSpacing)));
     for (int i = firstHazardIndex; i < firstHazardIndex + 4; ++i) {
-        drawProceduralHazard(seed, distance, elapsedSeconds, playerSection,
+        drawProceduralHazard(seed, distance, elapsedSeconds,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
     if (tpp) {
-        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll);
+        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll, &playerFrame);
     }
     EndMode3D();
     DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});

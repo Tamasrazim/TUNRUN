@@ -1,6 +1,7 @@
 #include "app/input_state.hpp"
 #include "app/camera_rig.hpp"
-#include "app/flight_physics.hpp"
+#include "app/tunnel_frame.hpp"
+#include "app/flight_physics.hpp
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
@@ -64,6 +65,23 @@ int main() {
     assert(defaultProfile.fullscreen);
     assert(defaultProfile.mouseSteering);
     assert(defaultProfile.mouseSensitivity == kMouseSensitivityDefault);
+
+    constexpr std::uint64_t frameSeed = 0xA91B72C3D4E5F607ULL;
+    const auto curvedFrame = tunrun::sampleTunnelFrame(frameSeed, 32.0, 58.0);
+    assert(std::abs(tunrun::frameLength(curvedFrame.tangent)-1.0F)<0.0001F);
+    assert(std::abs(tunrun::frameLength(curvedFrame.right)-1.0F)<0.0001F);
+    assert(std::abs(tunrun::frameLength(curvedFrame.up)-1.0F)<0.0001F);
+    assert(std::abs(tunrun::frameDot(curvedFrame.tangent,curvedFrame.right))<0.0001F);
+    assert(std::abs(tunrun::frameDot(curvedFrame.tangent,curvedFrame.up))<0.0001F);
+    assert(std::abs(tunrun::frameDot(curvedFrame.right,curvedFrame.up))<0.0001F);
+    const auto rim=tunrun::tunnelFramePoint(curvedFrame,curvedFrame.radius,0.0F);
+    const tunrun::FrameVector3 rimOffset{rim.x-curvedFrame.center.x,
+        rim.y-curvedFrame.center.y,rim.z-curvedFrame.center.z};
+    assert(std::abs(tunrun::frameLength(rimOffset)-curvedFrame.radius)<0.001F);
+    const auto badFrame=tunrun::sampleTunnelFrame(frameSeed,
+        std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::infinity());
+    assert(std::isfinite(badFrame.center.x)&&std::isfinite(badFrame.center.y)&&
+           std::isfinite(badFrame.center.z));
 
     const auto safeChasePose = tunrun::thirdPersonCameraPose(
         0.5F, -0.3F, 0.0F, 0.0F, -1.0F, 1.0F, -0.5F, 5.0F);
