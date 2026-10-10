@@ -205,8 +205,11 @@ int main() {
     assert(tunrun::runResultNoticeText(RunResultNotice::None) == nullptr);
     assert(std::string(tunrun::modeUnavailableMessage(
         tunrun::GameModeChoice::Campaign)).find("not implemented") != std::string::npos);
+    assert(tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
     assert(std::string(tunrun::modeUnavailableMessage(
-        tunrun::GameModeChoice::Endless)).find("not a separate mode") != std::string::npos);
+        tunrun::GameModeChoice::Endless)).empty());
+    assert(std::string_view(tunrun::gameModeName(
+        tunrun::GameModeChoice::Endless)) == "ENDLESS");
 
     assert(tunrun::targetFpsForRefreshRate(0) == tunrun::kDefaultTargetFps);
     assert(tunrun::targetFpsForRefreshRate(15) == tunrun::kDefaultTargetFps);
