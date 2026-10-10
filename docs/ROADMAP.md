@@ -14,19 +14,19 @@ This roadmap defines evidence required to advance. A milestone is not complete u
 Current slice:
 - Native raylib window, responsive screen shell, main menu, settings, credits, hangar preview and mode selection.
 - Keyboard, pointer, gamepad D-pad and rate-limited left-stick navigation for menu controls.
-- Windows Raw Input relative mouse flight steering with focus-aware capture, cursor clipping (no recentering/warping), and immediate capture release on focus loss or leaving the run.
+- Windows Raw Input relative mouse-look with focus-aware capture, cursor clipping (no recentering/warping), and immediate capture release on focus loss or leaving the run.
 - A moving 3D tunnel visual testbed with FPP/TPP camera presentation toggle and an in-run mouse-clickable Pause control.
-- Pure C++ tests for edge-triggered button activation, screen-stack navigation, and relative mouse steering/clamping.
+- Pure C++ tests for edge-triggered button activation, screen-stack navigation, mouse camera offset clamping, and first-person/third-person camera placement safety.
 - Windows x64 build/test workflow on pushes to `main`.
 
 Still required before M1 can pass:
-- Verify the Windows CI build and fix all compile/test failures. Maintain fullscreen startup, an enclosed TPP camera, keyboard/gamepad rotation controls, and configurable mouse flight with pointer-driven UI outside gameplay.
-- Verify UI pointer focus/hitboxes on real Windows hardware at normal and scaled DPI, windowed and fullscreen. Relative mouse deltas must be consumed only during an active focused run when mouse flight is enabled, and must not affect menus.
+- Verify the Windows CI build and fix all compile/test failures. Maintain fullscreen startup, safe FPP/TPP placement, keyboard/gamepad movement and rotation, configurable mouse camera look, and pointer-driven UI outside gameplay.
+- Verify UI pointer focus/hitboxes on real Windows hardware at normal and scaled DPI, windowed and fullscreen. Relative mouse deltas must be consumed only during an active focused run when mouse camera is enabled, and must not affect menus or craft position.
 - Test pointer hitboxes after resize/fullscreen transitions; make every screen fully operable by mouse, keyboard and gamepad.
 - Add integration tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
 
 ## M2 — Flight and camera prototype
-**Status: in progress.** The prototype now has fixed-step lateral/vertical flight, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, collectible seeded rewards, eight ship-specific TPP wireframe silhouettes, and a retry screen.
+**Status: in progress.** The prototype now has fixed-step lateral/vertical flight with W accelerate, S brake, A/B lateral steering, independent mouse camera look, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, collectible seeded rewards, eight ship-specific solid low-poly 3D spacecraft, and a retry screen.
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
 - Both cameras work without changing physics.
 - Flight remains stable across render rates.
@@ -75,7 +75,7 @@ Still required before M1 can pass:
 
 ## Latest implementation update — 2026-10-10
 
-- Camera targeting follows the ship's yaw/pitch through a clamped point inside the sampled tunnel frame. Its longitudinal look point follows the current heading instead of always staring down the course's forward axis.
+- Camera targeting follows mouse-look yaw/pitch independently from the craft's heading. The FPP camera position is clamped within its own tunnel cross-section; the TPP camera base stays behind the course tangent and is clamped to rear-section clearance. Manual runtime camera/occlusion acceptance remains separate from automated tests.
 - Four deterministic cosmetic mine families (Orbital, Prism, Rotor, Cross) have distinct silhouette/color treatments and named HUD cues. Cosmetics use a separate seed channel and do not mutate hazard movement or the collision/hash definition.
 - Automated tests cover look-target direction/clamping, invalid numeric inputs, deterministic mine family selection and coverage across 512 generated hazards.
 - The latest verified Windows build/test, repository-integrity, and secret-scan workflows remain available through the live GitHub Actions results. Manual Windows input/camera acceptance is still separate.
