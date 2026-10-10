@@ -117,7 +117,11 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         state.dashRemaining = kDashDuration;
         state.dashCooldownRemaining = kDashCooldown;
     }
-    const bool boosting = input.boost && !precision && state.boostEnergy > 0.0F;
+    const bool braking = input.speedControl < -0.1F;
+    // A deliberate brake input takes priority over boost and precision speed.
+    // The short dash remains a committed burst once activated.
+    const bool boosting = input.boost && !precision && !braking &&
+                          state.boostEnergy > 0.0F;
     const float maximumSpeed =
         (precision ? 2.0F : (boosting ? 6.0F : 4.0F)) * ship.speedMultiplier;
     const float acceleration =
@@ -132,8 +136,10 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         input.steerY * maximumSpeed + headingDriftY, acceleration * dt);
     state.x += state.velocityX * dt;
     state.y += state.velocityY * dt;
-    const float forwardSpeed = (precision ? 8.0F
-        : state.dashRemaining > 0.0F ? (boosting ? 24.0F : 19.0F)
+    const float forwardSpeed = (state.dashRemaining > 0.0F
+        ? (boosting ? 24.0F : 19.0F)
+        : braking ? state.forwardSpeed
+        : precision ? 8.0F
         : boosting ? 16.0F : state.forwardSpeed) * ship.speedMultiplier;
     state.distance += forwardSpeed * dt;
 

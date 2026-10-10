@@ -952,6 +952,26 @@ int main() {
     assert(brakingFlight.forwardSpeed < cruiseFlight.forwardSpeed);
     assert(acceleratedFlight.forwardSpeed > cruiseFlight.forwardSpeed);
 
+    // Braking has priority over a held boost or precision modifier.
+    tunrun::FlightState brakingBoostFlight;
+    tunrun::FlightState brakingPrecisionFlight;
+    float brakingBoostAccumulator = 0.0F, brakingPrecisionAccumulator = 0.0F;
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(brakingBoostFlight,
+            tunrun::FlightInput{0.0F, 0.0F, true, false,
+                tunrun::kStarterShipId, false, 0.0F, 0.0F, 0.0F, -1.0F},
+            1.0F / 120.0F, brakingBoostAccumulator);
+        tunrun::advanceFlight(brakingPrecisionFlight,
+            tunrun::FlightInput{0.0F, 0.0F, false, true,
+                tunrun::kStarterShipId, false, 0.0F, 0.0F, 0.0F, -1.0F},
+            1.0F / 120.0F, brakingPrecisionAccumulator);
+    }
+    assert(brakingBoostFlight.forwardSpeed < 4.0F);
+    assert(brakingPrecisionFlight.forwardSpeed < 4.0F);
+    assert(brakingBoostFlight.boostEnergy > 99.0F);
+    assert(brakingBoostFlight.distance < cruiseFlight.distance);
+    assert(brakingPrecisionFlight.distance < cruiseFlight.distance);
+
     // Dash is an edge-triggered, energy-costed burst. Holding the button
     // does not auto-repeat when the cooldown expires.
     tunrun::FlightState ordinaryFlight;

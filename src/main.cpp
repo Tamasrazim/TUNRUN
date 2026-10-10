@@ -446,6 +446,79 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         }
     }
 }
+void drawGateThroat(std::uint64_t seed, float playerDistance,
+                    const tunrun::ProceduralGate& gate) {
+    constexpr float halfLength = 18.0F;
+    const float ahead = static_cast<float>(
+        gate.distance - static_cast<double>(playerDistance));
+    if (ahead < -halfLength - 3.0F || ahead > halfLength + 24.0F) return;
+
+    // A tapered opaque sleeve creates a deep passage through each aperture.
+    // Its minimum radius and center match gate physics, so the visible opening
+    // never promises extra collision clearance.
+    constexpr std::array<float, 7> offsets{{-18.0F, -12.0F, -6.0F, 0.0F,
+                                            6.0F, 12.0F, 18.0F}};
+    constexpr int segments = 24;
+    std::array<tunrun::TunnelFrame, offsets.size()> frames{};
+    std::array<float, offsets.size()> radii{};
+    std::array<float, offsets.size()> centerX{};
+    std::array<float, offsets.size()> centerY{};
+    for (std::size_t ring = 0U; ring < offsets.size(); ++ring) {
+        const float offset = offsets[ring];
+        frames[ring] = tunrun::sampleTunnelFrame(
+            seed, playerDistance, gate.distance + static_cast<double>(offset));
+        const float normalized = 1.0F - std::abs(offset) / halfLength;
+        const float pinch = normalized * normalized * (3.0F - 2.0F * normalized);
+        const float safeRadius = std::max(0.8F, frames[ring].radius - 0.16F);
+        const float aperture = std::clamp(gate.apertureRadius, 0.8F, safeRadius);
+        radii[ring] = frames[ring].radius -
+            (frames[ring].radius - aperture) * pinch;
+        centerX[ring] = gate.offsetX * pinch;
+        centerY[ring] = gate.offsetY * pinch;
+    }
+
+    Color wallDark{9, 17, 28, 255};
+    Color wallLight{22, 42, 59, 255};
+    Color edge{61, 121, 157, 205};
+    switch (gate.kind) {
+    case tunrun::GateKind::Precision:
+        wallLight = Color{56, 30, 35, 255}; edge = Color{255, 142, 113, 220}; break;
+    case tunrun::GateKind::Offset:
+        wallLight = Color{35, 29, 55, 255}; edge = Color{181, 147, 255, 220}; break;
+    case tunrun::GateKind::Wide:
+        wallLight = Color{19, 47, 43, 255}; edge = Color{107, 240, 207, 220}; break;
+    case tunrun::GateKind::Standard:
+        break;
+    }
+
+    const auto point = [](const tunrun::TunnelFrame& frame, float cx, float cy,
+                          float radius, float angle) {
+        return rayVector(tunrun::tunnelFramePoint(
+            frame, cx + std::cos(angle) * radius,
+            cy + std::sin(angle) * radius));
+    };
+    for (std::size_t ring = 0U; ring + 1U < offsets.size(); ++ring) {
+        const auto& current = frames[ring];
+        const auto& next = frames[ring + 1U];
+        for (int side = 0; side < segments; ++side) {
+            const int nextSide = (side + 1) % segments;
+            const float a0 = static_cast<float>(side) * 2.0F * PI / segments;
+            const float a1 = static_cast<float>(nextSide) * 2.0F * PI / segments;
+            const Vector3 a = point(current, centerX[ring], centerY[ring], radii[ring], a0);
+            const Vector3 b = point(current, centerX[ring], centerY[ring], radii[ring], a1);
+            const Vector3 c = point(next, centerX[ring + 1U], centerY[ring + 1U],
+                                    radii[ring + 1U], a1);
+            const Vector3 d = point(next, centerX[ring + 1U], centerY[ring + 1U],
+                                    radii[ring + 1U], a0);
+            const Color wall = ((side % 4) == 0 || (ring % 2U) == 0)
+                ? wallLight : wallDark;
+            DrawTriangle3D(a, b, c, wall);
+            DrawTriangle3D(a, c, d, wall);
+            if (ring % 2U == 1U) DrawLine3D(a, b, edge);
+        }
+    }
+}
+
 void drawProceduralReward(std::uint64_t seed,float playerDistance,
                           const tunrun::ProceduralReward& reward) {
     const float ahead=static_cast<float>(reward.distance-static_cast<double>(playerDistance));
@@ -852,9 +925,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const float forwardX = std::sin(yaw) * std::cos(pitch);
     const float forwardY = std::sin(pitch);
     const float forwardZ = -std::cos(yaw) * std::cos(pitch);
-    const float viewYaw = std::remainder(yaw + cameraLookYaw, 2.0F * PI);
-    const float viewPitch = std::clamp(pitch + cameraLookPitch, -1.20F, 1.20F);
-    // Mouse look changes the camera only; it never steers or rotates the craft.
+    const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
+    const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
+    // Camera look is independent from the spacecraft's heading: mouse motion
+    // never steers the ship, and ship rotation cannot drag the camera aim.
     constexpr double cameraLookDistance = 8.0;
     const double lookCourseOffset = cameraLookDistance *
         static_cast<double>(std::cos(viewYaw) * std::cos(viewPitch));
@@ -866,8 +940,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
         const float rearCenterY = rearSection.centerY - playerSection.centerY;
+        // Keep the chase-camera base behind the local course direction, not
+        // behind the craft's nose. Turning the ship therefore cannot drive the
+        // camera sideways into a wall; mouse-look only changes camera.target.
         const auto chasePose = tunrun::thirdPersonCameraPose(
-            shipX, shipY, forwardX, forwardY, forwardZ,
+            shipX, shipY, 0.0F, 0.0F, -1.0F,
             rearCenterX, rearCenterY, rearSection.radius);
         camera.position = rayVector(tunrun::tunnelFramePoint(
             rearFrame, chasePose.x - rearCenterX, chasePose.y - rearCenterY));
@@ -972,8 +1049,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                   tunrun::kGateSpacing)));
     const auto nextGate = tunrun::gateAt(seed, static_cast<std::uint32_t>(nextGateIndex));
     for (int i = firstVisibleIndex; i < firstVisibleIndex + 4; ++i) {
-        drawProceduralGate(seed, distance,
-                           tunrun::gateAt(seed, static_cast<std::uint32_t>(i)));
+        const auto gate = tunrun::gateAt(seed, static_cast<std::uint32_t>(i));
+        drawGateThroat(seed, distance, gate);
+        drawProceduralGate(seed, distance, gate);
     }
     const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
         (static_cast<double>(distance) - tunrun::kRewardStartDistance) /
