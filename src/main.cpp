@@ -789,7 +789,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             forwardFrame, lookOffset.right, lookOffset.up));
     } else {
         camera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, shipX, shipY));
-        camera.target = rayVector(forwardFrame.center);
+        camera.target = rayVector(tunrun::tunnelFramePoint(
+            forwardFrame, lookOffset.right, lookOffset.up));
     }
     const auto& cameraBasisFrame = tpp ? rearFrame : cameraFrame;
     camera.up = rayVector(tunrun::frameAdd(
