@@ -445,21 +445,26 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         }
     };
     if(gate.kind==tunrun::GateKind::Precision) {
-        const Color c{255,171,131,180}; halo(gate.apertureRadius+0.22F,c);
+        const Color raw{255,171,131,180};
+        const Color c=tunnelDepthFog(raw,std::max(0.0F,ahead));
+        halo(gate.apertureRadius+0.22F,raw);
         for(int i=0;i<segments;i+=3) {
             const float a=static_cast<float>(i)*2.0F*PI/segments;
             DrawLine3D(p(a,gate.apertureRadius,gate.offsetX,gate.offsetY),
                        p(a,gate.apertureRadius+0.22F,gate.offsetX,gate.offsetY),c);
         }
     } else if(gate.kind==tunrun::GateKind::Wide) {
-        const Color c{150,245,213,180}; halo(gate.apertureRadius+0.34F,c);
+        const Color raw{150,245,213,180};
+        const Color c=tunnelDepthFog(raw,std::max(0.0F,ahead));
+        halo(gate.apertureRadius+0.34F,raw);
         for(int i=0;i<segments;i+=6) {
             const float a=static_cast<float>(i)*2.0F*PI/segments;
             DrawLine3D(p(a,gate.apertureRadius,gate.offsetX,gate.offsetY),
                        p(a,gate.apertureRadius+0.34F,gate.offsetX,gate.offsetY),c);
         }
     } else if(gate.kind==tunrun::GateKind::Offset) {
-        const Color c{194,172,255,235};
+        const Color c=tunnelDepthFog(Color{194,172,255,235},
+                                     std::max(0.0F,ahead));
         for(int i=0;i<4;++i) {
             const float a=static_cast<float>(i)*PI*0.5F;
             DrawLine3D(p(a,gate.apertureRadius+0.12F,gate.offsetX,gate.offsetY),
@@ -935,7 +940,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         const Vector3 d=p(cx+sn*hazard.radius,cy-cs*hazard.radius);
         const Vector3 front=p(cx,cy,hazard.radius*0.30F),back=p(cx,cy,-hazard.radius*0.30F);
         DrawTriangle3D(a,front,c,color);DrawTriangle3D(c,back,b,blade);
-        DrawTriangle3D(b,front,d,Color{178,52,45,255});DrawTriangle3D(d,back,a,color);
+        DrawTriangle3D(b,front,d,facetDark);DrawTriangle3D(d,back,a,color);
         DrawSphere(center,hazard.radius*0.22F,shell);
         DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
         DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
@@ -1202,10 +1207,18 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             const float radialY = std::sin(angle) * 3.7F;
             const float travel = std::fmod(elapsedSeconds * 12.0F +
                                            static_cast<float>(i) * 2.7F, 19.0F);
-            const float depth = -2.0F - travel;
-            DrawLine3D(Vector3{radialX, radialY, depth},
-                       Vector3{radialX * 0.92F, radialY * 0.92F, depth - 2.2F},
-                       streakColor);
+            // Dash streaks are sampled in the same curved local frame as the
+            // tunnel skin; fixed world-space XYZ lines otherwise float away
+            // from the wall when the wormhole bends or twists.
+            const auto streakFrameA = tunrun::sampleTunnelFrame(
+                seed, distance, static_cast<double>(distance) + travel + 2.0);
+            const auto streakFrameB = tunrun::sampleTunnelFrame(
+                seed, distance, static_cast<double>(distance) + travel + 4.2);
+            const Vector3 a = rayVector(tunrun::tunnelFramePoint(
+                streakFrameA, radialX, radialY));
+            const Vector3 b = rayVector(tunrun::tunnelFramePoint(
+                streakFrameB, radialX * 0.92F, radialY * 0.92F));
+            DrawLine3D(a, b, tunnelDepthFog(streakColor, travel + 2.0F));
         }
     }
     const auto firstGate = tunrun::gateAt(seed, 0U);
