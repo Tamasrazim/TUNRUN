@@ -675,33 +675,47 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     };
     const float cx=moving.x,cy=moving.y;
     const Vector3 center=p(cx,cy);
-    const Color color{255,103,91,255};
+    Color color{}, blade{}, shell{}, facetLight{}, facetDark{};
+    const auto family = tunrun::hazardVisualFamilyAt(seed, hazard.index);
+    switch (family) {
+    case tunrun::HazardVisualFamily::Orbital:
+        color={255,103,91,255}; blade={255,190,145,240}; shell={112,35,38,255};
+        facetLight={220,91,70,255}; facetDark={79,27,36,255}; break;
+    case tunrun::HazardVisualFamily::Prism:
+        color={207,119,255,255}; blade={246,185,255,245}; shell={64,27,88,255};
+        facetLight={223,151,255,255}; facetDark={62,29,91,255}; break;
+    case tunrun::HazardVisualFamily::Rotor:
+        color={77,220,255,255}; blade={181,249,255,245}; shell={17,62,86,255};
+        facetLight={123,239,255,255}; facetDark={21,83,110,255}; break;
+    case tunrun::HazardVisualFamily::Cross:
+        color={255,211,91,255}; blade={255,244,174,245}; shell={98,62,20,255};
+        facetLight={255,226,122,255}; facetDark={112,65,17,255}; break;
+    }
     const float phase=elapsedSeconds*(1.1F+hazard.frequency*0.4F)+
                       static_cast<float>(hazard.index)*0.73F;
-    const Color blade{255,167,119,230};
-    switch(hazard.index%4U) {
-    case 0U:
-        DrawSphere(center,hazard.radius*0.72F,Color{112,35,38,255});
+    switch (family) {
+    case tunrun::HazardVisualFamily::Orbital:
+        DrawSphere(center,hazard.radius*0.72F,shell);
         DrawSphereWires(center,hazard.radius,8,12,color);
         DrawLine3D(p(cx-hazard.radius,cy),p(cx+hazard.radius,cy),blade);
         DrawLine3D(p(cx,cy-hazard.radius),p(cx,cy+hazard.radius),blade);
         break;
-    case 1U: {
+    case tunrun::HazardVisualFamily::Prism: {
         const Vector3 top=p(cx,cy+hazard.radius),right=p(cx+hazard.radius*0.78F,cy);
         const Vector3 bottom=p(cx,cy-hazard.radius),left=p(cx-hazard.radius*0.78F,cy);
         const Vector3 front=p(cx,cy,hazard.radius*0.55F),back=p(cx,cy,-hazard.radius*0.55F);
-        const Color light{183,61,52,245},shade{79,27,36,255};
-        DrawTriangle3D(top,right,front,light);DrawTriangle3D(right,bottom,front,color);
-        DrawTriangle3D(bottom,left,front,shade);DrawTriangle3D(left,top,front,light);
-        DrawTriangle3D(top,back,right,shade);DrawTriangle3D(right,back,bottom,light);
-        DrawTriangle3D(bottom,back,left,color);DrawTriangle3D(left,back,top,shade);
+        
+        DrawTriangle3D(top,right,front,facetLight);DrawTriangle3D(right,bottom,front,color);
+        DrawTriangle3D(bottom,left,front,facetDark);DrawTriangle3D(left,top,front,facetLight);
+        DrawTriangle3D(top,back,right,facetDark);DrawTriangle3D(right,back,bottom,facetLight);
+        DrawTriangle3D(bottom,back,left,color);DrawTriangle3D(left,back,top,facetDark);
         DrawLine3D(top,right,color);DrawLine3D(right,bottom,color);
         DrawLine3D(bottom,left,color);DrawLine3D(left,top,color);
         DrawLine3D(top,bottom,blade);DrawLine3D(left,right,blade);
         DrawSphereWires(center,hazard.radius*0.34F,6,8,color);
         break;
     }
-    case 2U: {
+    case tunrun::HazardVisualFamily::Rotor: {
         for(int i=0;i<3;++i) {
             const float a=phase+static_cast<float>(i)*2.0F*PI/3.0F;
             const float tx=cx+std::cos(a)*hazard.radius,ty=cy+std::sin(a)*hazard.radius;
@@ -710,13 +724,13 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
                 cy-std::sin(a)*hazard.radius*0.55F,std::sin(phase)*hazard.radius*0.28F);
             const Vector3 back=p(tx,ty,-hazard.radius*0.22F);
             DrawTriangle3D(center,tip,shoulder,blade);
-            DrawTriangle3D(center,shoulder,back,Color{142,43,39,255});
+            DrawTriangle3D(center,shoulder,back,facetDark);
             DrawLine3D(center,tip,color);DrawLine3D(tip,shoulder,blade);DrawLine3D(shoulder,center,color);
         }
         DrawSphereWires(center,hazard.radius*0.24F,6,8,blade);
         break;
     }
-    default: {
+    case tunrun::HazardVisualFamily::Cross: {
         const float cs=std::cos(phase),sn=std::sin(phase);
         const Vector3 a=p(cx+cs*hazard.radius,cy+sn*hazard.radius);
         const Vector3 b=p(cx-cs*hazard.radius,cy-sn*hazard.radius);
@@ -725,7 +739,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         const Vector3 front=p(cx,cy,hazard.radius*0.30F),back=p(cx,cy,-hazard.radius*0.30F);
         DrawTriangle3D(a,front,c,color);DrawTriangle3D(c,back,b,blade);
         DrawTriangle3D(b,front,d,Color{178,52,45,255});DrawTriangle3D(d,back,a,color);
-        DrawSphere(center,hazard.radius*0.22F,Color{92,25,32,255});
+        DrawSphere(center,hazard.radius*0.22F,shell);
         DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
         DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
         break;
@@ -747,7 +761,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto reticleFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
-    const auto forwardFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) + 24.0);
+    // A short route look-ahead follows bends instead of aiming along a long chord
+    // that can appear to cut through the outside wall on a tight curve.
+    const auto forwardFrame = tunrun::sampleTunnelFrame(
+        seed, distance, static_cast<double>(distance) + 8.0);
     const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
     const float forwardX = std::sin(yaw) * std::cos(pitch);
     const float forwardY = std::sin(pitch);
@@ -766,9 +783,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         camera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, shipX, shipY));
         camera.target = rayVector(forwardFrame.center);
     }
+    const auto& cameraBasisFrame = tpp ? rearFrame : cameraFrame;
     camera.up = rayVector(tunrun::frameAdd(
-        tunrun::frameScale(playerFrame.up, std::cos(roll)),
-        tunrun::frameScale(playerFrame.right, -std::sin(roll))));
+        tunrun::frameScale(cameraBasisFrame.up, std::cos(roll)),
+        tunrun::frameScale(cameraBasisFrame.right, -std::sin(roll))));
     camera.fovy = 70.0F;
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
@@ -889,7 +907,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
     if (hazardCue.valid) {
-        DrawText(TextFormat("NEXT HAZARD: %.1f UNITS", hazardCue.distanceAhead),
+        const auto hazardFamily = tunrun::hazardVisualFamilyAt(
+            seed, hazardCue.hazardIndex);
+        DrawText(TextFormat("NEXT %s: %.1f UNITS",
+                 tunrun::hazardVisualFamilyName(hazardFamily),
+                 hazardCue.distanceAhead),
                  35, 137, 10, Color{255, 153, 125, 255});
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
