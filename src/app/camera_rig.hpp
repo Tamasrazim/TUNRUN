@@ -81,6 +81,35 @@ struct CameraSafeOffset {
     return {right, up, radial, clamped};
 }
 
+// A world-space interpolation between the cockpit eye and chase eye can cut
+// across the inside of a sharply curved tunnel. Reproject the intermediate
+// eye into the cross-section at its blended course distance, using the active
+// narrow gate throat when present, so the transition eye itself stays inside.
+[[nodiscard]] inline FrameVector3 clampCameraEyeToCrossSection(
+    const TunnelFrame& frame, FrameVector3 desiredWorldEye,
+    float crossSectionRadius, float centerX = 0.0F, float centerY = 0.0F,
+    float wallClearance = 0.55F) noexcept {
+    if (!std::isfinite(centerX)) centerX = 0.0F;
+    if (!std::isfinite(centerY)) centerY = 0.0F;
+    if (!std::isfinite(desiredWorldEye.x) ||
+        !std::isfinite(desiredWorldEye.y) ||
+        !std::isfinite(desiredWorldEye.z)) {
+        desiredWorldEye = tunnelFramePoint(frame, centerX, centerY);
+    }
+    const FrameVector3 relative{
+        desiredWorldEye.x - frame.center.x,
+        desiredWorldEye.y - frame.center.y,
+        desiredWorldEye.z - frame.center.z
+    };
+    const float right = frameDot(relative, frame.right);
+    const float up = frameDot(relative, frame.up);
+    const auto safe = cameraSafeOffset(
+        right - centerX, up - centerY, crossSectionRadius, wallClearance);
+    // The eye sits on this course station's cross-section plane, rather than
+    // retaining an interpolated world-space tangent component from a chord.
+    return tunnelFramePoint(frame, centerX + safe.right, centerY + safe.up);
+}
+
 struct ThirdPersonCameraPose {
     float x = 0.0F;
     float y = 0.25F;

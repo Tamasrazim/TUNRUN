@@ -1163,6 +1163,20 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             (tppFocusDistance - fppFocusDistance) * static_cast<double>(modeBlend);
         const float blendEyeClearance = 0.55F + (0.80F - 0.55F) * modeBlend;
         const float blendFocusClearance = 0.55F + (0.35F - 0.55F) * modeBlend;
+        const auto blendedEyeFrame = tunrun::sampleTunnelFrame(
+            seed, distance, cameraOriginDistance);
+        const auto blendedEyeThroat = tunrun::gateThroatSectionAtDistance(
+            seed, cameraOriginDistance);
+        const float eyeCenterX = blendedEyeThroat.active
+            ? blendedEyeThroat.centerX : 0.0F;
+        const float eyeCenterY = blendedEyeThroat.active
+            ? blendedEyeThroat.centerY : 0.0F;
+        const float eyeRadius = blendedEyeThroat.active
+            ? blendedEyeThroat.radius : blendedEyeFrame.radius;
+        camera.position = rayVector(tunrun::clampCameraEyeToCrossSection(
+            blendedEyeFrame,
+            tunrun::FrameVector3{camera.position.x, camera.position.y, camera.position.z},
+            eyeRadius, eyeCenterX, eyeCenterY, blendEyeClearance));
         // A blend between two safe rays can still cut a corner at an S-bend.
         // Validate the final blended ray instead of trusting the endpoints.
         clipCameraRay(camera, cameraOriginDistance, cameraTargetDistance,

@@ -122,6 +122,31 @@ int main() {
     assert(std::isfinite(invalidFirstPersonOffset.up));
     assert(invalidFirstPersonOffset.clampedToTunnel);
 
+    // The intermediate FPP/TPP eye is reprojected inside the active local
+    // cross-section, including the throat centre offset, rather than being
+    // allowed to cut across the tunnel wall along a world-space chord.
+    const auto blendedEyeFrame = tunrun::sampleTunnelFrame(frameSeed, 32.0, 58.0);
+    const auto outsideBlendedEye = tunrun::tunnelFramePoint(
+        blendedEyeFrame, 5.75F, -3.8F);
+    const auto safeBlendedEye = tunrun::clampCameraEyeToCrossSection(
+        blendedEyeFrame, outsideBlendedEye, 2.0F, 0.25F, -0.15F, 0.40F);
+    const tunrun::FrameVector3 blendedEyeRelative{
+        safeBlendedEye.x - blendedEyeFrame.center.x,
+        safeBlendedEye.y - blendedEyeFrame.center.y,
+        safeBlendedEye.z - blendedEyeFrame.center.z
+    };
+    const float blendedEyeRight = tunrun::frameDot(
+        blendedEyeRelative, blendedEyeFrame.right);
+    const float blendedEyeUp = tunrun::frameDot(
+        blendedEyeRelative, blendedEyeFrame.up);
+    assert(std::hypot(blendedEyeRight - 0.25F,
+                      blendedEyeUp + 0.15F) <= 1.6001F);
+    assert(std::abs(tunrun::frameDot(
+        blendedEyeRelative, blendedEyeFrame.tangent)) < 0.001F);
+    assert(std::isfinite(safeBlendedEye.x) &&
+           std::isfinite(safeBlendedEye.y) &&
+           std::isfinite(safeBlendedEye.z));
+
     const auto cameraPathStartFrame = tunrun::sampleTunnelFrame(frameSeed, 0.0, -1.25);
     const auto cameraPathEndFrame = tunrun::sampleTunnelFrame(frameSeed, 0.0, 8.0);
     const auto safeCameraPath = tunrun::limitCameraRayInsideTunnel(
