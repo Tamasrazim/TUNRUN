@@ -143,3 +143,10 @@ Generated sections behind the player can be unloaded once they are outside the r
 Gate gameplay generation remains separate from its decorative construction. A second seeded channel (`191`) assigns every gate one of five support designs: **Radial Cage**, **Segmented Crown**, **Chevron Brace**, **Twin Rails**, or **Split Clamps**. Each style uses the existing gate aperture as its reference and draws lines only on the surrounding annulus; the minimum visual inset is 0.18 world units beyond the aperture edge.
 
 These styles do not modify `GateKind`, aperture radius, offsets, spacing, throat geometry, scoring, reachability checks, collision tests, or the obstacle hash. Replaying the same seed and gate index yields the same silhouette. The in-run gate cue reports both the gameplay gate kind and the visual structure. Unit tests cover determinism, name/index validity and family coverage over 512 gates; they do not replace a manual in-game visual review.
+
+
+## Moving-mine proximity warnings
+
+The warning profile is derived from the same distance and elapsed run clock as the rendered mine. Its first segmented ring becomes visible inside 54 course units; at 22 units it switches to the urgent color/state and adds a second ring. Pulse frequency increases from 1.3 Hz to 4.3 Hz with approach distance. The warning ring is centered on the same sampled tunnel frame and animated mine center as the visible model, so it tracks a mine through a curved tunnel rather than using a straight-world projection.
+
+The warning profile is rendering/HUD feedback only: it does not change the hazard seed channels, trajectory, radius, collision tests, or hazard hash. Unit tests cover activation thresholds, rear grace, invalid numeric inputs, repeatability, and bounded pulse/ring values.
