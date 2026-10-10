@@ -1112,7 +1112,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 8U);
+    assert(tunrun::kObstacleGeneratorVersion == 9U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
