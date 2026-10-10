@@ -980,14 +980,19 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // Camera look is independent from the spacecraft's heading: mouse motion
     // never steers the ship, and ship rotation cannot drag the camera aim.
     constexpr double cameraLookDistance = 8.0;
-    const double lookCourseOffset = cameraLookDistance *
-        static_cast<double>(std::cos(viewYaw) * std::cos(viewPitch));
+    constexpr double tppLookAheadDistance = 3.5;
+    // FPP looks where the mouse points. TPP instead orbits around the ship and
+    // keeps a stable focus slightly ahead along the chosen lane, so a full
+    // orbit doesn't lose the spacecraft or turn into a fixed-eye free-look.
+    const double lookCourseOffset = tpp ? tppLookAheadDistance
+        : cameraLookDistance *
+            static_cast<double>(std::cos(viewYaw) * std::cos(viewPitch));
     const auto forwardFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + lookCourseOffset);
     const auto lookOffset = tunrun::cameraLookOffset(
         viewYaw, viewPitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
-    float lookTargetX = lookOffset.right;
-    float lookTargetY = lookOffset.up;
+    float lookTargetX = tpp ? shipX : lookOffset.right;
+    float lookTargetY = tpp ? shipY : lookOffset.up;
     const auto lookThroat = tunrun::gateThroatSectionAtDistance(
         seed, static_cast<double>(distance) + lookCourseOffset);
     if (lookThroat.active) {
@@ -996,6 +1001,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             lookThroat.radius, 0.60F);
         lookTargetX = lookThroat.centerX + safeTarget.right;
         lookTargetY = lookThroat.centerY + safeTarget.up;
+    } else if (tpp) {
+        const auto safeTarget = tunrun::cameraSafeOffset(
+            lookTargetX, lookTargetY, forwardFrame.radius, 0.60F);
+        lookTargetX = safeTarget.right;
+        lookTargetY = safeTarget.up;
     }
     Camera3D camera{};
     if (tpp) {

@@ -77,7 +77,7 @@ On a collision:
 ## TPP camera
 
 - Chase the same craft transform with a spring-damped or critically damped follow model.
-- Mouse-look yaw/pitch orbit the camera eye around the spacecraft instead of rotating the view from a fixed eye point.
+- Mouse-look yaw/pitch orbit the camera eye around the spacecraft instead of rotating the view from a fixed eye point; the TPP focus remains a clamped point slightly ahead along the selected lane.
 - Smooth all three camera-offset components so moving between rear, side and front views does not abruptly jump the longitudinal camera sample.
 - Look ahead toward the upcoming flight path, not only directly at the craft.
 - Use camera obstruction tests against tunnel geometry and aperture throats; smoothly shorten/offset the camera when needed.
