@@ -63,6 +63,18 @@ inline void applyRelativeMouseSteering(float& x, float& y,
     y = std::clamp(y - delta.y * sensitivity, -limit, limit);
 }
 
+[[nodiscard]] inline float mouseTargetSteering(
+    float target, float position, float velocity,
+    float gain = 0.78F, float damping = 0.30F) noexcept {
+    if (!std::isfinite(target)) target = 0.0F;
+    if (!std::isfinite(position)) position = 0.0F;
+    if (!std::isfinite(velocity)) velocity = 0.0F;
+    if (!std::isfinite(gain) || gain < 0.0F) gain = 0.78F;
+    if (!std::isfinite(damping) || damping < 0.0F) damping = 0.30F;
+    return std::clamp((target - position) * gain - velocity * damping,
+                      -1.0F, 1.0F);
+}
+
 class RawMouse {
 public:
     RawMouse() = default;
