@@ -368,11 +368,8 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
 
 Vector3 rayVector(tunrun::FrameVector3 p) { return Vector3{p.x,p.y,p.z}; }
 
-Vector3 tunnelPoint(std::uint64_t seed,float distance,int ring,int side) {
+Vector3 tunnelPoint(const tunrun::TunnelFrame& frame,int side) {
     constexpr int sides=20;
-    constexpr float ringSpacing=3.0F;
-    const float sampleDistance=distance+static_cast<float>(ring)*ringSpacing;
-    const auto frame=tunrun::sampleTunnelFrame(seed,distance,sampleDistance);
     const float angle=static_cast<float>(side)*2.0F*PI/sides;
     return rayVector(tunrun::tunnelFramePoint(frame,
         std::cos(angle)*frame.radius,std::sin(angle)*frame.radius));
@@ -490,7 +487,7 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     const float cp = std::cos(pitch), sp = std::sin(pitch);
     const float cy = std::cos(yaw), sy = std::sin(yaw);
     const float cr = std::cos(roll), sr = std::sin(roll);
-    const auto v = [shipX, shipY, cp, sp, cy, sy, cr, sr](float x, float y, float z) {
+    const auto v = [shipX, shipY, cp, sp, cy, sy, cr, sr, tunnelFrame](float x, float y, float z) {
         const float pitchedY = y * cp - z * sp;
         const float pitchedZ = y * sp + z * cp;
         const float yawedX = x * cy + pitchedZ * sy;
@@ -776,16 +773,25 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     constexpr int firstRing = -5;
     constexpr int lastRing = 37;
     constexpr int sideCount = 20;
+    constexpr float ringSpacing = 3.0F;
+    std::array<tunrun::TunnelFrame, lastRing - firstRing> tunnelFrames{};
+    for (int ring = firstRing; ring < lastRing; ++ring) {
+        tunnelFrames[static_cast<std::size_t>(ring - firstRing)] =
+            tunrun::sampleTunnelFrame(seed, distance,
+                static_cast<double>(distance) + static_cast<double>(ring) * ringSpacing);
+    }
     for (int ring = firstRing; ring < lastRing; ++ring) {
         const Color ringColor = ring % 4 == 0
             ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
+        const auto& ringFrame = tunnelFrames[static_cast<std::size_t>(ring - firstRing)];
         for (int side = 0; side < sideCount; ++side) {
             const int nextSide = (side + 1) % sideCount;
-            const Vector3 a = tunnelPoint(seed, distance, ring, side);
-            const Vector3 b = tunnelPoint(seed, distance, ring, nextSide);
+            const Vector3 a = tunnelPoint(ringFrame, side);
+            const Vector3 b = tunnelPoint(ringFrame, nextSide);
             if (ring + 1 < lastRing) {
-                const Vector3 d = tunnelPoint(seed, distance, ring + 1, side);
-                const Vector3 c = tunnelPoint(seed, distance, ring + 1, nextSide);
+                const auto& nextFrame = tunnelFrames[static_cast<std::size_t>(ring + 1 - firstRing)];
+                const Vector3 d = tunnelPoint(nextFrame, side);
+                const Vector3 c = tunnelPoint(nextFrame, nextSide);
                 const bool panelRidge = (side % 5 == 0) || (ring % 8 == 0);
                 const Color panel = panelRidge
                     ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255};
