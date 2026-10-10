@@ -68,3 +68,6 @@ Moving mines now carry a segmented in-world warning ring in their own sampled tu
 ### Expanded mine silhouette library
 
 Two new procedural mine meshes extend the existing four: Halo Array uses three intersecting hoops around a core, and Shard Cluster uses six faceted crystal fins. Palette and silhouette are chosen on the existing visual-only seed channel; movement and hitbox generation are unchanged. Automated coverage checks all six shells over 512 deterministic hazard indices. In-game readability and frame-time review still need to be performed.
+
+
+- The in-run HUD now displays the selected throat waveform family (S-Bend, Double S, Helical Weave, or Split Wave) beside the course seed and steering cue. This makes the generated passage topology inspectable during flight instead of leaving the family label available only to diagnostics/tests.
