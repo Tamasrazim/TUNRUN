@@ -297,6 +297,7 @@ struct StateGraphRouteValidation {
     std::uint32_t simulationSteps = 0U;
     std::uint32_t candidateStatesGenerated = 0U;
     std::uint32_t discardedStates = 0U;
+    std::uint32_t beamPrunedStates = 0U;
     std::uint32_t peakStateCount = 0U;
     std::uint32_t gatesWithMultiplePassingStates = 0U;
     std::uint32_t maximumPassingStatesAtGate = 0U;
@@ -390,25 +391,25 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             ++result.transitionsChecked;
             activeGate = gateAt(seed, result.gatesChecked);
             std::array<CandidateState, kMaximumStates> nextStates{};
-            std::size_t nextCount = 0U;
-            // Bias outermost so beam pruning retains varied target policies
-            // even when many parent states pass the previous aperture.
-            for (const auto& bias : kAimBiases) {
-                for (std::size_t parent = 0U;
-                     parent < passingCount && nextCount < kMaximumStates;
-                     ++parent) {
-                    nextStates[nextCount].state = passingStates[parent];
-                    nextStates[nextCount].aimBiasX = bias[0];
-                    nextStates[nextCount].aimBiasY = bias[1];
-                    nextStates[nextCount].active = true;
-                    ++nextCount;
-                }
-                if (nextCount >= kMaximumStates) break;
+            const std::size_t totalBranches = passingCount * kAimBiases.size();
+            const std::size_t nextCount = std::min(kMaximumStates, totalBranches);
+            // Stratify the fixed beam across both parent trajectories and aim
+            // policies. A policy-major loop would fill the beam with only the
+            // first three/four policies whenever many parents survive.
+            for (std::size_t slot = 0U; slot < nextCount; ++slot) {
+                const std::size_t parent = (slot * passingCount) / nextCount;
+                const auto& bias = kAimBiases[slot % kAimBiases.size()];
+                nextStates[slot].state = passingStates[parent];
+                nextStates[slot].aimBiasX = bias[0];
+                nextStates[slot].aimBiasY = bias[1];
+                nextStates[slot].active = true;
             }
+            result.beamPrunedStates += static_cast<std::uint32_t>(
+                totalBranches - nextCount);
             states = nextStates;
             stateCount = nextCount;
             passingCount = 0U;
-            result.candidateStatesGenerated += static_cast<std::uint32_t>(nextCount);
+            result.candidateStatesGenerated += static_cast<std::uint32_t>(totalBranches);
             result.peakStateCount = std::max(
                 result.peakStateCount, static_cast<std::uint32_t>(stateCount));
             continue;

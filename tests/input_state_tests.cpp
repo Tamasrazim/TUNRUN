@@ -676,6 +676,7 @@ int main() {
 
     // Bounded state-propagating route graph: viable gate crossings branch
     // into multiple target policies while preserving the actual flight state.
+    bool sawGraphBeamPruning = false;
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
         const auto graph =
             tunrun::validateStateGraphRouteReachability(seed, 12U, shipId);
@@ -683,11 +684,14 @@ int main() {
         assert(graph.gatesChecked == 12U);
         assert(graph.transitionsChecked == 11U);
         assert(graph.candidateStatesGenerated >= 9U);
+        assert(graph.beamPrunedStates <= graph.candidateStatesGenerated);
+        sawGraphBeamPruning = sawGraphBeamPruning || graph.beamPrunedStates > 0U;
         assert(graph.peakStateCount >= 9U && graph.peakStateCount <= 32U);
         assert(graph.maximumPassingStatesAtGate > 0U);
         assert(graph.minimumGateClearance >= 0.0F);
         assert(graph.maximumLateralOffset < tunrun::kFlightLimit);
     }
+    assert(sawGraphBeamPruning);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 0U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 513U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 12U, 999U).valid);
@@ -698,6 +702,7 @@ int main() {
         assert(graph.valid && graph.gatesChecked == 8U);
         assert(graph.transitionsChecked == 7U);
         assert(graph.peakStateCount <= 32U);
+        assert(graph.beamPrunedStates <= graph.candidateStatesGenerated);
         assert(graph.minimumGateClearance >= 0.0F);
     }
 
