@@ -53,3 +53,8 @@ Generator version 3 now assigns every mine one of four reproducible trajectories
 ### Procedural tunnel-wall architecture
 
 The renderer now selects one of five deterministic decorative wall motifs every 24 course units: Ribbed Metal, Plasma Rails, Fractured Panels, Spiral Conduits, or Lattice. Motifs vary panel seams, rib density, active rail lanes, and subdued palette through a rendering-only seed channel. The opaque tunnel remains continuous and continues to use the existing collision sampler; no decorative motif creates a gameplay obstacle. Coverage and deterministic repeatability are unit-tested across 512 sections.
+
+
+### Procedural gate architecture variety
+
+A visual-only gate generator now chooses between Radial Cage, Segmented Crown, Chevron Brace, Twin Rails, and Split Clamps through a seed channel independent of gate difficulty and collision data. The renderer applies each as a different annular support pattern while preserving the existing safe opening. The flight HUD reports the gameplay gate kind together with the selected structure. Automated tests check repeatability, family coverage and the minimum visual clearance; manual in-game readability still needs a separate review.
