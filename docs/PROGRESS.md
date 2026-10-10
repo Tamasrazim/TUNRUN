@@ -58,3 +58,8 @@ The renderer now selects one of five deterministic decorative wall motifs every 
 ### Procedural gate architecture variety
 
 A visual-only gate generator now chooses between Radial Cage, Segmented Crown, Chevron Brace, Twin Rails, and Split Clamps through a seed channel independent of gate difficulty and collision data. The renderer applies each as a different annular support pattern while preserving the existing safe opening. The flight HUD reports the gameplay gate kind together with the selected structure. Automated tests check repeatability, family coverage and the minimum visual clearance; manual in-game readability still needs a separate review.
+
+
+### Mine proximity warning pass
+
+Moving mines now carry a segmented in-world warning ring in their own sampled tunnel frame. The ring starts at 54 course units, pulses faster as the craft closes in, and adds a second ring plus an urgent HUD label at 22 units. The warning uses the same animated center as the mine mesh but remains purely visual; the mine's spherical collision proxy and procedural hash are unchanged. Tests cover threshold edges, pulse bounds and determinism.
