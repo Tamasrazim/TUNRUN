@@ -157,6 +157,26 @@ int main() {
         std::numeric_limits<float>::quiet_NaN());
     assert(std::isfinite(invalidLook.right) && std::isfinite(invalidLook.up));
 
+    // Chase offsets ease laterally instead of snapping. Exponential smoothing
+    // converges with consistent time response across different render rates.
+    tunrun::CameraFollowState chaseFollow;
+    tunrun::smoothCameraFollow(chaseFollow, 0.8F, -0.3F, 1.0F / 60.0F);
+    assert(chaseFollow.initialized);
+    assert(std::abs(chaseFollow.right - 0.8F) < 0.0001F);
+    assert(std::abs(chaseFollow.up + 0.3F) < 0.0001F);
+    tunrun::smoothCameraFollow(chaseFollow, -0.8F, 0.5F, 1.0F / 60.0F);
+    assert(chaseFollow.right < 0.8F && chaseFollow.right > -0.8F);
+    assert(chaseFollow.up > -0.3F && chaseFollow.up < 0.5F);
+    for (int i = 0; i < 120; ++i) {
+        tunrun::smoothCameraFollow(chaseFollow, -0.8F, 0.5F, 1.0F / 120.0F);
+    }
+    assert(std::abs(chaseFollow.right + 0.8F) < 0.001F);
+    assert(std::abs(chaseFollow.up - 0.5F) < 0.001F);
+    tunrun::smoothCameraFollow(chaseFollow,
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(), 1.0F / 60.0F);
+    assert(std::isfinite(chaseFollow.right) && std::isfinite(chaseFollow.up));
+
     const auto safeChasePose = tunrun::thirdPersonCameraPose(
         0.5F, -0.3F, 0.0F, 0.0F, -1.0F, 1.0F, -0.5F, 5.0F);
     assert(!safeChasePose.clampedToTunnel);

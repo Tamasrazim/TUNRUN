@@ -80,6 +80,7 @@ struct AppState {
     bool mouseControlEngaged = false;
     float cameraLookYaw = 0.0F;
     float cameraLookPitch = 0.0F;
+    tunrun::CameraFollowState tppCameraFollow;
     std::uint64_t rootSeed = 0;
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
@@ -171,6 +172,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.mouseControlEngaged = false;
     app.cameraLookYaw = 0.0F;
     app.cameraLookPitch = 0.0F;
+    app.tppCameraFollow = {};
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
@@ -950,7 +952,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 float boostEnergy, float dashCooldownRemaining,
                 float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
-                std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp) {
+                std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp,
+                tunrun::CameraFollowState& tppCameraFollow,
+                float frameDeltaTime) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto rearSection = tunrun::sampleCourse(seed, static_cast<double>(distance) - 6.0);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
@@ -983,6 +987,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         lookTargetY = lookThroat.centerY + safeTarget.up;
     }
     Camera3D camera{};
+    if (!tpp) tppCameraFollow.initialized = false;
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
         const float rearCenterY = rearSection.centerY - playerSection.centerY;
@@ -996,13 +1001,22 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         float chaseY = chasePose.y - rearCenterY;
         const auto chaseThroat = tunrun::gateThroatSectionAtDistance(
             seed, static_cast<double>(distance) - 6.0);
+        float chaseCenterX = 0.0F;
+        float chaseCenterY = 0.0F;
+        float chaseRadius = rearSection.radius;
         if (chaseThroat.active) {
-            const auto safeChase = tunrun::cameraSafeOffset(
-                chaseX - chaseThroat.centerX, chaseY - chaseThroat.centerY,
-                chaseThroat.radius, 0.80F);
-            chaseX = chaseThroat.centerX + safeChase.right;
-            chaseY = chaseThroat.centerY + safeChase.up;
+            chaseCenterX = chaseThroat.centerX;
+            chaseCenterY = chaseThroat.centerY;
+            chaseRadius = chaseThroat.radius;
         }
+        const auto desiredChase = tunrun::cameraSafeOffset(
+            chaseX - chaseCenterX, chaseY - chaseCenterY, chaseRadius, 0.80F);
+        tunrun::smoothCameraFollow(tppCameraFollow,
+            desiredChase.right, desiredChase.up, frameDeltaTime);
+        const auto smoothedChase = tunrun::cameraSafeOffset(
+            tppCameraFollow.right, tppCameraFollow.up, chaseRadius, 0.80F);
+        chaseX = chaseCenterX + smoothedChase.right;
+        chaseY = chaseCenterY + smoothedChase.up;
         camera.position = rayVector(tunrun::tunnelFramePoint(rearFrame, chaseX, chaseY));
         camera.target = rayVector(tunrun::tunnelFramePoint(
             forwardFrame, lookTargetX, lookTargetY));
@@ -1587,7 +1601,8 @@ int main() {
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
                        app.flight.bank, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
-                       app.runAetherPickupReward, app.runSingularityCorePickupReward);
+                       app.runAetherPickupReward, app.runSingularityCorePickupReward,
+                       app.tppCameraFollow, dt);
             const Rectangle pauseBounds{
                 static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
             };

@@ -137,6 +137,40 @@ struct ThirdPersonCameraPose {
     };
 }
 
+// Smooth only the chase camera's lateral/vertical offset. The tunnel frame
+// is resampled every frame, so smoothing world-space XYZ would lag the camera
+// behind the moving course origin and can cut across curved walls.
+struct CameraFollowState {
+    float right = 0.0F;
+    float up = 0.0F;
+    bool initialized = false;
+};
+
+inline void smoothCameraFollow(CameraFollowState& state,
+                               float targetRight, float targetUp,
+                               float deltaTime,
+                               float responsiveness = 14.0F) noexcept {
+    if (!std::isfinite(targetRight)) targetRight = 0.0F;
+    if (!std::isfinite(targetUp)) targetUp = 0.0F;
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0F) return;
+    deltaTime = std::min(deltaTime, 0.1F);
+    if (!std::isfinite(responsiveness) || responsiveness <= 0.0F) {
+        responsiveness = 14.0F;
+    }
+    responsiveness = std::clamp(responsiveness, 0.1F, 40.0F);
+    if (!state.initialized ||
+        !std::isfinite(state.right) || !std::isfinite(state.up)) {
+        state.right = targetRight;
+        state.up = targetUp;
+        state.initialized = true;
+        return;
+    }
+    // Exponential decay has the same response at 30, 60, and 120+ Hz.
+    const float blend = 1.0F - std::exp(-responsiveness * deltaTime);
+    state.right += (targetRight - state.right) * blend;
+    state.up += (targetUp - state.up) * blend;
+}
+
 struct CameraRayLimit {
     float safeFraction = 1.0F;
     float minimumWallClearance = 0.0F;
