@@ -49,7 +49,7 @@ The input service emits normalised intent:
 - CameraSwitch and Pause as edge-triggered actions.
 - UI navigation as directional/confirm/back actions.
 
-Keyboard is digital input with a consistent ramp/response curve. Gamepad sticks use configurable dead-zone and response curves. Mouse steering uses relative delta scaled by sensitivity and frame/timestep policy; it must not depend on repeated pointer warping.
+Keyboard is digital input with a consistent ramp/response curve. Gamepad sticks use configurable dead-zone and response curves. Mouse look uses relative delta scaled by saved sensitivity and changes the camera direction only; it must not steer the spacecraft or depend on repeated pointer warping. W accelerates, S brakes, and A/D provide lateral steering. With no speed key held the craft returns to its established cruise speed.
 
 ## Collision model
 
@@ -100,7 +100,7 @@ The generator's warning-time validator must use maximum achievable boost speed. 
 - Same input sequence and simulation configuration produce the same craft trajectory within the deterministic test environment.
 - 30, 60, 120, and uncapped render rates do not materially change gameplay outcomes.
 - Switching FPP/TPP changes only the camera.
-- Mouse steering direction and magnitude match configured settings.
+- Mouse look rotates the camera without changing the craft trajectory; W accelerates, S brakes and released speed control returns toward cruise.
 - Focus loss and pause clear inputs, release capture, and freeze hazard time.
 - No craft can exploit camera switching to cross obstacles.
 - Collision cases include walls, thin barriers, corners, moving obstacles, and high-speed contact.

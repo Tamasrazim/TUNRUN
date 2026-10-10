@@ -19,6 +19,7 @@ struct FlightState {
     float velocityY = 0.0F;
     float boostEnergy = 100.0F;
     float distance = 0.0F;
+    float forwardSpeed = 11.0F;
     float dashRemaining = 0.0F;
     float dashCooldownRemaining = 0.0F;
     bool dashButtonWasDown = false;
@@ -40,6 +41,7 @@ struct FlightInput {
     float rotateYaw = 0.0F;
     float rotatePitch = 0.0F;
     float roll = 0.0F;
+    float speedControl = 0.0F; // -1 brake, 0 cruise, +1 accelerate
 };
 
 inline constexpr float kFlightLimit = 6.5F;
@@ -78,6 +80,8 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         ? std::clamp(input.rotatePitch, -1.0F, 1.0F) : 0.0F;
     input.roll = std::isfinite(input.roll)
         ? std::clamp(input.roll, -1.0F, 1.0F) : 0.0F;
+    input.speedControl = std::isfinite(input.speedControl)
+        ? std::clamp(input.speedControl, -1.0F, 1.0F) : 0.0F;
 
     state.yawRate = approach(state.yawRate, input.rotateYaw * 1.8F, 6.0F * dt);
     state.pitchRate = approach(state.pitchRate, input.rotatePitch * 1.45F, 5.0F * dt);
@@ -97,6 +101,11 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
 
     const auto& ship = shipDefinition(input.shipId);
     const bool precision = input.precision;
+    const float desiredCruiseSpeed = input.speedControl > 0.1F ? 13.0F
+        : input.speedControl < -0.1F ? 3.5F : 11.0F;
+    const float speedResponse = input.speedControl < -0.1F ? 18.0F : 7.0F;
+    state.forwardSpeed = approach(state.forwardSpeed, desiredCruiseSpeed,
+                                  speedResponse * dt);
     const bool dashPressedEdge = input.dash && !state.dashButtonWasDown;
     state.dashButtonWasDown = input.dash;
     state.dashCooldownRemaining = std::max(0.0F, state.dashCooldownRemaining - dt);
@@ -125,7 +134,7 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
     state.y += state.velocityY * dt;
     const float forwardSpeed = (precision ? 8.0F
         : state.dashRemaining > 0.0F ? (boosting ? 24.0F : 19.0F)
-        : boosting ? 16.0F : 11.0F) * ship.speedMultiplier;
+        : boosting ? 16.0F : state.forwardSpeed) * ship.speedMultiplier;
     state.distance += forwardSpeed * dt;
 
     const float energyDelta = boosting

@@ -930,6 +930,28 @@ int main() {
     }
     assert(boost.boostEnergy < 100.0F && boost.boostEnergy > 50.0F);
 
+    // W accelerates above the familiar cruise speed; S brakes quickly.
+    tunrun::FlightState cruiseFlight;
+    tunrun::FlightState acceleratedFlight;
+    tunrun::FlightState brakingFlight;
+    float cruiseAccumulator = 0.0F, acceleratedAccumulator = 0.0F, brakingAccumulator = 0.0F;
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(cruiseFlight, tunrun::FlightInput{}, 1.0F / 120.0F,
+                              cruiseAccumulator);
+        tunrun::advanceFlight(acceleratedFlight,
+            tunrun::FlightInput{0.0F, 0.0F, false, false,
+                                tunrun::kStarterShipId, false, 0.0F, 0.0F, 0.0F, 1.0F},
+            1.0F / 120.0F, acceleratedAccumulator);
+        tunrun::advanceFlight(brakingFlight,
+            tunrun::FlightInput{0.0F, 0.0F, false, false,
+                                tunrun::kStarterShipId, false, 0.0F, 0.0F, 0.0F, -1.0F},
+            1.0F / 120.0F, brakingAccumulator);
+    }
+    assert(acceleratedFlight.distance > cruiseFlight.distance);
+    assert(brakingFlight.distance < cruiseFlight.distance);
+    assert(brakingFlight.forwardSpeed < cruiseFlight.forwardSpeed);
+    assert(acceleratedFlight.forwardSpeed > cruiseFlight.forwardSpeed);
+
     // Dash is an edge-triggered, energy-costed burst. Holding the button
     // does not auto-repeat when the cooldown expires.
     tunrun::FlightState ordinaryFlight;

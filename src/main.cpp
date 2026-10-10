@@ -60,6 +60,8 @@ struct AppState {
     float mouseAimX = 0.0F;
     float mouseAimY = 0.0F;
     bool mouseControlEngaged = false;
+    float cameraLookYaw = 0.0F;
+    float cameraLookPitch = 0.0F;
     std::uint64_t rootSeed = 0;
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
@@ -148,7 +150,9 @@ void resetFlight(AppState& app, bool& tpp) {
     app.flightAccumulator = 0.0F;
     app.mouseAimX = 0.0F;
     app.mouseAimY = 0.0F;
-    app.mouseControlEngaged = app.profile.mouseSteering;
+    app.mouseControlEngaged = false;
+    app.cameraLookYaw = 0.0F;
+    app.cameraLookPitch = 0.0F;
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
@@ -398,6 +402,12 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         const Vector3 o0=p(a0,outerRadius,0,0),o1=p(a1,outerRadius,0,0);
         const Vector3 i0=p(a0,gate.apertureRadius,gate.offsetX,gate.offsetY);
         const Vector3 i1=p(a1,gate.apertureRadius,gate.offsetX,gate.offsetY);
+        // Opaque bulkhead panels close the space outside the true aperture.
+        // The old ring-only gate let the whole next section show through.
+        const Color bulkhead = (i % 4 == 0)
+            ? Color{26, 38, 54, 255} : Color{13, 20, 31, 255};
+        DrawTriangle3D(o0, o1, i1, bulkhead);
+        DrawTriangle3D(o0, i1, i0, bulkhead);
         DrawLine3D(o0,o1,outer); DrawLine3D(i0,i1,inner);
         if(i%2==0) DrawLine3D(o0,i0,Color{76,99,125,205});
     }
@@ -502,14 +512,76 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         return Vector3{localX, localY, yawedZ};
     };
     const auto line = [color](Vector3 a, Vector3 b) { DrawLine3D(a, b, color); };
-    // A shaded faceted fuselage under the distinct wireframe silhouette makes
-    // each ship read as a solid 3D object instead of a flat HUD glyph.
-    const auto nose = v(0.0F, 0.0F, -0.64F);
-    const auto top = v(0.0F, 0.22F, 0.10F);
-    const auto bottom = v(0.0F, -0.20F, 0.34F);
-    const auto left = v(-0.30F, -0.01F, 0.28F);
-    const auto right = v(0.30F, -0.01F, 0.28F);
-    const auto tail = v(0.0F, 0.05F, 0.86F);
+    const auto quad = [](Vector3 a, Vector3 b, Vector3 c, Vector3 d,
+                         Color upper, Color lower) {
+        DrawTriangle3D(a, b, c, upper);
+        DrawTriangle3D(a, c, d, lower);
+    };
+    const auto wing = [&](float side, float rootFrontX, float rootFrontZ,
+                          float tipFrontX, float tipFrontZ,
+                          float tipBackX, float tipBackZ,
+                          float rootBackX, float rootBackZ, float wingY) {
+        const Vector3 rootFront = v(side * rootFrontX, 0.055F, rootFrontZ);
+        const Vector3 tipFront = v(side * tipFrontX, wingY, tipFrontZ);
+        const Vector3 tipBack = v(side * tipBackX, wingY - 0.025F, tipBackZ);
+        const Vector3 rootBack = v(side * rootBackX, -0.045F, rootBackZ);
+        quad(rootFront, tipFront, tipBack, rootBack, hullLight, color);
+        line(rootFront, tipFront);
+        line(tipFront, tipBack);
+        line(tipBack, rootBack);
+        line(rootBack, rootFront);
+        const Vector3 sparMid = v(side * ((rootFrontX + tipBackX) * 0.46F),
+                                  wingY + 0.012F,
+                                  rootFrontZ + (tipBackZ - rootFrontZ) * 0.62F);
+        line(rootFront, sparMid);
+        line(sparMid, tipBack);
+    };
+    // Filled, ship-specific wing planforms replace the old wireframe-only
+    // silhouettes with eight visibly different 3D spacecraft.
+    switch (shipId) {
+    case 0U: // DRIFTWING — balanced swept delta wings.
+        wing(-1.0F, .18F, -.12F, .96F, .30F, .48F, .82F, .22F, .55F, -.045F);
+        wing( 1.0F, .18F, -.12F, .96F, .30F, .48F, .82F, .22F, .55F, -.045F);
+        break;
+    case 1U: // WRAITH — long, narrow swept interceptor wings.
+        wing(-1.0F, .16F, -.23F, .78F, .35F, .42F, .92F, .18F, .58F, -.085F);
+        wing( 1.0F, .16F, -.23F, .78F, .35F, .42F, .92F, .18F, .58F, -.085F);
+        break;
+    case 2U: // BULWARK — wide armored lifting planes.
+        wing(-1.0F, .29F, -.04F, 1.08F, .22F, .91F, .84F, .31F, .62F, -.10F);
+        wing( 1.0F, .29F, -.04F, 1.08F, .22F, .91F, .84F, .31F, .62F, -.10F);
+        break;
+    case 3U: // MANTA — broad flowing manta-shaped wings.
+        wing(-1.0F, .19F, -.27F, 1.12F, .10F, .58F, .84F, .27F, .55F, -.035F);
+        wing( 1.0F, .19F, -.27F, 1.12F, .10F, .58F, .84F, .27F, .55F, -.035F);
+        break;
+    case 4U: // COMET — needle hull with small high-speed stabilisers.
+        wing(-1.0F, .12F, -.18F, .60F, .08F, .34F, .82F, .16F, .61F, .005F);
+        wing( 1.0F, .12F, -.18F, .60F, .08F, .34F, .82F, .16F, .61F, .005F);
+        break;
+    case 5U: // SPECTRE — split nose prongs and dual swept planes.
+        wing(-1.0F, .21F, -.04F, .91F, .23F, .52F, .78F, .23F, .57F, -.065F);
+        wing( 1.0F, .21F, -.04F, .91F, .23F, .52F, .78F, .23F, .57F, -.065F);
+        wing(-1.0F, .14F, -.52F, .57F, -.49F, .42F, -.20F, .15F, -.12F, .04F);
+        wing( 1.0F, .14F, -.52F, .57F, -.49F, -.20F, .15F, -.12F, .04F);
+        break;
+    case 6U: // VORTEX — diamond wings with angular cross-bracing.
+        wing(-1.0F, .15F, -.20F, .84F, .10F, .84F, .68F, .20F, .55F, .015F);
+        wing( 1.0F, .15F, -.20F, .84F, .10F, .84F, .68F, .20F, .55F, .015F);
+        break;
+    case 7U: // OBSIDIAN — heavy angular interceptor planform.
+        wing(-1.0F, .24F, -.20F, .98F, .25F, .55F, .94F, .27F, .59F, -.075F);
+        wing( 1.0F, .24F, -.20F, .98F, .25F, .55F, .94F, .27F, .59F, -.075F);
+        break;
+    default: break;
+    }
+    // Broad faceted central fuselage, canopy, and rear engine bells.
+    const auto nose = v(0.0F, 0.0F, -0.88F);
+    const auto top = v(0.0F, 0.26F, 0.03F);
+    const auto bottom = v(0.0F, -0.21F, 0.30F);
+    const auto left = v(-0.36F, -0.015F, 0.23F);
+    const auto right = v(0.36F, -0.015F, 0.23F);
+    const auto tail = v(0.0F, 0.045F, 1.00F);
     DrawTriangle3D(nose, top, left, hullLight);
     DrawTriangle3D(nose, right, top, color);
     DrawTriangle3D(nose, bottom, right, hullShade);
@@ -518,8 +590,21 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     DrawTriangle3D(top, right, tail, color);
     DrawTriangle3D(left, tail, bottom, hullShade);
     DrawTriangle3D(bottom, tail, right, hullShade);
-    DrawSphere(v(-0.19F, -0.04F, 0.66F), 0.085F, Color{100, 224, 255, 255});
-    DrawSphere(v(0.19F, -0.04F, 0.66F), 0.085F, Color{100, 224, 255, 255});
+    // Blue-glass canopy and engine bells add recognizable spacecraft details.
+    DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
+                   v(0.0F, 0.205F, -0.48F),
+                   v(0.15F, 0.135F, -0.28F), Color{43, 90, 130, 255});
+    DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
+                   v(0.15F, 0.135F, -0.28F),
+                   v(0.0F, 0.155F, -0.04F), Color{26, 57, 88, 255});
+    DrawCylinderEx(v(-0.205F, -0.06F, 0.61F), v(-0.205F, -0.06F, 0.90F),
+                   0.095F, 0.072F, 8, hullShade);
+    DrawCylinderEx(v(0.205F, -0.06F, 0.61F), v(0.205F, -0.06F, 0.90F),
+                   0.095F, 0.072F, 8, hullShade);
+    const Color engineGlow = shipId == 4U ? Color{255, 139, 96, 255}
+        : shipId == 6U ? Color{179, 123, 255, 255} : Color{88, 226, 255, 255};
+    DrawSphere(v(-0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
+    DrawSphere(v(0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
     switch (shipId) {
     case 0U: { // DRIFTWING: light delta wing.
         const auto nose = v(0.0F, 0.0F, -0.35F);
@@ -750,7 +835,8 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, bool tpp, bool reduceMotion,
                 float mouseAimX, float mouseAimY, bool showAimReticle,
-                float pitch, float yaw, float roll,
+                float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
+                float roll,
                 float boostEnergy, float dashCooldownRemaining,
                 float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
@@ -766,16 +852,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const float forwardX = std::sin(yaw) * std::cos(pitch);
     const float forwardY = std::sin(pitch);
     const float forwardZ = -std::cos(yaw) * std::cos(pitch);
-    // Move the look point with yaw/pitch; the signed course offset permits a
-    // controlled look-back without letting the cross-section target leave
-    // the tunnel. This affects presentation only, never flight physics.
+    const float viewYaw = std::remainder(yaw + cameraLookYaw, 2.0F * PI);
+    const float viewPitch = std::clamp(pitch + cameraLookPitch, -1.20F, 1.20F);
+    // Mouse look changes the camera only; it never steers or rotates the craft.
     constexpr double cameraLookDistance = 8.0;
     const double lookCourseOffset = cameraLookDistance *
-        static_cast<double>(std::cos(yaw) * std::cos(pitch));
+        static_cast<double>(std::cos(viewYaw) * std::cos(viewPitch));
     const auto forwardFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + lookCourseOffset);
     const auto lookOffset = tunrun::cameraLookOffset(
-        yaw, pitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
+        viewYaw, viewPitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
     Camera3D camera{};
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
@@ -832,6 +918,31 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 DrawLine3D(a, d, Color{48, 65, 83, 125});
             }
             DrawLine3D(a, b, ringColor);
+        }
+    }
+    // Rotating inner-wall filaments give the continuously generated tube a
+    // wormhole-like sense of depth while following bends and twist exactly.
+    constexpr int ribbonCount = 6;
+    constexpr std::array<Color, ribbonCount> ribbonColors{{
+        Color{73, 222, 255, 205}, Color{154, 103, 255, 205},
+        Color{74, 255, 202, 190}, Color{83, 151, 255, 195},
+        Color{233, 103, 255, 195}, Color{104, 247, 255, 185}
+    }};
+    for (int ribbon = 0; ribbon < ribbonCount; ++ribbon) {
+        const float phase = static_cast<float>(ribbon) * 2.0F * PI /
+            static_cast<float>(ribbonCount) + elapsedSeconds * 0.38F;
+        for (int ring = firstRing; ring + 1 < lastRing; ++ring) {
+            const auto& frameA = tunnelFrames[static_cast<std::size_t>(ring - firstRing)];
+            const auto& frameB = tunnelFrames[static_cast<std::size_t>(ring + 1 - firstRing)];
+            const float angleA = phase + static_cast<float>(ring - firstRing) * 0.19F;
+            const float angleB = phase + static_cast<float>(ring + 1 - firstRing) * 0.19F;
+            const float radiusA = std::max(0.25F, frameA.radius - 0.16F);
+            const float radiusB = std::max(0.25F, frameB.radius - 0.16F);
+            const Vector3 a = rayVector(tunrun::tunnelFramePoint(
+                frameA, std::cos(angleA) * radiusA, std::sin(angleA) * radiusA));
+            const Vector3 b = rayVector(tunrun::tunnelFramePoint(
+                frameB, std::cos(angleB) * radiusB, std::sin(angleB) * radiusB));
+            DrawLine3D(a, b, ribbonColors[static_cast<std::size_t>(ribbon)]);
         }
     }
     if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {
@@ -953,8 +1064,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD / MOUSE: STEER   ARROWS / RIGHT STICK: ROTATE   Q/E: ROLL   SPACE / A: DASH   SHIFT / RT: BOOST   V: CAMERA",
-             36, GetScreenHeight() - 42, 11, kMuted);
+    DrawText("W ACCEL   S BRAKE   A/D STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
+             36, GetScreenHeight() - 42, 10, kMuted);
 }
 } // namespace
 
@@ -1065,6 +1176,7 @@ int main() {
     };
     const std::vector<std::string> seedEntryItems{"APPLY + START RUN", "CANCEL"};
     const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
+    int hangarFocus = 0; // 0 = purchase/equip, 1 = Back
 
     while (!WindowShouldClose() && !app.exitRequested) {
         const bool mouseCaptureWanted =
@@ -1086,8 +1198,9 @@ int main() {
             } else {
                 float steerX = (IsKeyDown(KEY_D) ? 1.0F : 0.0F) -
                                (IsKeyDown(KEY_A) ? 1.0F : 0.0F);
-                float steerY = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
-                               (IsKeyDown(KEY_S) ? 1.0F : 0.0F);
+                float steerY = 0.0F;
+                const float speedControl = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
+                                           (IsKeyDown(KEY_S) ? 1.0F : 0.0F);
                 float rotateYaw = (IsKeyDown(KEY_RIGHT) ? 1.0F : 0.0F) -
                                   (IsKeyDown(KEY_LEFT) ? 1.0F : 0.0F);
                 float rotatePitch = (IsKeyDown(KEY_UP) ? 1.0F : 0.0F) -
@@ -1111,18 +1224,8 @@ int main() {
                     if (std::abs(rotatePitch) < 0.16F) rotatePitch = 0.0F;
                 }
 
-                const bool manualFlightInput =
-                    IsKeyDown(KEY_A) || IsKeyDown(KEY_D) ||
-                    IsKeyDown(KEY_W) || IsKeyDown(KEY_S) ||
-                    std::abs(padX) > 0.01F || std::abs(padY) > 0.01F ||
-                    std::abs(rotateYaw) > 0.01F || std::abs(rotatePitch) > 0.01F ||
-                    std::abs(rollInput) > 0.01F;
-                if (manualFlightInput) {
-                    app.mouseControlEngaged = false;
-                    app.mouseAimX = app.flight.x;
-                    app.mouseAimY = app.flight.y;
-                }
-
+                // Mouse input now rotates the camera only. The flight path is
+                // controlled by A/D, arrows, and the gamepad, never by the view.
                 if (app.profile.mouseSteering) {
                     RelativeMouseDelta mouseDelta{};
                     if (rawMouse.installed()) {
@@ -1131,43 +1234,18 @@ int main() {
                         const Vector2 pointerDelta = GetMouseDelta();
                         mouseDelta = RelativeMouseDelta{pointerDelta.x, pointerDelta.y};
                     }
-                    if (!manualFlightInput &&
-                        (std::abs(mouseDelta.x) > 0.01F ||
-                         std::abs(mouseDelta.y) > 0.01F)) {
-                        applyRelativeMouseSteering(
-                            app.mouseAimX, app.mouseAimY, mouseDelta,
-                            app.profile.mouseSensitivity);
-                        app.mouseControlEngaged = true;
-                    }
-                } else {
-                    app.mouseControlEngaged = false;
-                    app.mouseAimX = app.flight.x;
-                    app.mouseAimY = app.flight.y;
+                    app.cameraLookYaw = std::remainder(
+                        app.cameraLookYaw + mouseDelta.x * app.profile.mouseSensitivity,
+                        2.0F * PI);
+                    app.cameraLookPitch = std::clamp(
+                        app.cameraLookPitch - mouseDelta.y * app.profile.mouseSensitivity,
+                        -0.72F, 0.72F);
+                } else if (rawMouse.installed()) {
+                    (void)rawMouse.consume();
                 }
-
-                if (app.profile.mouseSteering) {
-                    const auto aimSection = tunrun::sampleCourse(
-                        app.courseSeed, static_cast<double>(app.flight.distance));
-                    const auto reticleSection = tunrun::sampleCourse(
-                        app.courseSeed, static_cast<double>(app.flight.distance) +
-                            kMouseAimReticleDepth);
-                    const float minimumAimRadius = std::min(
-                        aimSection.radius, reticleSection.radius);
-                    const float safeAimRadius = std::max(
-                        0.1F, minimumAimRadius - tunrun::kCraftCollisionRadius - 0.08F);
-                    (void)clampMouseTargetToRadius(
-                        app.mouseAimX, app.mouseAimY, safeAimRadius);
-                }
-
-                // The target persists between raw-delta events and is tracked
-                // with damping, so frame rate does not dictate steering strength.
-                if (app.profile.mouseSteering && app.mouseControlEngaged &&
-                    !manualFlightInput) {
-                    steerX += mouseTargetSteering(
-                        app.mouseAimX, app.flight.x, app.flight.velocityX);
-                    steerY += mouseTargetSteering(
-                        app.mouseAimY, app.flight.y, app.flight.velocityY);
-                }
+                app.mouseControlEngaged = false;
+                app.mouseAimX = app.flight.x;
+                app.mouseAimY = app.flight.y;
                 const float previousElapsed = std::max(0.0F, app.elapsed - dt);
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
@@ -1187,7 +1265,7 @@ int main() {
                     IsKeyDown(KEY_LEFT_CONTROL) || padPrecision,
                     static_cast<std::uint32_t>(app.selectedShip),
                     IsKeyDown(KEY_SPACE) || padDash,
-                    rotateYaw, rotatePitch, rollInput
+                    rotateYaw, rotatePitch, rollInput, speedControl
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 const auto tunnelSection = tunrun::sampleCourse(
@@ -1296,9 +1374,9 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp, app.reduceMotion,
-                       app.mouseAimX, app.mouseAimY,
-                       app.profile.mouseSteering && app.mouseControlEngaged,
-                       app.flight.pitch, app.flight.yaw, app.flight.roll,
+                       app.mouseAimX, app.mouseAimY, false,
+                       app.flight.pitch, app.flight.yaw,
+                       app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
                        app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
@@ -1349,6 +1427,11 @@ int main() {
             break;
         }
         case tunrun::Screen::Hangar: {
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN) ||
+                padPressed(GAMEPAD_BUTTON_LEFT_FACE_UP) ||
+                padPressed(GAMEPAD_BUTTON_LEFT_FACE_DOWN)) {
+                hangarFocus = 1 - hangarFocus;
+            }
             const int previewShip = app.hangarPreviewShip;
             const int previousPreviewShip = app.hangarPreviewShip;
             const auto& definition = tunrun::shipDefinition(static_cast<std::uint32_t>(previewShip));
@@ -1373,20 +1456,22 @@ int main() {
             if (unlocked) {
                 actionLabel = active ? "ACTIVE SHIP" : "EQUIP THIS SHIP";
             } else if (definition.aetherShardCost > 0U) {
-                actionLabel = "UNLOCK FOR " + std::to_string(definition.aetherShardCost) + " AETHER SHARDS";
+                actionLabel = "BUY + EQUIP FOR " + std::to_string(definition.aetherShardCost) + " AETHER SHARDS";
             } else {
-                actionLabel = "UNLOCK FOR " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
+                actionLabel = "BUY + EQUIP FOR " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
             }
-            const Rectangle actionBounds{66.0F, 405.0F, 385.0F, 45.0F};
-            const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), false);
-            const bool actionConfirmed = confirmPressed();
-            if (actionClicked || actionConfirmed) {
+            const float actionWidth = std::min(385.0F,
+                static_cast<float>(GetScreenWidth()) * 0.41F);
+            const Rectangle actionBounds{66.0F, 405.0F, actionWidth, 45.0F};
+            const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), hangarFocus == 0);
+            const bool actionConfirmed = hangarFocus == 0 && confirmPressed();
+            if (!active && (actionClicked || actionConfirmed)) {
                 activateHangarShip(app, static_cast<std::uint32_t>(previewShip));
             }
 
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 365), 390, 48, 36}, "<", false))
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 400), 390, 34, 34}, "<", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 55), 390, 48, 36}, ">", false))
+            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth() - 45), 390, 34, 34}, ">", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
@@ -1414,9 +1499,12 @@ int main() {
                 const std::string visibleMessage = app.hangarMessage.substr(0, 88);
                 DrawText(visibleMessage.c_str(), 66, 489, 12, app.saveWarning ? kDanger : kMuted);
             }
-            if (drawMenu({"BACK"}, hangarSelection, GetScreenHeight() - 86,
-                         !actionConfirmed) == 0) app.screens.pop();
-            if (backPressed()) app.screens.pop();
+            const Rectangle backBounds{
+                (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
+                static_cast<float>(GetScreenHeight() - 86), kPanelWidth, 42.0F};
+            const bool backClicked = drawButton(backBounds, "BACK", hangarFocus == 1);
+            const bool backConfirmed = hangarFocus == 1 && confirmPressed();
+            if (backClicked || backConfirmed || backPressed()) app.screens.pop();
             break;
         }
         case tunrun::Screen::Records: {
@@ -1442,16 +1530,16 @@ int main() {
         }
         case tunrun::Screen::Controls: {
             drawHeader("SYSTEM / CONTROLS", "CONTROLS",
-                       "Keyboard, relative mouse and gamepad all control flight.");
+                       "W/S manage speed, A/D steer laterally, mouse moves the camera.");
             DrawText("KEYBOARD", 70, 184, 15, kAccent);
-            DrawText("MOVE  W / A / S / D", 78, 218, 13, kText);
-            DrawText("ROTATE  ARROW KEYS", 78, 246, 13, kText);
-            DrawText("BARREL ROLL  Q / E", 78, 274, 13, kText);
-            DrawText("BOOST  LEFT SHIFT", 78, 302, 13, kText);
-            DrawText("PRECISION  LEFT CTRL", 78, 330, 13, kText);
-            DrawText("DASH  SPACE  /  CAMERA  V", 78, 358, 13, kText);
-            DrawText("MOUSE: RELATIVE X/Y STEERING", 78, 402, 12, kAccent);
-            DrawText("PAUSE / BACK  ESC", 78, 426, 12, kMuted);
+            DrawText("GO / ACCELERATE  W", 78, 218, 13, kText);
+            DrawText("BRAKE / SLOW  S", 78, 246, 13, kText);
+            DrawText("MOVE LEFT / RIGHT  A / D", 78, 274, 13, kText);
+            DrawText("MOUSE LOOK: CAMERA ONLY", 78, 302, 13, kAccent);
+            DrawText("ROTATE  ARROW KEYS", 78, 330, 13, kText);
+            DrawText("BARREL ROLL  Q / E", 78, 358, 13, kText);
+            DrawText("BOOST SHIFT / PRECISION CTRL", 78, 386, 12, kText);
+            DrawText("DASH SPACE / CAMERA V / ESC BACK", 78, 410, 12, kMuted);
             DrawLine(402, 184, 402, 448, kEdge);
             DrawText("GAMEPAD", 432, 184, 15, kAccent);
             DrawText("LEFT STICK  MOVE", 440, 218, 13, kText);
@@ -1507,12 +1595,12 @@ int main() {
         }
         case tunrun::Screen::Settings: {
             drawHeader("03 / CONFIGURATION", "SETTINGS",
-                       "Adjust relative mouse steering, sensitivity, and display options.");
+                       "Adjust mouse-look camera sensitivity and display options.");
             auto labels = settingsItems;
             labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
             labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
-            labels[3] = std::string("MOUSE FLIGHT: ") +
+            labels[3] = std::string("MOUSE CAMERA: ") +
                 (app.profile.mouseSteering ? "ON" : "OFF");
             labels[4] = std::string("MOUSE SENSITIVITY: ") +
                 TextFormat("%.4f", app.profile.mouseSensitivity);
