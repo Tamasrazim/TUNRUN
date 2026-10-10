@@ -1110,6 +1110,43 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
+    assert(tunrun::kObstacleGeneratorVersion == 5U);
+
+    // Each throat has independent, bounded bend amplitudes. The aperture plane
+    // stays fixed, and physics/rendering use the same sampled profile.
+    float minimumBendX = std::numeric_limits<float>::infinity();
+    float maximumBendX = 0.0F;
+    float minimumBendY = std::numeric_limits<float>::infinity();
+    float maximumBendY = 0.0F;
+    for (std::uint32_t index = 0U; index < 512U; ++index) {
+        const auto bend = tunrun::gateThroatBendProfileAt(seed, index);
+        const auto repeatedBend = tunrun::gateThroatBendProfileAt(seed, index);
+        assert(bend.amplitudeX == repeatedBend.amplitudeX);
+        assert(bend.amplitudeY == repeatedBend.amplitudeY);
+        assert(bend.amplitudeX >= tunrun::kGateThroatBendMinimumAmplitudeX);
+        assert(bend.amplitudeX <= tunrun::kGateThroatBendAmplitudeX);
+        assert(bend.amplitudeY >= tunrun::kGateThroatBendMinimumAmplitudeY);
+        assert(bend.amplitudeY <= tunrun::kGateThroatBendAmplitudeY);
+        minimumBendX = std::min(minimumBendX, bend.amplitudeX);
+        maximumBendX = std::max(maximumBendX, bend.amplitudeX);
+        minimumBendY = std::min(minimumBendY, bend.amplitudeY);
+        maximumBendY = std::max(maximumBendY, bend.amplitudeY);
+
+        const auto generatedGate = tunrun::gateAt(seed, index);
+        const auto atPlane = tunrun::gateThroatSectionAtDistance(
+            seed, generatedGate, generatedGate.distance);
+        const auto atVerticalSweep = tunrun::gateThroatSectionAtDistance(
+            seed, generatedGate, generatedGate.distance + 4.5);
+        assert(atPlane.active &&
+               std::abs(atPlane.centerX - generatedGate.offsetX) < 0.0001F);
+        assert(std::abs(atPlane.centerY - generatedGate.offsetY) < 0.0001F);
+        assert(std::abs(atVerticalSweep.centerY -
+                        (generatedGate.offsetY + bend.amplitudeY)) < 0.0002F);
+        assert(atVerticalSweep.radius == generatedGate.apertureRadius);
+    }
+    assert(maximumBendX - minimumBendX > 0.30F);
+    assert(maximumBendY - minimumBendY > 0.10F);
+    assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     const auto mixedGateValidation = tunrun::validateObstacleSet(seed, 512U);
     assert(mixedGateValidation.valid && mixedGateValidation.gatesChecked == 512U);
     assert(mixedGateValidation.standardGates + mixedGateValidation.precisionGates +
