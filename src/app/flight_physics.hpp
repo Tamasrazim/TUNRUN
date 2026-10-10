@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/procedural_course.hpp"
+#include "app/hazards.hpp"
 #include "app/ship_catalog.hpp"
 
 #include <algorithm>
@@ -298,6 +299,8 @@ struct StateGraphRouteValidation {
     std::uint32_t candidateStatesGenerated = 0U;
     std::uint32_t discardedStates = 0U;
     std::uint32_t beamPrunedStates = 0U;
+    std::uint32_t hazardChecks = 0U;
+    std::uint32_t hazardCollisionStates = 0U;
     std::uint32_t peakStateCount = 0U;
     std::uint32_t gatesWithMultiplePassingStates = 0U;
     std::uint32_t maximumPassingStatesAtGate = 0U;
@@ -340,12 +343,13 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
     }};
     struct CandidateState {
         FlightState state{};
+        double elapsedSeconds = 0.0;
         float aimBiasX = 0.0F;
         float aimBiasY = 0.0F;
         bool active = true;
     };
     std::array<CandidateState, kMaximumStates> states{};
-    std::array<FlightState, kMaximumStates> passingStates{};
+    std::array<CandidateState, kMaximumStates> passingStates{};
     std::size_t stateCount = kAimBiases.size();
     std::size_t passingCount = 0U;
     const FlightState initialState{};
@@ -399,7 +403,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             for (std::size_t slot = 0U; slot < nextCount; ++slot) {
                 const std::size_t parent = (slot * passingCount) / nextCount;
                 const auto& bias = kAimBiases[slot % kAimBiases.size()];
-                nextStates[slot].state = passingStates[parent];
+                nextStates[slot] = passingStates[parent];
                 nextStates[slot].aimBiasX = bias[0];
                 nextStates[slot].aimBiasY = bias[1];
                 nextStates[slot].active = true;
@@ -422,6 +426,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
 
             const double previousDistance =
                 static_cast<double>(candidate.state.distance);
+            const double previousElapsedSeconds = candidate.elapsedSeconds;
             const float previousX = candidate.state.x;
             const float previousY = candidate.state.y;
             const auto& ship = shipDefinition(shipId);
@@ -443,6 +448,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             updateFlight(candidate.state,
                 FlightInput{steerX, steerY, true, false, shipId},
                 kFlightFixedStep);
+            candidate.elapsedSeconds += static_cast<double>(kFlightFixedStep);
 
             const auto& state = candidate.state;
             if (!std::isfinite(state.x) || !std::isfinite(state.y) ||
@@ -456,6 +462,37 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 result.maximumLateralOffset, std::hypot(state.x, state.y));
             result.simulatedDistance = std::max(
                 result.simulatedDistance, static_cast<double>(state.distance));
+
+            // Apply live swept moving-mine collision during route search. Each
+            // candidate owns a clock because paths cross gates at different
+            // elapsed times, changing the mines' deterministic positions.
+            const auto firstHazard = hazardAt(seed, 0U);
+            const double hazardLongitudinalReach =
+                kHazardMaximumRadius + kHazardCraftCollisionRadius;
+            const int firstHazardIndex = std::max(0, static_cast<int>(std::floor(
+                (previousDistance - hazardLongitudinalReach -
+                 firstHazard.distance) / kHazardSpacing)) - 1);
+            const int lastHazardIndex = std::max(firstHazardIndex,
+                static_cast<int>(std::ceil(
+                    (static_cast<double>(state.distance) + hazardLongitudinalReach -
+                     firstHazard.distance) / kHazardSpacing)) + 1);
+            bool hazardCollision = false;
+            for (int hazardIndex = firstHazardIndex;
+                 hazardIndex <= lastHazardIndex; ++hazardIndex) {
+                const auto hazard = hazardAt(seed, static_cast<std::uint32_t>(hazardIndex));
+                ++result.hazardChecks;
+                if (!sweptCollidesWithHazard(
+                        seed, previousX, previousY, previousDistance,
+                        previousElapsedSeconds, state.x, state.y, state.distance,
+                        candidate.elapsedSeconds, hazard)) continue;
+                candidate.active = false;
+                ++result.discardedStates;
+                ++result.hazardCollisionStates;
+                hazardCollision = true;
+                break;
+            }
+            if (hazardCollision) continue;
+
             if (collidesWithTunnelWall(state.x, state.y, conservativeTunnel)) {
                 candidate.active = false;
                 ++result.discardedStates;
@@ -489,7 +526,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             result.minimumGateClearance = std::min(
                 result.minimumGateClearance, clearance);
             if (passingCount < kMaximumStates) {
-                passingStates[passingCount++] = candidate.state;
+                passingStates[passingCount++] = candidate;
             }
         }
     }
