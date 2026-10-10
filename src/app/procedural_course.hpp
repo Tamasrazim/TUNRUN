@@ -22,13 +22,13 @@ inline constexpr float kGateThroatHalfLength = 18.0F;
 inline constexpr float kGateThroatNarrowCoreFraction = 0.50F;
 inline constexpr float kGateThroatBendAmplitudeX = 1.90F;
 inline constexpr float kGateThroatBendAmplitudeY = 0.35F;
-inline constexpr float kGateThroatBendMinimumAmplitudeX = 1.58F;
+inline constexpr float kGateThroatBendMinimumAmplitudeX = 1.45F;
 inline constexpr float kGateThroatBendMinimumAmplitudeY = 0.20F;
 inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 9U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 10U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -288,10 +288,8 @@ struct GateThroatBendOffset {
         vertical = 0.50F * doubleWave + 0.50F * triple;
         break;
     case GateThroatShapeFamily::SplitWave:
-        // Keep a dependable lateral displacement through the narrow core while
-        // using the third harmonic vertically for the split-wave crossover.
-        horizontal = 0.75F * single + 0.25F * doubleWave;
-        vertical = 0.38F * single + 0.62F * triple;
+        horizontal = 0.62F * single + 0.38F * triple;
+        vertical = 0.38F * single + 0.62F * doubleWave;
         break;
     }
     // Keep the core waveform intact and ease only the final quarter of each
