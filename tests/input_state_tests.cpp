@@ -870,7 +870,7 @@ int main() {
     const auto impossibleTransition = tunrun::evaluateGateTransitionReachability(
         impossiblePrevious, impossibleNext, tunrun::kStarterShipId);
     assert(!impossibleTransition.valid);
-    assert(impossibleTransition.failure[0] != '\\0');
+    assert(impossibleTransition.failure[0] != '\0');
     impossibleNext = tunrun::gateAt(seed, 1U);
     impossibleNext.distance = impossiblePrevious.distance + 0.5;
     assert(!tunrun::evaluateGateTransitionReachability(

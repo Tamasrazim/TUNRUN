@@ -459,7 +459,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         // mode-major policy table seeds 9 cruise, 9 boost, 9 precision, and
         // only 5 dash candidates in the first beam.
         const auto& policy = kRouteGraphPolicies[
-            routeGraphPolicyIndexForSlot(i, activeGate.index)];
+            routeGraphPolicyIndexForSlot(i, 0U)];
         states[i].state = initialState;
         states[i].aimBiasX = policy.aimBiasX;
         states[i].aimBiasY = policy.aimBiasY;
