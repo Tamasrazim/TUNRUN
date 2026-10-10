@@ -1691,6 +1691,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                  tunrun::gateStructureFamilyAt(seed, nextGate.index))),
              35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
+    DrawText(TextFormat("PASSAGE: %s",
+             tunrun::gateThroatShapeFamilyName(
+                 tunrun::gateThroatShapeFamilyAt(seed, nextGate.index))),
+             35, 133, 10, kMuted);
     if (throatGuidance.valid) {
         const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
             ? "CENTRE" : throatGuidance.lateralError < 0.0F ? "LEFT" : "RIGHT";
@@ -1698,9 +1702,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             ? "LEVEL" : throatGuidance.verticalError < 0.0F ? "PITCH DOWN" : "PITCH UP";
         DrawText(TextFormat("THROAT AIM: %s / %s  +%.1fU",
                  lateralCue, verticalCue, throatGuidance.distanceAhead),
-                 35, 137, 10, kAccent);
+                 35, 149, 10, kAccent);
     } else {
-        DrawText("THROAT AIM: UNAVAILABLE", 35, 137, 10, kMuted);
+        DrawText("THROAT AIM: UNAVAILABLE", 35, 149, 10, kMuted);
     }
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
@@ -1721,7 +1725,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                  tunrun::hazardVisualFamilyName(hazardFamily),
                  tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
                  hazardCue.distanceAhead, timeToHazard),
-                 35, 157, 10, warningText);
+                 35, 169, 10, warningText);
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
@@ -1729,27 +1733,27 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("MINE BEARING: %s %.1f / %s %.1f",
                  horizontalDirection, std::abs(hazardCue.offsetX),
                  verticalDirection, std::abs(hazardCue.offsetY)),
-                 35, 177, 10, Color{255, 153, 125, 255});
+                 35, 189, 10, Color{255, 153, 125, 255});
     } else {
-        DrawText("HAZARD CUE UNAVAILABLE", 35, 157, 10, kMuted);
+        DrawText("HAZARD CUE UNAVAILABLE", 35, 169, 10, kMuted);
     }
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 197, 10, kMuted);
+             static_cast<unsigned long long>(coresPickedUp)), 35, 209, 10, kMuted);
     DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
-             static_cast<unsigned long long>(score.cleanPasses)), 35, 217, 10, kAccent);
+             static_cast<unsigned long long>(score.cleanPasses)), 35, 229, 10, kAccent);
     if (dashRemaining > 0.0F) {
-        DrawText("DASH ACTIVE", 35, 237, 10, kAccent);
+        DrawText("DASH ACTIVE", 35, 249, 10, kAccent);
     } else if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
-                 35, 237, 10, kMuted);
+                 35, 249, 10, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
-        DrawText("DASH READY: SPACE / PAD A", 35, 237, 10, kAccent);
+        DrawText("DASH READY: SPACE / PAD A", 35, 249, 10, kAccent);
     } else {
         DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
-                 35, 237, 10, kMuted);
+                 35, 249, 10, kMuted);
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
