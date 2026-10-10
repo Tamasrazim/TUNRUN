@@ -123,7 +123,8 @@ int main() {
     const auto nearHullRay = tunrun::limitCameraRayInsideTunnel(
         frameSeed, 0.0, 0.0,
         tunrun::tunnelFramePoint(nearHullFrame, 0.0F, 0.0F),
-        0.0, tunrun::tunnelFramePoint(nearHullFrame, 5.20F, 0.0F),
+        0.0, tunrun::tunnelFramePoint(
+            nearHullFrame, nearHullFrame.radius - 0.40F, 0.0F),
         0.80F, 64U, 0.35F);
     assert(!nearHullRay.clipped);
     assert(nearHullRay.safeFraction == 1.0F);
