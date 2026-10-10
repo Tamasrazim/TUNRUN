@@ -563,7 +563,7 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
         wing(-1.0F, .21F, -.04F, .91F, .23F, .52F, .78F, .23F, .57F, -.065F);
         wing( 1.0F, .21F, -.04F, .91F, .23F, .52F, .78F, .23F, .57F, -.065F);
         wing(-1.0F, .14F, -.52F, .57F, -.49F, .42F, -.20F, .15F, -.12F, .04F);
-        wing( 1.0F, .14F, -.52F, .57F, -.49F, -.20F, .15F, -.12F, .04F);
+        wing( 1.0F, .14F, -.52F, .57F, -.49F, .42F, -.20F, .15F, -.12F, .04F);
         break;
     case 6U: // VORTEX — diamond wings with angular cross-bracing.
         wing(-1.0F, .15F, -.20F, .84F, .10F, .84F, .68F, .20F, .55F, .015F);
