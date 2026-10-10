@@ -969,6 +969,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 float& cameraModeBlend, float frameDeltaTime) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
+    const auto throatGuidance = tunrun::gateThroatGuidanceForFlight(
+        seed, static_cast<double>(distance), shipX, shipY, actualForwardSpeed);
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     const auto orbit = tunrun::cameraOrbitOffset(viewYaw, viewPitch);
@@ -1354,6 +1356,54 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             DrawSphereWires(aimCenter, size * 0.64F, 6, 12, aimColor);
         }
     }
+
+    // Mark the centre of the upcoming S-bend inside the actual throat mesh.
+    // This gives the player a spatial target in both FPP and TPP instead of
+    // making them rely on a text instruction alone. The marker is only visual:
+    // collision and navigation continue using the shared throat sampler.
+    if (throatGuidance.valid && throatGuidance.distanceAhead > 1.0F) {
+        const double guideDistance = static_cast<double>(distance) +
+            static_cast<double>(throatGuidance.distanceAhead);
+        const auto guideGate = tunrun::gateAt(seed, throatGuidance.gateIndex);
+        const auto guideThroat = tunrun::gateThroatSectionAtDistance(
+            seed, guideGate, guideDistance);
+        if (guideThroat.active) {
+            const auto guideFrame = tunrun::sampleTunnelFrame(
+                seed, distance, guideDistance);
+            const float markerRadius = std::clamp(
+                std::min(guideThroat.radius * 0.32F, 0.42F), 0.14F, 0.42F);
+            const Color markerColor{111, 225, 255, 225};
+            const auto markerPoint = [&](float x, float y) {
+                return rayVector(tunrun::tunnelFramePoint(
+                    guideFrame, guideThroat.centerX + x,
+                    guideThroat.centerY + y));
+            };
+            const Vector3 markerCenter = markerPoint(0.0F, 0.0F);
+            DrawSphere(markerCenter, 0.055F, markerColor);
+            constexpr int markerSegments = 12;
+            for (int segment = 0; segment < markerSegments; ++segment) {
+                const float a0 = static_cast<float>(segment) * 2.0F * PI /
+                    static_cast<float>(markerSegments);
+                const float a1 = static_cast<float>(segment + 1) * 2.0F * PI /
+                    static_cast<float>(markerSegments);
+                DrawLine3D(
+                    markerPoint(std::cos(a0) * markerRadius,
+                                std::sin(a0) * markerRadius),
+                    markerPoint(std::cos(a1) * markerRadius,
+                                std::sin(a1) * markerRadius),
+                    markerColor);
+            }
+            const float tick = markerRadius * 1.55F;
+            DrawLine3D(markerPoint(-tick, 0.0F),
+                       markerPoint(-markerRadius * 0.66F, 0.0F), markerColor);
+            DrawLine3D(markerPoint(markerRadius * 0.66F, 0.0F),
+                       markerPoint(tick, 0.0F), markerColor);
+            DrawLine3D(markerPoint(0.0F, -tick),
+                       markerPoint(0.0F, -markerRadius * 0.66F), markerColor);
+            DrawLine3D(markerPoint(0.0F, markerRadius * 0.66F),
+                       markerPoint(0.0F, tick), markerColor);
+        }
+    }
     EndMode3D();
     DrawRectangle(22, 18, 344, 260, Color{10, 14, 21, 225});
     DrawRectangleLines(22, 18, 344, 260, kEdge);
@@ -1368,8 +1418,6 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
-    const auto throatGuidance = tunrun::gateThroatGuidanceForFlight(
-        seed, static_cast<double>(distance), shipX, shipY, actualForwardSpeed);
     if (throatGuidance.valid) {
         const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
             ? "CENTRE" : throatGuidance.lateralError < 0.0F ? "LEFT" : "RIGHT";

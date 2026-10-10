@@ -467,6 +467,20 @@ int main() {
     assert(throatGuideStart.distanceAhead > 0.0F && throatGuideStart.distanceAhead < 26.0F);
     assert(std::isfinite(throatGuideStart.lateralError) &&
            std::isfinite(throatGuideStart.verticalError));
+    assert(throatGuideStart.targetRadius > 0.0F);
+    const auto startGuideGate = tunrun::gateAt(frameSeed, throatGuideStart.gateIndex);
+    const double startGuideDistance = throatGuideStart.distanceAhead;
+    const auto startGuideSection = tunrun::gateThroatSectionAtDistance(
+        frameSeed, startGuideGate, startGuideDistance);
+    const auto startGuideCourse = tunrun::sampleCourse(frameSeed, startGuideDistance);
+    const auto startPlayerCourse = tunrun::sampleCourse(frameSeed, 0.0);
+    assert(startGuideSection.active);
+    assert(std::abs(throatGuideStart.targetX -
+        (startGuideSection.centerX + startGuideCourse.centerX -
+         startPlayerCourse.centerX)) < 0.02F);
+    assert(std::abs(throatGuideStart.targetY -
+        (startGuideSection.centerY + startGuideCourse.centerY -
+         startPlayerCourse.centerY)) < 0.02F);
     const auto throatGuideAfterPlane = tunrun::gateThroatGuidanceForFlight(
         frameSeed, throatGate.distance + 6.0, 0.0F, 0.0F, 11.0F);
     assert(throatGuideAfterPlane.valid && throatGuideAfterPlane.gateIndex == throatGate.index);
