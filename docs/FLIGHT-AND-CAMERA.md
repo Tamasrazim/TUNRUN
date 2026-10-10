@@ -105,6 +105,7 @@ The generator's warning-time validator must use maximum achievable boost speed. 
 - Same input sequence and simulation configuration produce the same craft trajectory within the deterministic test environment.
 - 30, 60, 120, and uncapped render rates do not materially change gameplay outcomes.
 - Switching FPP/TPP changes only the camera.
+- The rendered ship nose, positive yaw/pitch inputs, and heading-induced lateral/vertical drift must use the same sign convention; turning the nose right/up must not move the craft left/down.
 - Mouse look rotates the camera without changing craft trajectory or being dragged by ship heading; the FPP reticle is constructed from the final, clipped camera ray and remains centered as the view turns or is shortened by a throat/wall.
 - W accelerates, S brakes even while boost/precision is held (an active dash completes), and released speed control returns toward cruise.
 - The first-person camera is clamped inside its own tunnel cross-section, not merely the ship's current section; the third-person camera remains radially within the sampled rear section and follows the course direction through ship rotations.

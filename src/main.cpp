@@ -618,8 +618,11 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     const auto v = [shipX, shipY, cp, sp, cy, sy, cr, sr, tunnelFrame](float x, float y, float z) {
         const float pitchedY = y * cp - z * sp;
         const float pitchedZ = y * sp + z * cp;
-        const float yawedX = x * cy + pitchedZ * sy;
-        const float yawedZ = -x * sy + pitchedZ * cy;
+        // Positive yaw is a right turn in the flight controller. The model's
+        // nose points along -Z, so use this matching rotation to keep rendered
+        // heading, horizontal drift, and the direction cue in agreement.
+        const float yawedX = x * cy - pitchedZ * sy;
+        const float yawedZ = x * sy + pitchedZ * cy;
         const float rolledX = yawedX * cr - pitchedY * sr;
         const float rolledY = yawedX * sr + pitchedY * cr;
         const float localX = shipX + rolledX;

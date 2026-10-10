@@ -139,7 +139,7 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
     // The ship's heading now contributes to its drift vector: rotating the
     // nose changes flight instead of being a cosmetic-only animation.
     const float headingDriftX = std::sin(state.yaw) * maximumSpeed * 0.28F;
-    const float headingDriftY = -std::sin(state.pitch) * maximumSpeed * 0.22F;
+    const float headingDriftY = std::sin(state.pitch) * maximumSpeed * 0.22F;
     state.velocityX = approach(state.velocityX,
         input.steerX * maximumSpeed + headingDriftX, acceleration * dt);
     state.velocityY = approach(state.velocityY,

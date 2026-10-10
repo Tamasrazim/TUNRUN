@@ -1489,6 +1489,28 @@ int main() {
     assert(std::isfinite(rotationState.yaw) &&
            std::isfinite(rotationState.pitch) &&
            std::isfinite(rotationState.roll));
+
+    // Positive yaw/pitch rotate the visible nose right/up and must produce
+    // drift in those same directions. The old signs moved against the nose.
+    const auto flightAfterHeading = [](float yawInput, float pitchInput) {
+        tunrun::FlightState state;
+        tunrun::FlightInput input;
+        input.rotateYaw = yawInput;
+        input.rotatePitch = pitchInput;
+        for (int frame = 0; frame < 120; ++frame) {
+            tunrun::updateFlight(state, input, tunrun::kFlightFixedStep);
+        }
+        return state;
+    };
+    const auto noseRight = flightAfterHeading(1.0F, 0.0F);
+    const auto noseLeft = flightAfterHeading(-1.0F, 0.0F);
+    const auto noseUp = flightAfterHeading(0.0F, 1.0F);
+    const auto noseDown = flightAfterHeading(0.0F, -1.0F);
+    assert(noseRight.yaw > 0.0F && noseRight.x > 0.0F);
+    assert(noseLeft.yaw < 0.0F && noseLeft.x < 0.0F);
+    assert(noseUp.pitch > 0.0F && noseUp.y > 0.0F);
+    assert(noseDown.pitch < 0.0F && noseDown.y < 0.0F);
+
     assert(tunrun::shipDefinition(4U).boostDrainMultiplier >
            tunrun::shipDefinition(2U).boostDrainMultiplier);
     tunrun::FlightState driftwingFlight;
