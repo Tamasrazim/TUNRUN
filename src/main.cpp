@@ -820,16 +820,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         // Aim along the tunnel centreline rather than the ship's raw heading.
         // This prevents hard turns from pointing the chase view through a wall.
         camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX + shipX * 0.18F,
-            forwardSection.centerY - playerSection.centerY + shipY * 0.18F,
+            forwardSection.centerX - playerSection.centerX,
+            forwardSection.centerY - playerSection.centerY,
             -24.0F};
     } else {
         camera.position = Vector3{shipX, shipY, 1.25F};
-        // Keep first-person looking down-course even when the craft spins.
-        // Heading still contributes a small amount of responsive nose-follow.
+        // Aim directly at the generated centerline. The ship can yaw, pitch,
+        // and roll independently without sending the view through a tunnel wall.
         camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX + shipX * 0.12F + forwardX * 1.0F,
-            forwardSection.centerY - playerSection.centerY + shipY * 0.12F + forwardY * 1.0F,
+            forwardSection.centerX - playerSection.centerX,
+            forwardSection.centerY - playerSection.centerY,
             1.25F + forwardZ * 24.0F};
     }
     const float tunnelRoll = roll + playerSection.twist;
