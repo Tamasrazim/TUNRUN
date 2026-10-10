@@ -66,13 +66,15 @@ On a collision:
 
 ## FPP camera
 
-- Attach the viewpoint to a defined cockpit/pilot anchor.
+- Mount the eye just ahead of and above the ship origin inside its canopy, not behind an invisible hull.
 - Clamp the actual camera origin to the camera's sampled cross-section; a valid ship position in the current section does not guarantee that a camera placed in a narrower rear section will fit.
-- Follow the craft's orientation in the local tunnel frame.
+- Follow the craft's orientation in the local tunnel frame and show the centered in-tunnel reticle for aperture alignment.
 - Keep a minimum look-ahead view; use warning shapes/lighting to make hazards readable.
 - Avoid extreme camera roll, zoom, or shake by default.
 - Permit FOV and comfort settings inside tested limits.
 - Ship geometry must not obstruct the view.
+
+In TPP, roll the spacecraft independently from the camera horizon. Blend camera roll out smoothly across the FPP/TPP transition so a barrel roll does not rotate the entire chase-camera view.
 
 ## TPP camera
 

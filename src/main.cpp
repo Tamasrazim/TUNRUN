@@ -979,7 +979,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // camera pose for one frame.
     tunrun::smoothCameraOrbitDistance(
         tppCameraFollow, orbit.behindDistance, frameDeltaTime);
-    const double fppEyeDistance = static_cast<double>(distance) - 1.25;
+    const double fppEyeDistance = static_cast<double>(distance) +
+        tunrun::kFirstPersonCockpitForwardOffset;
     const double tppEyeDistance = static_cast<double>(distance) -
         static_cast<double>(tppCameraFollow.behindDistance);
     const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, fppEyeDistance);
@@ -1031,7 +1032,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
 
     Camera3D fppCamera{};
     float fppEyeX = shipX;
-    float fppEyeY = shipY;
+    float fppEyeY = shipY + tunrun::kFirstPersonCockpitUpOffset;
     const auto fppEyeThroat = tunrun::gateThroatSectionAtDistance(seed, fppEyeDistance);
     if (fppEyeThroat.active) {
         const auto safeEye = tunrun::cameraSafeOffset(
@@ -1184,9 +1185,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     const auto cameraBasisFrame = tunrun::sampleTunnelFrame(
         seed, distance, cameraOriginDistance);
+    const float cameraRoll = tunrun::cameraRollForMode(roll, modeBlend);
     camera.up = rayVector(tunrun::frameAdd(
-        tunrun::frameScale(cameraBasisFrame.up, std::cos(roll)),
-        tunrun::frameScale(cameraBasisFrame.right, -std::sin(roll))));
+        tunrun::frameScale(cameraBasisFrame.up, std::cos(cameraRoll)),
+        tunrun::frameScale(cameraBasisFrame.right, -std::sin(cameraRoll))));
     camera.fovy = 70.0F;
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
@@ -1729,7 +1731,7 @@ int main() {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip),
                        tunrun::gameModeName(app.activeMode), tpp, app.reduceMotion,
-                       app.mouseAimX, app.mouseAimY, false,
+                       app.mouseAimX, app.mouseAimY, !tpp,
                        app.flight.pitch, app.flight.yaw,
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
                        app.flight.bank, app.flight.boostEnergy, app.flight.dashCooldownRemaining,

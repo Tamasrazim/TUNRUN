@@ -269,6 +269,16 @@ int main() {
         assert(reversibleBlend <= previous);
     }
     assert(tunrun::smoothCameraModeBlend(0.4F, 1.0F, 0.0F) == 0.4F);
+    // The FPP camera sits slightly ahead/above the ship origin inside the
+    // canopy. TPP keeps the tunnel horizon stable while the ship rolls.
+    assert(tunrun::kFirstPersonCockpitForwardOffset > 0.0);
+    assert(tunrun::kFirstPersonCockpitForwardOffset < 0.88);
+    assert(tunrun::kFirstPersonCockpitUpOffset > 0.0F);
+    assert(std::abs(tunrun::cameraRollForMode(0.6F, 0.0F) - 0.6F) < 0.0001F);
+    assert(std::abs(tunrun::cameraRollForMode(0.6F, 0.5F) - 0.3F) < 0.0001F);
+    assert(std::abs(tunrun::cameraRollForMode(0.6F, 1.0F)) < 0.0001F);
+    assert(std::abs(tunrun::cameraRollForMode(
+        std::numeric_limits<float>::quiet_NaN(), 1.0F)) < 0.0001F);
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);
     assert(std::abs(defaultOrbit.up) < 0.0001F);

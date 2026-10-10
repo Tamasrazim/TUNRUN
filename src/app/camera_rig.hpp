@@ -175,6 +175,22 @@ struct CameraOrbitOffset {
     float behindDistance = 6.0F;
 };
 
+// FPP eye is anchored just ahead of the ship's origin, inside its canopy,
+// instead of trailing behind an invisible spacecraft as if in a chase view.
+inline constexpr double kFirstPersonCockpitForwardOffset = 0.22;
+inline constexpr float kFirstPersonCockpitUpOffset = 0.12F;
+
+// Roll belongs to the ship in chase view, not to the camera horizon. Blend
+// camera roll away as FPP transitions to TPP so the craft can barrel-roll
+// independently while the tunnel remains a stable frame of reference.
+[[nodiscard]] inline float cameraRollForMode(
+    float shipRoll, float thirdPersonBlend) noexcept {
+    if (!std::isfinite(shipRoll)) shipRoll = 0.0F;
+    if (!std::isfinite(thirdPersonBlend)) thirdPersonBlend = 0.0F;
+    thirdPersonBlend = std::clamp(thirdPersonBlend, 0.0F, 1.0F);
+    return shipRoll * (1.0F - thirdPersonBlend);
+}
+
 // FPP looks along the mouse-selected direction. TPP focuses on the spacecraft
 // itself while its eye orbits, so the ship cannot slide away from the centre
 // of the view when the player looks around or behind.
