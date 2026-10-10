@@ -307,7 +307,7 @@ int main() {
     auto standardSightlineGate = narrowSightlineGate;
     standardSightlineGate.apertureRadius = 1.85F;
     const auto standardSightline = tunrun::gateThroatSectionAtDistance(
-        frameSeed, standardSightlineGate, standardSightlineGate.distance + 7.0);
+        frameSeed, standardSightlineGate, standardSightlineGate.distance + 8.0);
     assert(standardSightline.active);
     assert(std::abs(standardSightline.radius -
                     standardSightlineGate.apertureRadius) < 0.0001F);

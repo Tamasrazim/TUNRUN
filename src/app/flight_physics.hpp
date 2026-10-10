@@ -128,8 +128,11 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
     // dash remains a committed short burst, but braking blocks new activations.
     const bool boosting = input.boost && !precision && !braking &&
                           state.boostEnergy > 0.0F;
+    // More lateral authority keeps the deeper procedural S-bends steerable
+    // without increasing forward speed. Precision still slows the craft but
+    // retains enough sideways control to follow the shared throat geometry.
     const float maximumSpeed =
-        (precision ? 2.0F : (boosting ? 6.0F : 4.0F)) * ship.speedMultiplier;
+        (precision ? 3.2F : (boosting ? 6.2F : 4.2F)) * ship.speedMultiplier;
     const float acceleration =
         (precision ? 16.0F : 10.0F) * ship.accelerationMultiplier;
     // The ship's heading now contributes to its drift vector: rotating the
@@ -241,7 +244,7 @@ inline SimulatedRouteValidation validateSimulatedRouteReachability(
         // aperture while damping lateral velocity. The simulation below uses
         // updateFlight(), not a separate idealised motion equation.
         const float maximumLateralSpeed =
-            (state.boostEnergy > 0.0F ? 6.0F : 4.0F) * ship.speedMultiplier;
+            (state.boostEnergy > 0.0F ? 6.2F : 4.2F) * ship.speedMultiplier;
         const float steerX = std::clamp(
             ((activeGate.offsetX - state.x) * 2.8F -
              state.velocityX * 1.25F) / maximumLateralSpeed, -1.0F, 1.0F);
@@ -595,16 +598,12 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             const bool boosting = candidate.boost && !candidate.precision &&
                 candidate.state.boostEnergy > 0.0F;
             const float maximumLateralSpeed =
-                (candidate.precision ? 2.0F : (boosting ? 6.0F : 4.0F)) *
+                (candidate.precision ? 3.2F : (boosting ? 6.2F : 4.2F)) *
                 ship.speedMultiplier;
-            // Aim three course units ahead along the shared throat centerline.
-            // Clamp the preview to the active gate plane before crossing, so the
-            // pilot still targets the actual aperture. After passing a gate,
-            // the generic sampler continues following that throat's trailing
+            // Aim at the current cross-section. After crossing a gate plane,
+            // the generic sampler still returns the previous throat's trailing
             // half even though activeGate now refers to the next gate.
-            const double aimDistance = std::min(
-                static_cast<double>(candidate.state.distance) + 3.0,
-                activeGate.distance);
+            const double aimDistance = static_cast<double>(candidate.state.distance);
             const auto aimThroat = gateThroatSectionAtDistance(seed, aimDistance);
             const float aimRadius = aimThroat.active
                 ? aimThroat.radius : activeGate.apertureRadius;
@@ -623,6 +622,54 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 ? aimThroat.centerY + candidate.aimBiasY * aimSpan
                 : activeGate.offsetY + gateSectionForAim.centerY -
                     playerSectionForAim.centerY + candidate.aimBiasY * aimSpan;
+
+            // Estimate lateral/vertical velocity from the same throat
+            // sampler used by the wall mesh and collision. Feed-forward stops
+            // velocity damping from working against the moving S-bend target.
+            float throatSlopeX = 0.0F;
+            float throatSlopeY = 0.0F;
+            if (aimThroat.active) {
+                constexpr double slopeStep = 0.5;
+                const auto beforeThroat = gateThroatSectionAtDistance(
+                    seed, aimDistance - slopeStep);
+                const auto afterThroat = gateThroatSectionAtDistance(
+                    seed, aimDistance + slopeStep);
+                if (beforeThroat.active && afterThroat.active &&
+                    beforeThroat.gateIndex == aimThroat.gateIndex &&
+                    afterThroat.gateIndex == aimThroat.gateIndex) {
+                    throatSlopeX = afterThroat.centerX - beforeThroat.centerX;
+                    throatSlopeY = afterThroat.centerY - beforeThroat.centerY;
+                } else if (beforeThroat.active &&
+                           beforeThroat.gateIndex == aimThroat.gateIndex) {
+                    throatSlopeX = (aimThroat.centerX - beforeThroat.centerX) /
+                        static_cast<float>(slopeStep);
+                    throatSlopeY = (aimThroat.centerY - beforeThroat.centerY) /
+                        static_cast<float>(slopeStep);
+                } else if (afterThroat.active &&
+                           afterThroat.gateIndex == aimThroat.gateIndex) {
+                    throatSlopeX = (afterThroat.centerX - aimThroat.centerX) /
+                        static_cast<float>(slopeStep);
+                    throatSlopeY = (afterThroat.centerY - aimThroat.centerY) /
+                        static_cast<float>(slopeStep);
+                }
+            }
+            const bool routeDashCanStart = candidate.dashPulsePending &&
+                !candidate.precision && !candidate.state.dashButtonWasDown &&
+                candidate.state.boostEnergy >= kDashEnergyCost &&
+                candidate.state.dashCooldownRemaining <= kFlightFixedStep;
+            const bool routeDashActive =
+                candidate.state.dashRemaining > kFlightFixedStep ||
+                routeDashCanStart;
+            const float estimatedForwardSpeed = (candidate.precision ? 8.0F
+                : routeDashActive ? (boosting ? 24.0F : 19.0F)
+                : boosting ? 16.0F : candidate.state.forwardSpeed) *
+                ship.speedMultiplier;
+            const float targetPathVelocityX = std::clamp(
+                throatSlopeX * estimatedForwardSpeed,
+                -maximumLateralSpeed * 0.92F, maximumLateralSpeed * 0.92F);
+            const float targetPathVelocityY = std::clamp(
+                throatSlopeY * estimatedForwardSpeed,
+                -maximumLateralSpeed * 0.92F, maximumLateralSpeed * 0.92F);
 
             // If a mine sits between this state and the target gate and the
             // target ray would thread the mine's collision envelope, bias the
@@ -726,14 +773,18 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 }
             }
 
+            const float desiredVelocityX =
+                (aimX - candidate.state.x) * 2.8F -
+                (candidate.state.velocityX - targetPathVelocityX) * 1.25F +
+                targetPathVelocityX;
+            const float desiredVelocityY =
+                (aimY - candidate.state.y) * 2.8F -
+                (candidate.state.velocityY - targetPathVelocityY) * 1.25F +
+                targetPathVelocityY;
             const float steerX = std::clamp(
-                ((aimX - candidate.state.x) * 2.8F -
-                 candidate.state.velocityX * 1.25F) / maximumLateralSpeed,
-                -1.0F, 1.0F);
+                desiredVelocityX / maximumLateralSpeed, -1.0F, 1.0F);
             const float steerY = std::clamp(
-                ((aimY - candidate.state.y) * 2.8F -
-                 candidate.state.velocityY * 1.25F) / maximumLateralSpeed,
-                -1.0F, 1.0F);
+                desiredVelocityY / maximumLateralSpeed, -1.0F, 1.0F);
             const bool dashPulse = candidate.dashPulsePending;
             candidate.dashPulsePending = false;
             updateFlight(candidate.state,
