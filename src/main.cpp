@@ -1529,18 +1529,22 @@ int main() {
                     4.0F * (settingsButtonHeight + settingsButtonGap),
                 kPanelWidth, settingsButtonHeight
             };
-            if (settingsSelection == 4 && picked < 0 &&
-                (leftPressed() || rightPressed())) {
+            const bool pointerOnSensitivityRow =
+                CheckCollisionPointRec(GetMousePosition(), sensitivityRow);
+            const bool draggingSensitivity =
+                IsMouseButtonDown(MOUSE_BUTTON_LEFT) && pointerOnSensitivityRow;
+            if (draggingSensitivity) {
+                const float normalized = std::clamp(
+                    (GetMouseX() - sliderX) / sliderWidth, 0.0F, 1.0F);
+                app.profile.mouseSensitivity = mouseSensitivityFromSlider(normalized);
+                sensitivityChanged = true;
+            } else if (settingsSelection == 4 && picked < 0 &&
+                       (leftPressed() || rightPressed())) {
                 app.profile.mouseSensitivity = adjustMouseSensitivity(
                     app.profile.mouseSensitivity, leftPressed() ? -1 : 1);
                 sensitivityChanged = true;
             } else if (picked == 4) {
-                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-                    CheckCollisionPointRec(GetMousePosition(), sensitivityRow)) {
-                    const float normalized = std::clamp(
-                        (GetMouseX() - sliderX) / sliderWidth, 0.0F, 1.0F);
-                    app.profile.mouseSensitivity = mouseSensitivityFromSlider(normalized);
-                } else if (leftPressed()) {
+                if (leftPressed()) {
                     app.profile.mouseSensitivity = adjustMouseSensitivity(
                         app.profile.mouseSensitivity, -1);
                 } else if (rightPressed() || confirmPressed()) {
