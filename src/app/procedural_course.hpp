@@ -22,8 +22,12 @@ inline constexpr float kGateThroatHalfLength = 18.0F;
 inline constexpr float kGateThroatNarrowCoreFraction = 0.50F;
 inline constexpr float kGateThroatBendAmplitudeX = 1.90F;
 inline constexpr float kGateThroatBendAmplitudeY = 0.35F;
+inline constexpr float kGateThroatBendMinimumAmplitudeX = 1.45F;
+inline constexpr float kGateThroatBendMinimumAmplitudeY = 0.20F;
+inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
+inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 4U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 5U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -191,6 +195,27 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
     };
 }
 
+// Each gate gets its own bounded S-bend profile. Amplitudes vary below
+// the existing worst-case envelope, so the new variation cannot increase the
+// maximum throat excursion used by the previous generator.
+struct GateThroatBendProfile {
+    float amplitudeX = kGateThroatBendAmplitudeX;
+    float amplitudeY = kGateThroatBendAmplitudeY;
+};
+
+[[nodiscard]] inline GateThroatBendProfile gateThroatBendProfileAt(
+    std::uint64_t seed, std::uint32_t gateIndex) noexcept {
+    const auto index = static_cast<std::int64_t>(gateIndex);
+    return GateThroatBendProfile{
+        kGateThroatBendMinimumAmplitudeX +
+            courseUnit(seed, index, kGateThroatBendChannelX) *
+                (kGateThroatBendAmplitudeX - kGateThroatBendMinimumAmplitudeX),
+        kGateThroatBendMinimumAmplitudeY +
+            courseUnit(seed, index, kGateThroatBendChannelY) *
+                (kGateThroatBendAmplitudeY - kGateThroatBendMinimumAmplitudeY)
+    };
+}
+
 // Shared gate-passage geometry. Rendering, camera clearance, route guidance,
 // and collision all use this same taper so the opening is a real corridor.
 struct GateThroatSection {
@@ -242,8 +267,9 @@ struct GateThroatSection {
     const std::uint64_t turnBits = mixCourseBits(
         seed ^ (static_cast<std::uint64_t>(gate.index) * 0x9E3779B97F4A7C15ULL));
     const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
-    const float bendX = turnSign * kGateThroatBendAmplitudeX * wave;
-    const float bendY = kGateThroatBendAmplitudeY * verticalWave;
+    const auto bendProfile = gateThroatBendProfileAt(seed, gate.index);
+    const float bendX = turnSign * bendProfile.amplitudeX * wave;
+    const float bendY = bendProfile.amplitudeY * verticalWave;
     return GateThroatSection{
         true, gate.index, gate.offsetX * pinch + bendX,
         gate.offsetY * pinch + bendY,
@@ -403,6 +429,9 @@ inline std::uint64_t obstacleHash(std::uint64_t seed,
         absorb(static_cast<std::int64_t>(std::llround(gate.offsetY * 10000.0F)));
         absorb(static_cast<std::int64_t>(std::llround(gate.apertureRadius * 10000.0F)));
         absorb(static_cast<std::int64_t>(gate.kind));
+        const auto throatShape = gateThroatBendProfileAt(seed, gate.index);
+        absorb(static_cast<std::int64_t>(std::llround(throatShape.amplitudeX * 10000.0F)));
+        absorb(static_cast<std::int64_t>(std::llround(throatShape.amplitudeY * 10000.0F)));
     }
     return hash;
 }
@@ -526,6 +555,16 @@ inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
         }
         if (gate.apertureRadius < radiusMin || gate.apertureRadius > radiusMax) {
             result.failure = "gate aperture does not match its kind";
+            return result;
+        }
+        const auto throatShape = gateThroatBendProfileAt(seed, gate.index);
+        if (!std::isfinite(throatShape.amplitudeX) ||
+            !std::isfinite(throatShape.amplitudeY) ||
+            throatShape.amplitudeX < kGateThroatBendMinimumAmplitudeX ||
+            throatShape.amplitudeX > kGateThroatBendAmplitudeX ||
+            throatShape.amplitudeY < kGateThroatBendMinimumAmplitudeY ||
+            throatShape.amplitudeY > kGateThroatBendAmplitudeY) {
+            result.failure = "gate throat bend profile outside bounds";
             return result;
         }
         if (std::abs(gate.offsetX) > kGateMaxOffsetX ||
