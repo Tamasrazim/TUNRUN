@@ -9,7 +9,7 @@ This file is the current snapshot used by the README progress bar and project-pa
 | M0 — Specification baseline | Complete | Maintain the documentation and governance baseline. |
 | M1 — Application shell and input | In progress | Real Windows hardware checks for mouse capture, DPI/resize hitboxes, focus loss and nested input contexts. |
 | M2 — Flight and camera | In progress | Verify camera/flight behavior on hardware; continue handling and collision/visibility checks. |
-| M3 — Procedural geometry | In progress | Broader centerline/frame continuity, cross-section transitions and cross-platform determinism fixtures. |
+| M3 — Procedural geometry | In progress | Broader centerline/frame continuity, cross-section transitions and fixed expected cross-platform hash fixtures; Linux/GCC unit tests provide an independent compiler/runtime check. |
 | M4 — Obstacles and validation | In progress | Multi-state route reachability, more seed regressions, and hardware-verified warning times. |
 | M5 — Save, resources and hangar | In progress | Real Windows migration/write-interruption tests and fuller progression rewards. |
 | M6 — Gameplay and AI | Planned | Hull/damage, rival pilots, drones and compatible replay/ghost pipeline. |
