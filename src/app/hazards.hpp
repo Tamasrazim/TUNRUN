@@ -16,6 +16,10 @@ inline constexpr double kHazardMinimumGateSeparation = 8.0;
 inline constexpr float kHazardMinimumRadius = 0.48F;
 inline constexpr float kHazardMaximumRadius = 0.66F;
 inline constexpr float kHazardCraftCollisionRadius = 0.42F;
+// Proximity warnings are view-only; these distances never enter collision rules.
+inline constexpr double kHazardWarningStartDistance = 54.0;
+inline constexpr double kHazardWarningUrgentDistance = 22.0;
+inline constexpr double kHazardWarningRearGrace = 1.5;
 
 enum class HazardMotionFamily : std::uint8_t {
     LateralSweep,
@@ -75,6 +79,39 @@ struct HazardCenter {
     float x = 0.0F;
     float y = 0.0F;
 };
+
+struct HazardWarningProfile {
+    bool visible = false;
+    bool urgent = false;
+    float intensity = 0.0F;
+    float ringOffset = 0.0F;
+    float blinkFrequencyHz = 0.0F;
+};
+
+// The warning pulse is a pure function of distance and run time. It accelerates
+// as the craft approaches, but it never modifies the hazard's motion or hitbox.
+[[nodiscard]] inline HazardWarningProfile hazardWarningProfileAt(
+    double distanceAhead, double elapsedSeconds) noexcept {
+    if (!std::isfinite(distanceAhead) || !std::isfinite(elapsedSeconds) ||
+        distanceAhead > kHazardWarningStartDistance ||
+        distanceAhead < -kHazardWarningRearGrace) {
+        return {};
+    }
+    const double progress = std::clamp(
+        (kHazardWarningStartDistance - std::max(0.0, distanceAhead)) /
+            (kHazardWarningStartDistance - kHazardWarningUrgentDistance),
+        0.0, 1.0);
+    const double frequency = 1.30 + 3.0 * progress;
+    constexpr double tau = 6.28318530717958647692;
+    const double pulse = 0.5 + 0.5 * std::sin(elapsedSeconds * frequency * tau);
+    return HazardWarningProfile{
+        true,
+        distanceAhead <= kHazardWarningUrgentDistance,
+        static_cast<float>(0.28 + 0.72 * pulse),
+        static_cast<float>(0.14 + 0.18 * pulse),
+        static_cast<float>(frequency)
+    };
+}
 
 enum class HazardVisualFamily : std::uint8_t {
     Orbital,
