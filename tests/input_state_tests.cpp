@@ -931,6 +931,39 @@ int main() {
         seed, hazard.distance + 0.01, 1.25, 0.0F, 0.0F);
     assert(nextCue.valid && nextCue.hazardIndex == 1U);
     assert(nextCue.distanceAhead > 0.0);
+
+    // Proximity beacon timing is a pure visual cue: it is repeatable, bounded,
+    // and becomes more urgent without changing the mine trajectory or hitbox.
+    const auto warningAtEdge = tunrun::hazardWarningProfileAt(
+        tunrun::kHazardWarningStartDistance, 0.75);
+    const auto warningOutside = tunrun::hazardWarningProfileAt(
+        tunrun::kHazardWarningStartDistance + 0.01, 0.75);
+    const auto warningAtEdgeAgain = tunrun::hazardWarningProfileAt(
+        tunrun::kHazardWarningStartDistance, 0.75);
+    const auto warningUrgent = tunrun::hazardWarningProfileAt(
+        tunrun::kHazardWarningUrgentDistance, 0.75);
+    const auto warningClose = tunrun::hazardWarningProfileAt(0.5, 0.75);
+    assert(warningAtEdge.visible && !warningAtEdge.urgent);
+    assert(!warningOutside.visible);
+    assert(warningAtEdge.intensity == warningAtEdgeAgain.intensity);
+    assert(warningAtEdge.ringOffset == warningAtEdgeAgain.ringOffset);
+    assert(warningAtEdge.blinkFrequencyHz == warningAtEdgeAgain.blinkFrequencyHz);
+    assert(warningUrgent.visible && warningUrgent.urgent);
+    assert(warningClose.visible && warningClose.urgent);
+    assert(warningClose.blinkFrequencyHz > warningAtEdge.blinkFrequencyHz);
+    for (const auto& warning : {warningAtEdge, warningUrgent, warningClose}) {
+        assert(warning.intensity >= 0.28F && warning.intensity <= 1.0001F);
+        assert(warning.ringOffset >= 0.14F && warning.ringOffset <= 0.3201F);
+        assert(warning.blinkFrequencyHz >= 1.30F && warning.blinkFrequencyHz <= 4.3001F);
+    }
+    assert(tunrun::hazardWarningProfileAt(
+        -tunrun::kHazardWarningRearGrace - 0.01, 0.75).visible == false);
+    assert(tunrun::hazardWarningProfileAt(
+        -tunrun::kHazardWarningRearGrace + 0.01, 0.75).visible);
+    assert(!tunrun::hazardWarningProfileAt(
+        std::numeric_limits<double>::quiet_NaN(), 0.75).visible);
+    assert(!tunrun::hazardWarningProfileAt(
+        1.0, std::numeric_limits<double>::infinity()).visible);
     assert(!tunrun::hazardHudCueAt(
         seed, std::numeric_limits<double>::quiet_NaN(), 1.25, 0.0F, 0.0F).valid);
     assert(!tunrun::hazardHudCueAt(
