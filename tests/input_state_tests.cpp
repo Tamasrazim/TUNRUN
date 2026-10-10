@@ -60,6 +60,11 @@ int main() {
     using tunrun::Screen;
     using tunrun::ScreenStack;
 
+    const tunrun::Profile defaultProfile{};
+    assert(defaultProfile.fullscreen);
+    assert(defaultProfile.mouseSteering);
+    assert(defaultProfile.mouseSensitivity == kMouseSensitivityDefault);
+
     const auto safeChasePose = tunrun::thirdPersonCameraPose(
         0.5F, -0.3F, 0.0F, 0.0F, -1.0F, 1.0F, -0.5F, 5.0F);
     assert(!safeChasePose.clampedToTunnel);
@@ -219,6 +224,12 @@ int main() {
     assert(mouseX == 3.1F && mouseY == 3.1F);
     applyRelativeMouseSteering(mouseX, mouseY, RelativeMouseDelta{1.0F, 1.0F}, -1.0F);
     assert(mouseX == 3.1F && mouseY == 3.1F);
+    assert(mouseTargetSteering(1.0F, 0.0F, 0.0F) > 0.0F);
+    assert(mouseTargetSteering(-1.0F, 0.0F, 0.0F) < 0.0F);
+    assert(mouseTargetSteering(0.0F, 0.0F, 1.0F) < 0.0F);
+    assert(mouseTargetSteering(0.0F, 0.0F, 0.0F) == 0.0F);
+    assert(mouseTargetSteering(std::numeric_limits<float>::quiet_NaN(),
+        0.0F, 0.0F) == 0.0F);
 
     assert(adjustMouseSensitivity(kMouseSensitivityDefault, 1) ==
            kMouseSensitivityDefault + kMouseSensitivityStep);
@@ -565,13 +576,13 @@ int main() {
 
     // The ship catalog is shared by the hangar, renderer, and physics model.
     assert(tunrun::kShipCatalog.size() == 8U);
-    assert(tunrun::shipDefinition(1U).aetherShardCost == 800U);
-    assert(tunrun::shipDefinition(2U).aetherShardCost == 1500U);
-    assert(tunrun::shipDefinition(3U).aetherShardCost == 2500U);
-    assert(tunrun::shipDefinition(4U).aetherShardCost == 3800U);
-    assert(tunrun::shipDefinition(5U).singularityCoreCost == 20U);
-    assert(tunrun::shipDefinition(6U).singularityCoreCost == 40U);
-    assert(tunrun::shipDefinition(7U).singularityCoreCost == 80U);
+    assert(tunrun::shipDefinition(1U).aetherShardCost == 8000U);
+    assert(tunrun::shipDefinition(2U).aetherShardCost == 15000U);
+    assert(tunrun::shipDefinition(3U).aetherShardCost == 25000U);
+    assert(tunrun::shipDefinition(4U).aetherShardCost == 38000U);
+    assert(tunrun::shipDefinition(5U).singularityCoreCost == 200U);
+    assert(tunrun::shipDefinition(6U).singularityCoreCost == 400U);
+    assert(tunrun::shipDefinition(7U).singularityCoreCost == 800U);
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
         const auto& ship = tunrun::shipDefinition(shipId);
         assert(ship.name != nullptr && std::string_view(ship.name).size() > 0U);
