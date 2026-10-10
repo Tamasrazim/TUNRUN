@@ -976,10 +976,10 @@ int main() {
     assert(afterReset.profile.rootSeed == defaults.rootSeed);
     tunrun::Profile economyProfile;
     economyProfile.rootSeed = 99U;
-    economyProfile.aetherShards = 1000U;
+    economyProfile.aetherShards = 10000U;
     const auto purchase = tunrun::purchaseShip(economyProfile, 1U);
     assert(purchase == tunrun::ShipTransactionStatus::Purchased);
-    assert(economyProfile.aetherShards == 200U && economyProfile.unlockedShips[1U]);
+    assert(economyProfile.aetherShards == 2000U && economyProfile.unlockedShips[1U]);
     assert(tunrun::purchaseShip(economyProfile, 1U) ==
            tunrun::ShipTransactionStatus::AlreadyUnlocked);
     assert(economyProfile.aetherShards == 200U); // duplicate activation cannot charge twice
@@ -991,7 +991,7 @@ int main() {
     assert(economyProfile.aetherShards == shardsBeforeFailedBuy);
     assert(!economyProfile.unlockedShips[2U]);
     assert(tunrun::equipShip(economyProfile, 2U) == tunrun::ShipTransactionStatus::ShipLocked);
-    economyProfile.singularityCores = 20U;
+    economyProfile.singularityCores = 200U;
     assert(tunrun::purchaseShip(economyProfile, 5U) == tunrun::ShipTransactionStatus::Purchased);
     assert(economyProfile.singularityCores == 0U && economyProfile.unlockedShips[5U]);
     assert(tunrun::purchaseShip(economyProfile, 6U) ==
