@@ -188,7 +188,7 @@ int main() {
     assert(std::abs(throatCenter.centerY - throatGate.offsetY) < 0.0001F);
     assert(std::abs(throatCenter.radius - throatGate.apertureRadius) < 0.0001F);
     const auto throatCore = tunrun::gateThroatSectionAtDistance(
-        frameSeed, throatGate, throatGate.distance - 4.5);
+        frameSeed, throatGate, throatGate.distance - 6.0);
     const auto throatEntry = tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate, throatGate.distance - 9.0);
     const auto throatExit = tunrun::gateThroatSectionAtDistance(
@@ -196,6 +196,7 @@ int main() {
     assert(throatCore.active);
     assert(throatCore.radius > throatGate.apertureRadius);
     assert(throatCore.radius < throatEntry.radius);
+    assert(throatEntry.radius > throatCore.radius + 0.45F);
     assert(throatEntry.active && throatEntry.radius > throatGate.apertureRadius);
     assert(std::abs(throatExit.centerX - throatEntry.centerX) > 0.7F);
     assert(!tunrun::gateThroatSectionAtDistance(
