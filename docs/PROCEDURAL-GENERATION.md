@@ -150,3 +150,10 @@ These styles do not modify `GateKind`, aperture radius, offsets, spacing, throat
 The warning profile is derived from the same distance and elapsed run clock as the rendered mine. Its first segmented ring becomes visible inside 54 course units; at 22 units it switches to the urgent color/state and adds a second ring. Pulse frequency increases from 1.3 Hz to 4.3 Hz with approach distance. The warning ring is centered on the same sampled tunnel frame and animated mine center as the visible model, so it tracks a mine through a curved tunnel rather than using a straight-world projection.
 
 The warning profile is rendering/HUD feedback only: it does not change the hazard seed channels, trajectory, radius, collision tests, or hazard hash. Unit tests cover activation thresholds, rear grace, invalid numeric inputs, repeatability, and bounded pulse/ring values.
+
+
+## Expanded mine shell library (visual generator v1)
+
+The deterministic mine shell channel now selects six distinct procedural meshes: Orbital, Prism, Rotor, Cross, Halo Array, and Shard Cluster. Halo Array draws three intersecting depth-aware hoops around a small core; Shard Cluster builds six triangular crystal fins around a compact hub. They have separate palettes and geometry rather than relying only on recoloring the original four shells. All mesh selection remains in visual channel `910`; hazard movement remains on channel `911`, and physics parameters remain in their existing channels. This is a visual-only extension: hazard generator version 3, hazardHash, movement envelopes, and the shared spherical collision proxy are unchanged.
+
+Coverage tests check all six shell families over 512 seeded hazard indices, verify that names resolve, and explicitly reject invalid family enum values. They are generator-level tests; a manual in-game readability and performance review remains necessary.
