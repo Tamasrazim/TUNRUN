@@ -1168,6 +1168,28 @@ int main() {
     assert(std::abs(at30.distance - at60.distance) < 0.01F);
     assert(std::abs(at30.distance - at120.distance) < 0.01F);
 
+    // Left/right steering banks the visible craft into each turn, returns
+    // toward level after release, and stays deterministic.
+    tunrun::FlightState bankRight;
+    tunrun::FlightState bankLeft;
+    float bankRightAccumulator = 0.0F, bankLeftAccumulator = 0.0F;
+    for (int i = 0; i < 60; ++i) {
+        tunrun::advanceFlight(bankRight,
+            tunrun::FlightInput{1.0F, 0.0F}, 1.0F / 120.0F, bankRightAccumulator);
+        tunrun::advanceFlight(bankLeft,
+            tunrun::FlightInput{-1.0F, 0.0F}, 1.0F / 120.0F, bankLeftAccumulator);
+    }
+    assert(bankRight.bank < -0.30F);
+    assert(bankLeft.bank > 0.30F);
+    for (int i = 0; i < 120; ++i) {
+        tunrun::advanceFlight(bankRight, tunrun::FlightInput{},
+                              1.0F / 120.0F, bankRightAccumulator);
+        tunrun::advanceFlight(bankLeft, tunrun::FlightInput{},
+                              1.0F / 120.0F, bankLeftAccumulator);
+    }
+    assert(std::abs(bankRight.bank) < 0.10F);
+    assert(std::abs(bankLeft.bank) < 0.10F);
+
     assert(tunrun::shipDefinition(4U).speedMultiplier >
            tunrun::shipDefinition(0U).speedMultiplier);
     tunrun::FlightState rotationState;

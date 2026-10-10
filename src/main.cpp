@@ -946,7 +946,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, const char* modeName, bool tpp, bool reduceMotion,
                 float mouseAimX, float mouseAimY, bool showAimReticle,
                 float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
-                float roll,
+                float roll, float shipBank,
                 float boostEnergy, float dashCooldownRemaining,
                 float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
@@ -1167,7 +1167,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
     if (tpp) {
-        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll, &playerFrame);
+        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll + shipBank, &playerFrame);
     }
     if (showAimReticle) {
         const Color aimColor{111, 225, 255, 235};
@@ -1585,7 +1585,7 @@ int main() {
                        app.mouseAimX, app.mouseAimY, false,
                        app.flight.pitch, app.flight.yaw,
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
-                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       app.flight.bank, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward);
             const Rectangle pauseBounds{

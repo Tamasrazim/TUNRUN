@@ -26,6 +26,7 @@ struct FlightState {
     float pitch = 0.0F;
     float yaw = 0.0F;
     float roll = 0.0F;
+    float bank = 0.0F; // automatic visual bank from lateral steering
     float pitchRate = 0.0F;
     float yawRate = 0.0F;
     float rollRate = 0.0F;
@@ -91,6 +92,11 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
     state.pitch = std::clamp(state.pitch + state.pitchRate * dt, -1.05F, 1.05F);
     state.roll = std::remainder(state.roll + state.rollRate * dt,
                                2.0F * 3.14159265358979323846F);
+    // Bank into left/right movement like a piloted craft. This is a smoothed
+    // visual attitude; it does not rotate the tunnel camera or change physics.
+    const float targetBank = -input.steerX * 0.42F;
+    state.bank = approach(state.bank, targetBank, 2.8F * dt);
+    state.bank = std::clamp(state.bank, -0.48F, 0.48F);
 
     const float intentLength = std::sqrt(
         input.steerX * input.steerX + input.steerY * input.steerY);
