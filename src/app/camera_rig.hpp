@@ -203,6 +203,19 @@ inline constexpr float kFirstPersonCockpitUpOffset = 0.12F;
     return t * t * (3.0F - 2.0F * t);
 }
 
+// Tight tunnel throats can push the chase eye close to the craft even after
+// the eye itself has been clamped to the sleeve. Fade the hull by its actual
+// eye-to-origin distance so the camera never renders from inside the model.
+[[nodiscard]] inline float cameraShipVisibilityFromEyeDistance(
+    float eyeToShipDistance) noexcept {
+    if (!std::isfinite(eyeToShipDistance)) return 0.0F;
+    constexpr float fadeStart = 1.25F;
+    constexpr float fadeEnd = 3.15F;
+    const float t = std::clamp(
+        (eyeToShipDistance - fadeStart) / (fadeEnd - fadeStart), 0.0F, 1.0F);
+    return t * t * (3.0F - 2.0F * t);
+}
+
 // FPP looks along the mouse-selected direction. TPP focuses on the spacecraft
 // itself while its eye orbits, so the ship cannot slide away from the centre
 // of the view when the player looks around or behind.

@@ -1321,7 +1321,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawProceduralHazard(seed, distance, elapsedSeconds,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
-    const float shipVisibility = tunrun::cameraShipVisibility(modeBlend);
+    const auto shipOrigin = tunrun::tunnelFramePoint(playerFrame, shipX, shipY);
+    const float cameraToShipDistance = std::sqrt(
+        (camera.position.x - shipOrigin.x) * (camera.position.x - shipOrigin.x) +
+        (camera.position.y - shipOrigin.y) * (camera.position.y - shipOrigin.y) +
+        (camera.position.z - shipOrigin.z) * (camera.position.z - shipOrigin.z));
+    const float shipVisibility = tunrun::cameraShipVisibility(modeBlend) *
+        tunrun::cameraShipVisibilityFromEyeDistance(cameraToShipDistance);
     if (shipVisibility > 0.001F) {
         drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll + shipBank,
                        &playerFrame, shipVisibility);

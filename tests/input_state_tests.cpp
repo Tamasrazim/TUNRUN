@@ -286,6 +286,13 @@ int main() {
     assert(tunrun::cameraShipVisibility(1.0F) == 1.0F);
     assert(tunrun::cameraShipVisibility(
         std::numeric_limits<float>::quiet_NaN()) == 0.0F);
+    assert(tunrun::cameraShipVisibilityFromEyeDistance(0.0F) == 0.0F);
+    assert(tunrun::cameraShipVisibilityFromEyeDistance(1.25F) == 0.0F);
+    assert(std::abs(tunrun::cameraShipVisibilityFromEyeDistance(2.20F) - 0.5F) < 0.0001F);
+    assert(tunrun::cameraShipVisibilityFromEyeDistance(3.15F) == 1.0F);
+    assert(tunrun::cameraShipVisibilityFromEyeDistance(6.0F) == 1.0F);
+    assert(tunrun::cameraShipVisibilityFromEyeDistance(
+        std::numeric_limits<float>::infinity()) == 0.0F);
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);
     assert(std::abs(defaultOrbit.up) < 0.0001F);

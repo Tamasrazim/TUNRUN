@@ -72,7 +72,7 @@ On a collision:
 - Keep a minimum look-ahead view; use warning shapes/lighting to make hazards readable.
 - Avoid extreme camera roll, zoom, or shake by default.
 - Permit FOV and comfort settings inside tested limits.
-- Ship geometry must not obstruct the view.
+- Ship geometry must not obstruct the view. In TPP, fade the model if a wall-constrained camera is forced inside its near-hull clearance; restore full visibility smoothly as eye-to-ship distance increases.
 
 In TPP, roll the spacecraft independently from the camera horizon. Blend camera roll out smoothly across the FPP/TPP transition so a barrel roll does not rotate the entire chase-camera view.
 
