@@ -1064,7 +1064,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("W ACCEL   S BRAKE   A/D STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
+    DrawText("W GO   S BRAKE   A/B STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
              36, GetScreenHeight() - 42, 10, kMuted);
 }
 } // namespace
@@ -1196,7 +1196,7 @@ int main() {
             if (!IsWindowFocused()) {
                 app.screens.push(tunrun::Screen::Pause);
             } else {
-                float steerX = (IsKeyDown(KEY_D) ? 1.0F : 0.0F) -
+                float steerX = ((IsKeyDown(KEY_D) || IsKeyDown(KEY_B)) ? 1.0F : 0.0F) -
                                (IsKeyDown(KEY_A) ? 1.0F : 0.0F);
                 float steerY = 0.0F;
                 const float speedControl = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
@@ -1456,9 +1456,9 @@ int main() {
             if (unlocked) {
                 actionLabel = active ? "ACTIVE SHIP" : "EQUIP THIS SHIP";
             } else if (definition.aetherShardCost > 0U) {
-                actionLabel = "BUY + EQUIP FOR " + std::to_string(definition.aetherShardCost) + " AETHER SHARDS";
+                actionLabel = "BUY + EQUIP / " + std::to_string(definition.aetherShardCost) + " SHARDS";
             } else {
-                actionLabel = "BUY + EQUIP FOR " + std::to_string(definition.singularityCoreCost) + " SINGULARITY CORES";
+                actionLabel = "BUY + EQUIP / " + std::to_string(definition.singularityCoreCost) + " CORES";
             }
             const float actionWidth = std::min(385.0F,
                 static_cast<float>(GetScreenWidth()) * 0.41F);
@@ -1534,7 +1534,7 @@ int main() {
             DrawText("KEYBOARD", 70, 184, 15, kAccent);
             DrawText("GO / ACCELERATE  W", 78, 218, 13, kText);
             DrawText("BRAKE / SLOW  S", 78, 246, 13, kText);
-            DrawText("MOVE LEFT / RIGHT  A / D", 78, 274, 13, kText);
+            DrawText("LEFT A / RIGHT B (D ALSO WORKS)", 78, 274, 12, kText);
             DrawText("MOUSE LOOK: CAMERA ONLY", 78, 302, 13, kAccent);
             DrawText("ROTATE  ARROW KEYS", 78, 330, 13, kText);
             DrawText("BARREL ROLL  Q / E", 78, 358, 13, kText);
