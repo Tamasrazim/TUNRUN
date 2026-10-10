@@ -597,8 +597,15 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             const float maximumLateralSpeed =
                 (candidate.precision ? 2.0F : (boosting ? 6.0F : 4.0F)) *
                 ship.speedMultiplier;
-            const auto aimThroat = gateThroatSectionAtDistance(
-                seed, activeGate, static_cast<double>(candidate.state.distance));
+            // Aim three course units ahead along the shared throat centerline.
+            // Clamp the preview to the active gate plane before crossing, so the
+            // pilot still targets the actual aperture. After passing a gate,
+            // the generic sampler continues following that throat's trailing
+            // half even though activeGate now refers to the next gate.
+            const double aimDistance = std::min(
+                static_cast<double>(candidate.state.distance) + 3.0,
+                activeGate.distance);
+            const auto aimThroat = gateThroatSectionAtDistance(seed, aimDistance);
             const float aimRadius = aimThroat.active
                 ? aimThroat.radius : activeGate.apertureRadius;
             const float aimSpan = std::max(
