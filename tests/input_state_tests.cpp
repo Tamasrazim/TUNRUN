@@ -1110,7 +1110,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 6U);
+    assert(tunrun::kObstacleGeneratorVersion == 7U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
@@ -1161,6 +1161,40 @@ int main() {
                 assert(std::abs(section.centerY -
                     (generatedGate.offsetY * section.pinch + wave.y)) < 0.0001F);
             }
+        }
+
+        // The waveform and the shared throat section must merge into the
+        // outer tunnel at both sleeve ends without a centre/radius step. The
+        // easing makes the final quarter-unit's bend slope smaller than the
+        // preceding quarter's slope, protecting the join from a visible kink.
+        for (int endSign = -1; endSign <= 1; endSign += 2) {
+            const double direction = static_cast<double>(endSign);
+            const double endOffset = direction * tunrun::kGateThroatHalfLength;
+            const auto waveAtEnd = tunrun::gateThroatBendOffsetAt(
+                seed, index, endOffset);
+            assert(waveAtEnd.x == 0.0F && waveAtEnd.y == 0.0F);
+
+            const auto nearEndWave = tunrun::gateThroatBendOffsetAt(
+                seed, index, direction * (tunrun::kGateThroatHalfLength - 0.25));
+            const auto fartherWave = tunrun::gateThroatBendOffsetAt(
+                seed, index, direction * (tunrun::kGateThroatHalfLength - 0.50));
+            const float nearEndMagnitude = std::hypot(nearEndWave.x, nearEndWave.y);
+            const float fartherMagnitude = std::hypot(fartherWave.x, fartherWave.y);
+            assert(fartherMagnitude > 0.00001F);
+            assert(nearEndMagnitude < 0.20F * fartherMagnitude);
+
+            const double innerDistance = generatedGate.distance + direction *
+                (tunrun::kGateThroatHalfLength - 0.25);
+            const auto innerSection = tunrun::gateThroatSectionAtDistance(
+                seed, generatedGate, innerDistance);
+            const auto innerCourse = tunrun::sampleCourse(seed, innerDistance);
+            assert(innerSection.active);
+            assert(std::hypot(innerSection.centerX, innerSection.centerY) < 0.05F);
+            assert(std::abs(innerSection.radius - innerCourse.radius) < 0.02F);
+
+            const auto atBoundary = tunrun::gateThroatSectionAtDistance(
+                seed, generatedGate, generatedGate.distance + endOffset);
+            assert(!atBoundary.active);
         }
     }
     for (const bool seen : seenThroatShapes) assert(seen);
