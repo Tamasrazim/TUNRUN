@@ -22,7 +22,7 @@ Simulation should use a fixed timestep or controlled accumulator. Render frames 
 
 Flight parameters must be data-driven by a ship profile. Do not hard-code ship identity into physics branches.
 
-The current prototype has a 120 Hz fixed-step lateral/vertical simulation. Dash timing, energy cost, and cooldown advance only on fixed simulation steps, so render rate does not change the burst duration. The wireframe tunnel and wall check use the same seeded course sampler. The course currently bends within a forward-aligned frame; a tangent-aligned 3D frame and obstacle collision are not implemented yet.
+The current prototype has a 120 Hz fixed-step lateral/vertical simulation. Dash timing, energy cost, and cooldown advance only on fixed simulation steps, so render rate does not change the burst duration. Filled tunnel panels, centerline bends, wall checks, gate contacts, moving mines, and pickups use the same seeded course sampler. The third-person camera clamps its chase position to the rear tunnel cross-section and aims along the look-ahead centerline, while first-person aim uses a small nose-follow offset to avoid looking through walls. A fully tangent-aligned orthonormal 3D frame and a damped camera spring remain future work.
 
 ## Initial prototype tuning targets
 
