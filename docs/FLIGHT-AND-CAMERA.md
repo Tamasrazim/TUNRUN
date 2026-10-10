@@ -77,8 +77,9 @@ On a collision:
 ## TPP camera
 
 - Chase the same craft transform with a spring-damped or critically damped follow model.
+- Mouse-look yaw/pitch orbit the camera eye around the spacecraft instead of rotating the view from a fixed eye point.
 - Look ahead toward the upcoming flight path, not only directly at the craft.
-- Use camera obstruction tests against tunnel geometry and smoothly shorten/offset the camera when needed.
+- Use camera obstruction tests against tunnel geometry and aperture throats; smoothly shorten/offset the camera when needed.
 - Clamp the camera to safe tunnel/camera volumes near tight curves.
 - Never modify craft physics to compensate for camera movement.
 

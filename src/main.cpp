@@ -956,16 +956,21 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 tunrun::CameraFollowState& tppCameraFollow,
                 float frameDeltaTime) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
-    const auto rearSection = tunrun::sampleCourse(seed, static_cast<double>(distance) - 6.0);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
     const auto reticleFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
-    const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
-
-    const double cameraDistance = static_cast<double>(distance) - 1.25;
-    const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, cameraDistance);
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
+    const auto orbit = tunrun::cameraOrbitOffset(viewYaw, viewPitch);
+    // In TPP the eye moves around the craft; in FPP it stays at the cockpit.
+    // Sampling the eye's course distance separately lets it follow sharp bends
+    // without cutting the camera through a tunnel wall.
+    const double cameraDistance = static_cast<double>(distance) -
+        (tpp ? static_cast<double>(orbit.behindDistance) : 1.25);
+    const auto rearSection = tunrun::sampleCourse(seed, cameraDistance);
+    const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, cameraDistance);
+    const auto cameraFrame = tunrun::sampleTunnelFrame(
+        seed, distance, static_cast<double>(distance) - 1.25);
     // Camera look is independent from the spacecraft's heading: mouse motion
     // never steers the ship, and ship rotation cannot drag the camera aim.
     constexpr double cameraLookDistance = 8.0;
@@ -991,16 +996,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
         const float rearCenterY = rearSection.centerY - playerSection.centerY;
-        // Keep the chase-camera base behind the local course direction, not
-        // behind the craft's nose. Turning the ship therefore cannot drive the
-        // camera sideways into a wall; mouse-look only changes camera.target.
+        // Mouse-look moves the camera eye around the craft as well as moving
+        // its look target. Ship heading stays independent; clamping below keeps
+        // the orbit inside the active tube/throat.
         const auto chasePose = tunrun::thirdPersonCameraPose(
             shipX, shipY, 0.0F, 0.0F, -1.0F,
             rearCenterX, rearCenterY, rearSection.radius);
-        float chaseX = chasePose.x - rearCenterX;
-        float chaseY = chasePose.y - rearCenterY;
+        float chaseX = chasePose.x - rearCenterX + orbit.right;
+        float chaseY = chasePose.y - rearCenterY + orbit.up;
         const auto chaseThroat = tunrun::gateThroatSectionAtDistance(
-            seed, static_cast<double>(distance) - 6.0);
+            seed, cameraDistance);
         float chaseCenterX = 0.0F;
         float chaseCenterY = 0.0F;
         float chaseRadius = rearSection.radius;
@@ -1046,8 +1051,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // Keep the camera's centre look ray inside the tunnel all the way to its
     // target, not just at two individually safe end points. This matters when
     // mouse-look points around a sharp bend or through a constricted sleeve.
-    const double cameraOriginDistance = tpp
-        ? static_cast<double>(distance) - 6.0 : cameraDistance;
+    const double cameraOriginDistance = cameraDistance;
     const double cameraTargetDistance = static_cast<double>(distance) + lookCourseOffset;
     const auto cameraRayLimit = tunrun::limitCameraRayInsideTunnel(
         seed, distance, cameraOriginDistance,

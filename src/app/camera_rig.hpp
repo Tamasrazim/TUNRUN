@@ -140,6 +140,31 @@ struct ThirdPersonCameraPose {
 // Smooth only the chase camera's lateral/vertical offset. The tunnel frame
 // is resampled every frame, so smoothing world-space XYZ would lag the camera
 // behind the moving course origin and can cut across curved walls.
+struct CameraOrbitOffset {
+    float right = 0.0F;
+    float up = 0.0F;
+    float behindDistance = 6.0F;
+};
+
+// Convert mouse-look yaw/pitch into an orbit around the spacecraft.
+// Positive yaw moves the camera right; positive pitch lifts it above the ship.
+// behindDistance can become negative to look around toward the front. The
+// caller clamps the eye point against the active tunnel/throat before rendering.
+[[nodiscard]] inline CameraOrbitOffset cameraOrbitOffset(
+    float yaw, float pitch, float orbitRadius = 6.0F) noexcept {
+    if (!std::isfinite(yaw)) yaw = 0.0F;
+    if (!std::isfinite(pitch)) pitch = 0.0F;
+    if (!std::isfinite(orbitRadius) || orbitRadius <= 0.0F) orbitRadius = 6.0F;
+    yaw = std::remainder(yaw, 6.28318530717958647692F);
+    pitch = std::clamp(pitch, -1.20F, 1.20F);
+    const float horizontal = std::cos(pitch) * orbitRadius;
+    return CameraOrbitOffset{
+        std::sin(yaw) * horizontal,
+        std::sin(pitch) * orbitRadius,
+        std::cos(yaw) * horizontal
+    };
+}
+
 struct CameraFollowState {
     float right = 0.0F;
     float up = 0.0F;

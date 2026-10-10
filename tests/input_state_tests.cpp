@@ -157,6 +157,26 @@ int main() {
         std::numeric_limits<float>::quiet_NaN());
     assert(std::isfinite(invalidLook.right) && std::isfinite(invalidLook.up));
 
+    const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
+    assert(std::abs(defaultOrbit.right) < 0.0001F);
+    assert(std::abs(defaultOrbit.up) < 0.0001F);
+    assert(std::abs(defaultOrbit.behindDistance - 6.0F) < 0.0001F);
+    const auto sideOrbit = tunrun::cameraOrbitOffset(1.57079632679F, 0.0F);
+    assert(sideOrbit.right > 5.99F && std::abs(sideOrbit.behindDistance) < 0.0001F);
+    const auto highOrbit = tunrun::cameraOrbitOffset(0.0F, 0.5F);
+    assert(highOrbit.up > 0.0F && highOrbit.behindDistance < 6.0F);
+    assert(std::abs(std::sqrt(highOrbit.right * highOrbit.right +
+        highOrbit.up * highOrbit.up +
+        highOrbit.behindDistance * highOrbit.behindDistance) - 6.0F) < 0.0001F);
+    const auto frontOrbit = tunrun::cameraOrbitOffset(3.14159265359F, 0.0F);
+    assert(frontOrbit.behindDistance < -5.99F);
+    const auto invalidOrbit = tunrun::cameraOrbitOffset(
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN());
+    assert(std::isfinite(invalidOrbit.right) && std::isfinite(invalidOrbit.up) &&
+           std::isfinite(invalidOrbit.behindDistance));
+
     // Chase offsets ease laterally instead of snapping. Exponential smoothing
     // converges with consistent time response across different render rates.
     tunrun::CameraFollowState chaseFollow;
