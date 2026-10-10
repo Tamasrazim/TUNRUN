@@ -26,8 +26,9 @@ inline constexpr float kGateThroatBendMinimumAmplitudeX = 1.45F;
 inline constexpr float kGateThroatBendMinimumAmplitudeY = 0.20F;
 inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
+inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 5U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 6U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -195,12 +196,53 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
     };
 }
 
-// Each gate gets its own bounded S-bend profile. Amplitudes vary below
-// the existing worst-case envelope, so the new variation cannot increase the
-// maximum throat excursion used by the previous generator.
+enum class GateThroatShapeFamily : std::uint8_t {
+    SingleS,
+    DoubleS,
+    Helical,
+    SplitWave
+};
+
+[[nodiscard]] inline GateThroatShapeFamily gateThroatShapeFamilyAt(
+    std::uint64_t seed, std::uint32_t gateIndex) noexcept {
+    const float roll = courseUnit(seed, static_cast<std::int64_t>(gateIndex),
+                                  kGateThroatShapeFamilyChannel);
+    if (roll < 0.25F) return GateThroatShapeFamily::SingleS;
+    if (roll < 0.50F) return GateThroatShapeFamily::DoubleS;
+    if (roll < 0.75F) return GateThroatShapeFamily::Helical;
+    return GateThroatShapeFamily::SplitWave;
+}
+
+[[nodiscard]] inline bool validGateThroatShapeFamily(
+    GateThroatShapeFamily family) noexcept {
+    switch (family) {
+    case GateThroatShapeFamily::SingleS:
+    case GateThroatShapeFamily::DoubleS:
+    case GateThroatShapeFamily::Helical:
+    case GateThroatShapeFamily::SplitWave:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] inline const char* gateThroatShapeFamilyName(
+    GateThroatShapeFamily family) noexcept {
+    switch (family) {
+    case GateThroatShapeFamily::SingleS: return "S-BEND";
+    case GateThroatShapeFamily::DoubleS: return "DOUBLE S";
+    case GateThroatShapeFamily::Helical: return "HELICAL WEAVE";
+    case GateThroatShapeFamily::SplitWave: return "SPLIT WAVE";
+    }
+    return "UNKNOWN THROAT";
+}
+
+// Every channel is independent of aperture type and visual support geometry.
+// All wave combinations are convex blends of sine waves, so the unit envelope
+// is preserved even though neighbouring gates now have different topologies.
 struct GateThroatBendProfile {
     float amplitudeX = kGateThroatBendAmplitudeX;
     float amplitudeY = kGateThroatBendAmplitudeY;
+    GateThroatShapeFamily family = GateThroatShapeFamily::SingleS;
 };
 
 [[nodiscard]] inline GateThroatBendProfile gateThroatBendProfileAt(
@@ -212,7 +254,50 @@ struct GateThroatBendProfile {
                 (kGateThroatBendAmplitudeX - kGateThroatBendMinimumAmplitudeX),
         kGateThroatBendMinimumAmplitudeY +
             courseUnit(seed, index, kGateThroatBendChannelY) *
-                (kGateThroatBendAmplitudeY - kGateThroatBendMinimumAmplitudeY)
+                (kGateThroatBendAmplitudeY - kGateThroatBendMinimumAmplitudeY),
+        gateThroatShapeFamilyAt(seed, gateIndex)
+    };
+}
+
+struct GateThroatBendOffset {
+    float x = 0.0F;
+    float y = 0.0F;
+};
+
+[[nodiscard]] inline GateThroatBendOffset gateThroatBendOffsetAt(
+    std::uint64_t seed, std::uint32_t gateIndex, double throatOffset) noexcept {
+    if (!std::isfinite(throatOffset)) return {};
+    const auto profile = gateThroatBendProfileAt(seed, gateIndex);
+    const double t = std::clamp(
+        throatOffset / static_cast<double>(kGateThroatHalfLength), -1.0, 1.0);
+    constexpr double pi = 3.14159265358979323846;
+    const float single = static_cast<float>(std::sin(pi * t));
+    const float doubleWave = static_cast<float>(std::sin(2.0 * pi * t));
+    const float triple = static_cast<float>(std::sin(3.0 * pi * t));
+    float horizontal = single;
+    float vertical = doubleWave;
+    switch (profile.family) {
+    case GateThroatShapeFamily::SingleS:
+        break;
+    case GateThroatShapeFamily::DoubleS:
+        horizontal = doubleWave;
+        vertical = single;
+        break;
+    case GateThroatShapeFamily::Helical:
+        horizontal = 0.72F * single + 0.28F * doubleWave;
+        vertical = 0.50F * doubleWave + 0.50F * triple;
+        break;
+    case GateThroatShapeFamily::SplitWave:
+        horizontal = 0.62F * single + 0.38F * triple;
+        vertical = 0.38F * single + 0.62F * doubleWave;
+        break;
+    }
+    const std::uint64_t turnBits = mixCourseBits(
+        seed ^ (static_cast<std::uint64_t>(gateIndex) * 0x9E3779B97F4A7C15ULL));
+    const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
+    return GateThroatBendOffset{
+        turnSign * profile.amplitudeX * horizontal,
+        profile.amplitudeY * vertical
     };
 }
 
@@ -255,21 +340,12 @@ struct GateThroatSection {
     const float safeRadius = std::max(0.8F, course.radius - 0.16F);
     const float aperture = std::clamp(gate.apertureRadius, 0.8F, safeRadius);
 
-    // Every gate contains a deterministic S-bend. The center is unchanged at
-    // the aperture plane and sleeve ends, but sweeps side-to-side between
-    // them. Renderer, collision, route search, and camera clearance all read
-    // this same centerline, so a visual bend can never be a ghost obstacle.
-    constexpr double pi = 3.14159265358979323846;
-    const float wave = static_cast<float>(std::sin(
-        pi * offset / static_cast<double>(kGateThroatHalfLength)));
-    const float verticalWave = static_cast<float>(std::sin(
-        2.0 * pi * offset / static_cast<double>(kGateThroatHalfLength)));
-    const std::uint64_t turnBits = mixCourseBits(
-        seed ^ (static_cast<std::uint64_t>(gate.index) * 0x9E3779B97F4A7C15ULL));
-    const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
-    const auto bendProfile = gateThroatBendProfileAt(seed, gate.index);
-    const float bendX = turnSign * bendProfile.amplitudeX * wave;
-    const float bendY = bendProfile.amplitudeY * verticalWave;
+    // Four deterministic waveform topologies change the actual corridor:
+    // single S, double S, blended helical weave, and split wave. All systems
+    // share this helper through the sampled throat centerline.
+    const auto bend = gateThroatBendOffsetAt(seed, gate.index, offset);
+    const float bendX = bend.x;
+    const float bendY = bend.y;
     return GateThroatSection{
         true, gate.index, gate.offsetX * pinch + bendX,
         gate.offsetY * pinch + bendY,
@@ -432,6 +508,7 @@ inline std::uint64_t obstacleHash(std::uint64_t seed,
         const auto throatShape = gateThroatBendProfileAt(seed, gate.index);
         absorb(static_cast<std::int64_t>(std::llround(throatShape.amplitudeX * 10000.0F)));
         absorb(static_cast<std::int64_t>(std::llround(throatShape.amplitudeY * 10000.0F)));
+        absorb(static_cast<std::int64_t>(throatShape.family));
     }
     return hash;
 }
@@ -558,7 +635,8 @@ inline ObstacleValidation validateObstacleSet(std::uint64_t seed,
             return result;
         }
         const auto throatShape = gateThroatBendProfileAt(seed, gate.index);
-        if (!std::isfinite(throatShape.amplitudeX) ||
+        if (!validGateThroatShapeFamily(throatShape.family) ||
+            !std::isfinite(throatShape.amplitudeX) ||
             !std::isfinite(throatShape.amplitudeY) ||
             throatShape.amplitudeX < kGateThroatBendMinimumAmplitudeX ||
             throatShape.amplitudeX > kGateThroatBendAmplitudeX ||
