@@ -293,6 +293,36 @@ int main() {
     assert(tunrun::cameraShipVisibilityFromEyeDistance(6.0F) == 1.0F);
     assert(tunrun::cameraShipVisibilityFromEyeDistance(
         std::numeric_limits<float>::infinity()) == 0.0F);
+
+    // The first-person crosshair must follow the final camera ray, including
+    // a ray clipped to a nearby tunnel/throat surface, and remain screen-aligned.
+    const auto forwardReticle = tunrun::cameraReticlePose(
+        {0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, -8.0F},
+        {0.0F, 1.0F, 0.0F});
+    assert(forwardReticle.valid && std::abs(forwardReticle.depth - 7.0F) < 0.0001F);
+    assert(std::abs(forwardReticle.center.x) < 0.0001F);
+    assert(std::abs(forwardReticle.center.y) < 0.0001F);
+    assert(std::abs(forwardReticle.center.z + 7.0F) < 0.0001F);
+    assert(std::abs(tunrun::frameDot(forwardReticle.right, forwardReticle.up)) < 0.0001F);
+    const tunrun::FrameVector3 backward{0.0F, 0.0F, -1.0F};
+    const tunrun::FrameVector3 rightward{1.0F, 0.0F, 0.0F};
+    assert(std::abs(tunrun::frameDot(forwardReticle.right, backward)) < 0.0001F);
+    const auto sideReticle = tunrun::cameraReticlePose(
+        {0.0F, 0.0F, 0.0F}, {8.0F, 0.0F, 0.0F},
+        {0.0F, 1.0F, 0.0F});
+    assert(sideReticle.valid && std::abs(sideReticle.center.x - 7.0F) < 0.0001F);
+    assert(std::abs(sideReticle.center.z) < 0.0001F);
+    assert(std::abs(tunrun::frameDot(sideReticle.right, rightward)) < 0.0001F);
+    const auto clippedReticle = tunrun::cameraReticlePose(
+        {1.0F, 2.0F, 3.0F}, {1.0F, 2.0F, 4.0F},
+        {0.0F, 1.0F, 0.0F}, 7.0F);
+    assert(clippedReticle.valid && std::abs(clippedReticle.depth - 0.88F) < 0.0001F);
+    assert(std::abs(clippedReticle.center.z - 3.88F) < 0.0001F);
+    const auto invalidReticle = tunrun::cameraReticlePose(
+        {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F},
+        {0.0F, 0.0F, -1.0F}, {0.0F, 1.0F, 0.0F});
+    assert(!invalidReticle.valid);
+
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);
     assert(std::abs(defaultOrbit.up) < 0.0001F);

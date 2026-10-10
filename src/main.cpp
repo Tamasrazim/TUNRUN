@@ -75,9 +75,6 @@ struct AppState {
     bool exitRequested = false;
     tunrun::FlightState flight;
     float flightAccumulator = 0.0F;
-    float mouseAimX = 0.0F;
-    float mouseAimY = 0.0F;
-    bool mouseControlEngaged = false;
     float cameraLookYaw = 0.0F;
     float cameraLookPitch = 0.0F;
     tunrun::CameraFollowState tppCameraFollow;
@@ -168,9 +165,6 @@ void resetFlight(AppState& app, bool& tpp) {
         (IsGamepadAvailable(0) &&
          IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
     app.flightAccumulator = 0.0F;
-    app.mouseAimX = 0.0F;
-    app.mouseAimY = 0.0F;
-    app.mouseControlEngaged = false;
     app.cameraLookYaw = 0.0F;
     app.cameraLookPitch = 0.0F;
     app.tppCameraFollow = {};
@@ -964,7 +958,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, const char* modeName, bool tpp, bool reduceMotion,
-                float mouseAimX, float mouseAimY, bool showAimReticle,
+                bool showAimReticle,
                 float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
                 float roll, float shipBank,
                 float actualForwardSpeed, float boostEnergy,
@@ -975,8 +969,6 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 float& cameraModeBlend, float frameDeltaTime) {
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
-    const auto reticleFrame = tunrun::sampleTunnelFrame(
-        seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     const auto orbit = tunrun::cameraOrbitOffset(viewYaw, viewPitch);
@@ -1333,24 +1325,34 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                        &playerFrame, shipVisibility);
     }
     if (showAimReticle && modeBlend < 0.05F) {
-        const Color aimColor{111, 225, 255, 235};
-        constexpr float halfWidth = 0.24F;
-        constexpr float halfHeight = 0.24F;
-        const auto aimPoint = [&](float x, float y) {
-            return rayVector(tunrun::tunnelFramePoint(
-                reticleFrame, x, y));
-        };
-        const Vector3 aimCenter = aimPoint(mouseAimX, mouseAimY);
-        DrawSphere(aimCenter, 0.045F, aimColor);
-        DrawLine3D(aimPoint(mouseAimX - halfWidth, mouseAimY),
-                   aimPoint(mouseAimX - 0.07F, mouseAimY), aimColor);
-        DrawLine3D(aimPoint(mouseAimX + 0.07F, mouseAimY),
-                   aimPoint(mouseAimX + halfWidth, mouseAimY), aimColor);
-        DrawLine3D(aimPoint(mouseAimX, mouseAimY - halfHeight),
-                   aimPoint(mouseAimX, mouseAimY - 0.07F), aimColor);
-        DrawLine3D(aimPoint(mouseAimX, mouseAimY + 0.07F),
-                   aimPoint(mouseAimX, mouseAimY + halfHeight), aimColor);
-        DrawSphereWires(aimCenter, 0.15F, 6, 12, aimColor);
+        const tunrun::FrameVector3 cameraEye{
+            camera.position.x, camera.position.y, camera.position.z};
+        const tunrun::FrameVector3 cameraTarget{
+            camera.target.x, camera.target.y, camera.target.z};
+        const tunrun::FrameVector3 cameraUp{
+            camera.up.x, camera.up.y, camera.up.z};
+        const auto reticle = tunrun::cameraReticlePose(
+            cameraEye, cameraTarget, cameraUp);
+        if (reticle.valid) {
+            const Color aimColor{111, 225, 255, 235};
+            // Keep the reticle physically small when a blocked view ray is
+            // clipped close to the camera, instead of letting it fill the view.
+            const float size = std::clamp(reticle.depth * 0.024F, 0.045F, 0.19F);
+            const float inner = size * 0.30F;
+            const auto aimPoint = [&](float right, float up) {
+                return rayVector(tunrun::frameAdd(
+                    reticle.center,
+                    tunrun::frameAdd(tunrun::frameScale(reticle.right, right),
+                                     tunrun::frameScale(reticle.up, up))));
+            };
+            const Vector3 aimCenter = rayVector(reticle.center);
+            DrawSphere(aimCenter, size * 0.13F, aimColor);
+            DrawLine3D(aimPoint(-size, 0.0F), aimPoint(-inner, 0.0F), aimColor);
+            DrawLine3D(aimPoint(inner, 0.0F), aimPoint(size, 0.0F), aimColor);
+            DrawLine3D(aimPoint(0.0F, -size), aimPoint(0.0F, -inner), aimColor);
+            DrawLine3D(aimPoint(0.0F, inner), aimPoint(0.0F, size), aimColor);
+            DrawSphereWires(aimCenter, size * 0.64F, 6, 12, aimColor);
+        }
     }
     EndMode3D();
     DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});
@@ -1591,9 +1593,6 @@ int main() {
                 } else if (rawMouse.installed()) {
                     (void)rawMouse.consume();
                 }
-                app.mouseControlEngaged = false;
-                app.mouseAimX = app.flight.x;
-                app.mouseAimY = app.flight.y;
                 const float previousElapsed = std::max(0.0F, app.elapsed - dt);
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
@@ -1751,8 +1750,7 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip),
-                       tunrun::gameModeName(app.activeMode), tpp, app.reduceMotion,
-                       app.mouseAimX, app.mouseAimY, !tpp,
+                       tunrun::gameModeName(app.activeMode), tpp, app.reduceMotion, !tpp,
                        app.flight.pitch, app.flight.yaw,
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
                        app.flight.bank, app.flight.actualForwardSpeed,
@@ -2059,9 +2057,8 @@ int main() {
                 app.reduceMotion = !app.reduceMotion;
             } else if (picked == 3) {
                 app.profile.mouseSteering = !app.profile.mouseSteering;
-                app.mouseControlEngaged = false;
-                app.mouseAimX = app.flight.x;
-                app.mouseAimY = app.flight.y;
+                app.cameraLookYaw = 0.0F;
+                app.cameraLookPitch = 0.0F;
                 rawMouse.clear();
                 if (!app.profile.mouseSteering && rawMouse.installed()) {
                     rawMouse.setActive(false);
@@ -2091,9 +2088,8 @@ int main() {
                 app.reduceMotion = false;
                 app.profile.mouseSteering = true;
                 app.profile.mouseSensitivity = kMouseSensitivityDefault;
-                app.mouseControlEngaged = false;
-                app.mouseAimX = app.flight.x;
-                app.mouseAimY = app.flight.y;
+                app.cameraLookYaw = 0.0F;
+                app.cameraLookPitch = 0.0F;
                 rawMouse.clear();
                 (void)persistProfile(app);
                 app.screens.pop();

@@ -175,6 +175,51 @@ struct CameraOrbitOffset {
     float behindDistance = 6.0F;
 };
 
+// Derive a view-aligned, world-space reticle from the final camera ray after
+// wall/throat clipping. Using the un-clipped tunnel centreline here makes a
+// mouse-look crosshair drift away from the centre of the actual view.
+struct CameraReticlePose {
+    FrameVector3 center{};
+    FrameVector3 right{1.0F, 0.0F, 0.0F};
+    FrameVector3 up{0.0F, 1.0F, 0.0F};
+    float depth = 0.0F;
+    bool valid = false;
+};
+
+[[nodiscard]] inline CameraReticlePose cameraReticlePose(
+    FrameVector3 eye, FrameVector3 target, FrameVector3 cameraUp,
+    float maximumDepth = 7.0F) noexcept {
+    const auto finiteVector = [](FrameVector3 v) noexcept {
+        return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+    };
+    if (!finiteVector(eye) || !finiteVector(target) || !finiteVector(cameraUp)) {
+        return {};
+    }
+    if (!std::isfinite(maximumDepth) || maximumDepth <= 0.0F) maximumDepth = 7.0F;
+    const FrameVector3 ray{
+        target.x - eye.x, target.y - eye.y, target.z - eye.z
+    };
+    const float rayLength = frameLength(ray);
+    if (!std::isfinite(rayLength) || rayLength < 1.0e-4F) return {};
+
+    const FrameVector3 forward = frameScale(ray, 1.0F / rayLength);
+    const FrameVector3 safeUp = frameNormalize(cameraUp, {0.0F, 1.0F, 0.0F});
+    FrameVector3 right = frameCross(forward, safeUp);
+    if (frameLength(right) < 1.0e-4F) {
+        const FrameVector3 fallbackUp = std::abs(forward.y) < 0.9F
+            ? FrameVector3{0.0F, 1.0F, 0.0F}
+            : FrameVector3{1.0F, 0.0F, 0.0F};
+        right = frameCross(forward, fallbackUp);
+    }
+    right = frameNormalize(right, {1.0F, 0.0F, 0.0F});
+    const FrameVector3 reticleUp = frameNormalize(
+        frameCross(right, forward), safeUp);
+    const float depth = std::min(maximumDepth, rayLength * 0.88F);
+    return CameraReticlePose{
+        frameAdd(eye, frameScale(forward, depth)), right, reticleUp, depth, true
+    };
+}
+
 // FPP eye is anchored just ahead of the ship's origin, inside its canopy,
 // instead of trailing behind an invisible spacecraft as if in a chase view.
 inline constexpr double kFirstPersonCockpitForwardOffset = 0.22;
