@@ -435,8 +435,15 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 ship.speedMultiplier;
             const float aimSpan = std::max(
                 0.0F, activeGate.apertureRadius - kCraftCollisionRadius - 0.16F);
-            float aimX = activeGate.offsetX + candidate.aimBiasX * aimSpan;
-            float aimY = activeGate.offsetY + candidate.aimBiasY * aimSpan;
+            // Convert the gate aim into the player's current course-relative
+            // frame instead of comparing offsets from different centerline points.
+            const auto playerSectionForAim = sampleCourse(
+                seed, static_cast<double>(candidate.state.distance));
+            const auto gateSectionForAim = sampleCourse(seed, activeGate.distance);
+            float aimX = activeGate.offsetX + gateSectionForAim.centerX -
+                playerSectionForAim.centerX + candidate.aimBiasX * aimSpan;
+            float aimY = activeGate.offsetY + gateSectionForAim.centerY -
+                playerSectionForAim.centerY + candidate.aimBiasY * aimSpan;
 
             // If a mine sits between this state and the target gate and the
             // target ray would thread the mine's collision envelope, bias the
@@ -455,8 +462,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 if (ahead < 0.0 || ahead > kMineAvoidanceLookahead ||
                     hazard.distance >= activeGate.distance) continue;
 
-                const auto playerSection = sampleCourse(
-                    seed, static_cast<double>(candidate.state.distance));
+                const auto& playerSection = playerSectionForAim;
                 const auto hazardSection = sampleCourse(seed, hazard.distance);
                 const double predictedMineTime = candidate.elapsedSeconds +
                     ahead / std::max(0.25F, maximumLateralSpeed);
@@ -577,25 +583,21 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 continue;
             }
 
-            const double travel =
-                static_cast<double>(state.distance) - previousDistance;
-            const float fraction = travel > 1.0e-6
-                ? static_cast<float>(std::clamp(
-                    (activeGate.distance - previousDistance) / travel,
-                    0.0, 1.0))
-                : 0.0F;
-            const float crossingX = previousX + (state.x - previousX) * fraction;
-            const float crossingY = previousY + (state.y - previousY) * fraction;
-            const float offsetX = crossingX - activeGate.offsetX;
-            const float offsetY = crossingY - activeGate.offsetY;
-            const float clearance = activeGate.apertureRadius -
-                kCraftCollisionRadius - std::hypot(offsetX, offsetY);
+            // Share gameplay's course-relative interpolation so curves do not
+            // make the validator score a different gate point than collision.
+            const auto crossing = gatePointAtCourseCrossing(
+                seed, previousX, previousY, previousDistance, state.x,
+                state.y, static_cast<double>(state.distance), activeGate);
             candidate.active = false;
-            if (collidesWithGate(crossingX, crossingY, activeGate)) {
+            if (collidesWithGateAtCrossingPoint(crossing, activeGate)) {
                 ++result.discardedStates;
                 continue;
             }
 
+            const float offsetX = crossing.x - activeGate.offsetX;
+            const float offsetY = crossing.y - activeGate.offsetY;
+            const float clearance = activeGate.apertureRadius -
+                kCraftCollisionRadius - std::hypot(offsetX, offsetY);
             result.minimumGateClearance = std::min(
                 result.minimumGateClearance, clearance);
             if (passingCount < kMaximumStates) {
