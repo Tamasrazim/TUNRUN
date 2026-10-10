@@ -1004,6 +1004,12 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     case tunrun::HazardVisualFamily::Cross:
         color={255,211,91,255}; blade={255,244,174,245}; shell={98,62,20,255};
         facetLight={255,226,122,255}; facetDark={112,65,17,255}; break;
+    case tunrun::HazardVisualFamily::HaloArray:
+        color={92,245,205,255}; blade={196,255,239,245}; shell={13,73,62,255};
+        facetLight={109,255,218,255}; facetDark={17,86,78,255}; break;
+    case tunrun::HazardVisualFamily::ShardCluster:
+        color={255,151,91,255}; blade={255,221,172,245}; shell={91,39,19,255};
+        facetLight={255,190,120,255}; facetDark={122,52,27,255}; break;
     }
     color=tunnelDepthFog(color,ahead);
     blade=tunnelDepthFog(blade,ahead);
@@ -1061,6 +1067,68 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         DrawSphere(center,hazard.radius*0.22F,shell);
         DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
         DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
+        break;
+    }
+    case tunrun::HazardVisualFamily::HaloArray: {
+        // Three intersecting, phase-driven hoops give this mine a mechanical
+        // gyroscope silhouette rather than another solid sphere or blade set.
+        constexpr int ringSegments=32;
+        const float ringRadius=hazard.radius*0.88F;
+        const auto drawLoop=[&](int axis,float phaseOffset) {
+            Vector3 previous{};
+            for(int segment=0;segment<=ringSegments;++segment) {
+                const float angle=phase+phaseOffset+
+                    static_cast<float>(segment)*2.0F*PI/ringSegments;
+                const float cs=std::cos(angle),sn=std::sin(angle);
+                Vector3 point{};
+                if(axis==0) point=p(cx+cs*ringRadius,cy+sn*ringRadius,
+                                    std::sin(angle*2.0F+phase)*ringRadius*0.10F);
+                else if(axis==1) point=p(cx+cs*ringRadius,
+                    cy+sn*ringRadius*0.18F,sn*ringRadius);
+                else point=p(cx+sn*ringRadius*0.18F,
+                    cy+cs*ringRadius,sn*ringRadius);
+                if(segment>0) DrawLine3D(previous,point,
+                    (segment%4==0)?blade:color);
+                previous=point;
+            }
+        };
+        drawLoop(0,0.0F);
+        drawLoop(1,0.92F);
+        drawLoop(2,2.04F);
+        DrawSphere(center,hazard.radius*0.20F,shell);
+        DrawSphereWires(center,hazard.radius*0.28F,6,8,facetLight);
+        break;
+    }
+    case tunrun::HazardVisualFamily::ShardCluster: {
+        // Six individual crystal fins orbit a small core. Their triangular
+        // faces form a faceted cluster instead of a cross-shaped silhouette.
+        DrawSphere(center,hazard.radius*0.18F,shell);
+        constexpr int shardCount=6;
+        for(int i=0;i<shardCount;++i) {
+            const float a=phase*0.52F+static_cast<float>(i)*2.0F*PI/shardCount;
+            const float cs=std::cos(a),sn=std::sin(a);
+            const float midX=cx+cs*hazard.radius*0.34F;
+            const float midY=cy+sn*hazard.radius*0.34F;
+            const float baseZ=std::sin(a*2.0F+phase)*hazard.radius*0.18F;
+            const Vector3 root=p(midX,midY,baseZ);
+            const Vector3 tip=p(cx+cs*hazard.radius*0.91F,
+                                cy+sn*hazard.radius*0.91F,
+                                baseZ+std::cos(a+phase)*hazard.radius*0.21F);
+            const Vector3 edgeA=p(midX-sn*hazard.radius*0.15F,
+                                  midY+cs*hazard.radius*0.15F,
+                                  baseZ+hazard.radius*0.19F);
+            const Vector3 edgeB=p(midX+sn*hazard.radius*0.15F,
+                                  midY-cs*hazard.radius*0.15F,
+                                  baseZ-hazard.radius*0.19F);
+            const Color shardFace=(i%3==0)?facetLight:(i%3==1)?color:facetDark;
+            DrawTriangle3D(root,tip,edgeA,shardFace);
+            DrawTriangle3D(root,edgeA,edgeB,blade);
+            DrawTriangle3D(root,edgeB,tip,facetDark);
+            DrawLine3D(root,tip,blade);
+            DrawLine3D(tip,edgeA,shardFace);
+            DrawLine3D(tip,edgeB,color);
+        }
+        DrawSphereWires(center,hazard.radius*0.44F,6,8,color);
         break;
     }
     }
