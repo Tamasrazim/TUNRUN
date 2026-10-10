@@ -8,6 +8,29 @@ namespace tunrun {
 [[nodiscard]] inline bool triggerPressed(float axisValue) noexcept {
     return std::isfinite(axisValue) && axisValue > 0.0F;
 }
+
+// Keyboard movement mapping is kept pure so it can be regression-tested
+// without opening a raylib window or reading real keyboard hardware.
+struct KeyboardFlightIntent {
+    float lateral = 0.0F; // -1 left, +1 right
+    float speed = 0.0F;   // -1 brake, +1 accelerate
+    float yaw = 0.0F;     // -1 left, +1 right
+    float pitch = 0.0F;   // -1 down, +1 up
+    float roll = 0.0F;    // -1 left, +1 right
+};
+
+[[nodiscard]] inline KeyboardFlightIntent keyboardFlightIntentFromKeys(
+    bool go, bool brake, bool left, bool rightB, bool rightD,
+    bool yawLeft, bool yawRight, bool pitchUp, bool pitchDown,
+    bool rollLeft, bool rollRight) noexcept {
+    return KeyboardFlightIntent{
+        static_cast<float>((rightB || rightD) - left),
+        static_cast<float>(go - brake),
+        static_cast<float>(yawRight - yawLeft),
+        static_cast<float>(pitchUp - pitchDown),
+        static_cast<float>(rollRight - rollLeft)
+    };
+}
 } // namespace tunrun
 
 namespace tunrun {

@@ -1456,17 +1456,18 @@ int main() {
             if (!IsWindowFocused()) {
                 app.screens.push(tunrun::Screen::Pause);
             } else {
-                float steerX = ((IsKeyDown(KEY_D) || IsKeyDown(KEY_B)) ? 1.0F : 0.0F) -
-                               (IsKeyDown(KEY_A) ? 1.0F : 0.0F);
+                const auto keyboard = tunrun::keyboardFlightIntentFromKeys(
+                    IsKeyDown(KEY_W), IsKeyDown(KEY_S),
+                    IsKeyDown(KEY_A), IsKeyDown(KEY_B), IsKeyDown(KEY_D),
+                    IsKeyDown(KEY_LEFT), IsKeyDown(KEY_RIGHT),
+                    IsKeyDown(KEY_UP), IsKeyDown(KEY_DOWN),
+                    IsKeyDown(KEY_Q), IsKeyDown(KEY_E));
+                float steerX = keyboard.lateral;
                 float steerY = 0.0F;
-                const float speedControl = (IsKeyDown(KEY_W) ? 1.0F : 0.0F) -
-                                           (IsKeyDown(KEY_S) ? 1.0F : 0.0F);
-                float rotateYaw = (IsKeyDown(KEY_RIGHT) ? 1.0F : 0.0F) -
-                                  (IsKeyDown(KEY_LEFT) ? 1.0F : 0.0F);
-                float rotatePitch = (IsKeyDown(KEY_UP) ? 1.0F : 0.0F) -
-                                    (IsKeyDown(KEY_DOWN) ? 1.0F : 0.0F);
-                float rollInput = (IsKeyDown(KEY_E) ? 1.0F : 0.0F) -
-                                  (IsKeyDown(KEY_Q) ? 1.0F : 0.0F);
+                const float speedControl = keyboard.speed;
+                float rotateYaw = keyboard.yaw;
+                float rotatePitch = keyboard.pitch;
+                float rollInput = keyboard.roll;
                 float padX = 0.0F;
                 float padY = 0.0F;
                 if (IsGamepadAvailable(0)) {
@@ -1478,10 +1479,13 @@ int main() {
                     else padY = std::copysign((std::abs(padY) - 0.18F) / 0.82F, padY);
                     steerX += padX;
                     steerY += padY;
-                    rotateYaw = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-                    rotatePitch = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-                    if (std::abs(rotateYaw) < 0.16F) rotateYaw = 0.0F;
-                    if (std::abs(rotatePitch) < 0.16F) rotatePitch = 0.0F;
+                    float padRotateYaw = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+                    float padRotatePitch = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+                    if (std::abs(padRotateYaw) < 0.16F) padRotateYaw = 0.0F;
+                    if (std::abs(padRotatePitch) < 0.16F) padRotatePitch = 0.0F;
+                    // A connected controller must not disable arrow-key rotation.
+                    rotateYaw += padRotateYaw;
+                    rotatePitch += padRotatePitch;
                 }
 
                 // Mouse input now rotates the camera only. The flight path is

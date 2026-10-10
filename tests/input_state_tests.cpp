@@ -66,6 +66,30 @@ int main() {
     assert(defaultProfile.mouseSteering);
     assert(defaultProfile.mouseSensitivity == kMouseSensitivityDefault);
 
+    const auto goKeys = tunrun::keyboardFlightIntentFromKeys(
+        true, false, false, false, false, false, false, false, false, false, false);
+    assert(goKeys.speed == 1.0F && goKeys.lateral == 0.0F);
+    const auto brakeKeys = tunrun::keyboardFlightIntentFromKeys(
+        false, true, false, false, false, false, false, false, false, false, false);
+    assert(brakeKeys.speed == -1.0F);
+    const auto leftKeys = tunrun::keyboardFlightIntentFromKeys(
+        false, false, true, false, false, false, false, false, false, false, false);
+    assert(leftKeys.lateral == -1.0F);
+    const auto rightBKeys = tunrun::keyboardFlightIntentFromKeys(
+        false, false, false, true, false, false, false, false, false, false, false);
+    const auto rightDKeys = tunrun::keyboardFlightIntentFromKeys(
+        false, false, false, false, true, false, false, false, false, false, false);
+    assert(rightBKeys.lateral == 1.0F && rightDKeys.lateral == 1.0F);
+    const auto opposedKeys = tunrun::keyboardFlightIntentFromKeys(
+        true, true, true, true, false, true, true, true, true, true, true);
+    assert(opposedKeys.speed == 0.0F && opposedKeys.lateral == 0.0F);
+    assert(opposedKeys.yaw == 0.0F && opposedKeys.pitch == 0.0F);
+    assert(opposedKeys.roll == 0.0F);
+    const auto rotationKeys = tunrun::keyboardFlightIntentFromKeys(
+        false, false, false, false, false, true, false, true, false, true, false);
+    assert(rotationKeys.yaw == -1.0F && rotationKeys.pitch == 1.0F);
+    assert(rotationKeys.roll == -1.0F);
+
     constexpr std::uint64_t frameSeed = 0xA91B72C3D4E5F607ULL;
     const auto curvedFrame = tunrun::sampleTunnelFrame(frameSeed, 32.0, 58.0);
     assert(std::abs(tunrun::frameLength(curvedFrame.tangent)-1.0F)<0.0001F);
