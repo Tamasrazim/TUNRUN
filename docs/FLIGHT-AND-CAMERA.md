@@ -101,7 +101,7 @@ The generator's warning-time validator must use maximum achievable boost speed. 
 - 30, 60, 120, and uncapped render rates do not materially change gameplay outcomes.
 - Switching FPP/TPP changes only the camera.
 - Mouse look rotates the camera without changing craft trajectory or being dragged by ship heading; W accelerates, S brakes even while boost/precision is held (an active dash completes), and released speed control returns toward cruise.
-- The third-person camera remains radially within the sampled tunnel frame and follows the course direction through ship rotations.
+- The first-person camera is clamped inside its own tunnel cross-section, not merely the ship's current section; the third-person camera remains radially within the sampled rear section and follows the course direction through ship rotations.
 - A narrow gate's visual throat radius matches its collision aperture and prevents the bulkhead from appearing like a decorative ring floating in an unobstructed tube.
 - Focus loss and pause clear inputs, release capture, and freeze hazard time.
 - No craft can exploit camera switching to cross obstacles.

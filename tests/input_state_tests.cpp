@@ -83,6 +83,21 @@ int main() {
     assert(std::isfinite(badFrame.center.x)&&std::isfinite(badFrame.center.y)&&
            std::isfinite(badFrame.center.z));
 
+    const auto safeFirstPersonCenter = tunrun::cameraSafeOffset(1.0F, -1.5F, 5.75F);
+    assert(!safeFirstPersonCenter.clampedToTunnel);
+    assert(std::abs(safeFirstPersonCenter.right - 1.0F) < 0.0001F);
+    assert(std::abs(safeFirstPersonCenter.up + 1.5F) < 0.0001F);
+    const auto safeFirstPersonEdge = tunrun::cameraSafeOffset(5.5F, 0.0F, 5.75F);
+    assert(safeFirstPersonEdge.clampedToTunnel);
+    assert(safeFirstPersonEdge.radialOffset <= 5.2001F);
+    const auto invalidFirstPersonOffset = tunrun::cameraSafeOffset(
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN());
+    assert(std::isfinite(invalidFirstPersonOffset.right));
+    assert(std::isfinite(invalidFirstPersonOffset.up));
+    assert(invalidFirstPersonOffset.clampedToTunnel);
+
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
     assert(std::abs(straightLook.up) < 0.0001F);

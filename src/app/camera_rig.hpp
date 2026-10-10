@@ -35,6 +35,48 @@ struct CameraLookOffset {
     return {right, up};
 }
 
+struct CameraSafeOffset {
+    float right = 0.0F;
+    float up = 0.0F;
+    float radialOffset = 0.0F;
+    bool clampedToTunnel = false;
+};
+
+// Keep the FPP camera inside the local sampled cross-section. A tight turn or
+// radius transition can make the previous-frame camera section smaller than
+// the ship's current section, even when the ship itself has not collided.
+[[nodiscard]] inline CameraSafeOffset cameraSafeOffset(
+    float right, float up, float tunnelRadius,
+    float wallClearance = 0.55F) noexcept {
+    bool clamped = false;
+    if (!std::isfinite(right)) { right = 0.0F; clamped = true; }
+    if (!std::isfinite(up)) { up = 0.0F; clamped = true; }
+    if (!std::isfinite(tunnelRadius) || tunnelRadius <= 0.0F) {
+        tunnelRadius = 5.0F;
+        clamped = true;
+    }
+    if (!std::isfinite(wallClearance) || wallClearance < 0.0F) {
+        wallClearance = 0.55F;
+        clamped = true;
+    }
+
+    const float safeRadius = std::max(0.25F, tunnelRadius - wallClearance);
+    float radial = std::hypot(right, up);
+    if (!std::isfinite(radial)) {
+        right = 0.0F;
+        up = 0.0F;
+        radial = 0.0F;
+        clamped = true;
+    } else if (radial > safeRadius) {
+        const float scale = safeRadius / radial;
+        right *= scale;
+        up *= scale;
+        radial = safeRadius;
+        clamped = true;
+    }
+    return {right, up, radial, clamped};
+}
+
 struct ThirdPersonCameraPose {
     float x = 0.0F;
     float y = 0.25F;

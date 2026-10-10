@@ -504,12 +504,17 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
             const int nextSide = (side + 1) % segments;
             const float a0 = static_cast<float>(side) * 2.0F * PI / segments;
             const float a1 = static_cast<float>(nextSide) * 2.0F * PI / segments;
-            const Vector3 a = point(current, centerX[ring], centerY[ring], radii[ring], a0);
-            const Vector3 b = point(current, centerX[ring], centerY[ring], radii[ring], a1);
+            // A small axial twist turns the sleeve into a corkscrew passage.
+            // At the gate plane the added twist is exactly zero, preserving
+            // the aperture's alignment with the gameplay collision model.
+            const float twistA = offsets[ring] * 0.022F;
+            const float twistB = offsets[ring + 1U] * 0.022F;
+            const Vector3 a = point(current, centerX[ring], centerY[ring], radii[ring], a0 + twistA);
+            const Vector3 b = point(current, centerX[ring], centerY[ring], radii[ring], a1 + twistA);
             const Vector3 c = point(next, centerX[ring + 1U], centerY[ring + 1U],
-                                    radii[ring + 1U], a1);
+                                    radii[ring + 1U], a1 + twistB);
             const Vector3 d = point(next, centerX[ring + 1U], centerY[ring + 1U],
-                                    radii[ring + 1U], a0);
+                                    radii[ring + 1U], a0 + twistB);
             const Color wall = ((side % 4) == 0 || (ring % 2U) == 0)
                 ? wallLight : wallDark;
             DrawTriangle3D(a, b, c, wall);
@@ -922,9 +927,6 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
 
     const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
-    const float forwardX = std::sin(yaw) * std::cos(pitch);
-    const float forwardY = std::sin(pitch);
-    const float forwardZ = -std::cos(yaw) * std::cos(pitch);
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     // Camera look is independent from the spacecraft's heading: mouse motion
@@ -951,7 +953,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         camera.target = rayVector(tunrun::tunnelFramePoint(
             forwardFrame, lookOffset.right, lookOffset.up));
     } else {
-        camera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, shipX, shipY));
+        const auto safeCameraOffset = tunrun::cameraSafeOffset(
+            shipX, shipY, cameraFrame.radius, 0.55F);
+        camera.position = rayVector(tunrun::tunnelFramePoint(
+            cameraFrame, safeCameraOffset.right, safeCameraOffset.up));
         camera.target = rayVector(tunrun::tunnelFramePoint(
             forwardFrame, lookOffset.right, lookOffset.up));
     }
