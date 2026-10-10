@@ -213,14 +213,37 @@ struct GateThroatSection {
         return GateThroatSection{false, gate.index, 0.0F, 0.0F,
                                  course.radius, 0.0F};
     }
-    const float normalized = std::clamp(
-        1.0F - static_cast<float>(absoluteOffset) / kGateThroatHalfLength,
+    // Keep the narrow core for the first third of the sleeve, then flare
+    // smoothly into the main tunnel. The older profile opened too quickly,
+    // making a small aperture behave like a thin ring visually and physically.
+    constexpr float narrowCoreFraction = 0.32F;
+    const float normalizedDistance = static_cast<float>(
+        absoluteOffset / static_cast<double>(kGateThroatHalfLength));
+    const float taperProgress = std::clamp(
+        (normalizedDistance - narrowCoreFraction) / (1.0F - narrowCoreFraction),
         0.0F, 1.0F);
-    const float pinch = normalized * normalized * (3.0F - 2.0F * normalized);
+    const float taper = taperProgress * taperProgress * (3.0F - 2.0F * taperProgress);
+    const float pinch = 1.0F - taper;
     const float safeRadius = std::max(0.8F, course.radius - 0.16F);
     const float aperture = std::clamp(gate.apertureRadius, 0.8F, safeRadius);
+
+    // Every gate contains a deterministic S-bend. The center is unchanged at
+    // the aperture plane and sleeve ends, but sweeps side-to-side between
+    // them. Renderer, collision, route search, and camera clearance all read
+    // this same centerline, so a visual bend can never be a ghost obstacle.
+    constexpr double pi = 3.14159265358979323846;
+    const float wave = static_cast<float>(std::sin(
+        pi * offset / static_cast<double>(kGateThroatHalfLength)));
+    const float verticalWave = static_cast<float>(std::sin(
+        2.0 * pi * offset / static_cast<double>(kGateThroatHalfLength)));
+    const std::uint64_t turnBits = mixCourseBits(
+        seed ^ (static_cast<std::uint64_t>(gate.index) * 0x9E3779B97F4A7C15ULL));
+    const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
+    const float bendX = turnSign * 1.10F * wave;
+    const float bendY = 0.34F * verticalWave;
     return GateThroatSection{
-        true, gate.index, gate.offsetX * pinch, gate.offsetY * pinch,
+        true, gate.index, gate.offsetX * pinch + bendX,
+        gate.offsetY * pinch + bendY,
         course.radius - (course.radius - aperture) * pinch, pinch
     };
 }

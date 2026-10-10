@@ -1,7 +1,11 @@
 #pragma once
 
+#include "app/tunnel_frame.hpp"
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 
 namespace tunrun {
 
@@ -131,6 +135,71 @@ struct ThirdPersonCameraPose {
         offsetLength,
         clamped
     };
+}
+
+struct CameraRayLimit {
+    float safeFraction = 1.0F;
+    float minimumWallClearance = 0.0F;
+    bool clipped = false;
+};
+
+// A safe camera origin and a safe target can still be joined by a straight
+// look ray that cuts through the inside wall on a tight curve. Sample that ray
+// against the same procedural frames used by the renderer and shorten the
+// centre view ray just before its first wall-clearance violation.
+[[nodiscard]] inline CameraRayLimit limitCameraRayInsideTunnel(
+    std::uint64_t seed, double referenceDistance,
+    double cameraDistance, FrameVector3 cameraPosition,
+    double targetDistance, FrameVector3 targetPosition,
+    float wallClearance = 0.55F, unsigned int samples = 48U) noexcept {
+    if (!std::isfinite(referenceDistance)) referenceDistance = 0.0;
+    if (!std::isfinite(cameraDistance)) cameraDistance = referenceDistance;
+    if (!std::isfinite(targetDistance)) targetDistance = cameraDistance;
+    if (!std::isfinite(cameraPosition.x) || !std::isfinite(cameraPosition.y) ||
+        !std::isfinite(cameraPosition.z) || !std::isfinite(targetPosition.x) ||
+        !std::isfinite(targetPosition.y) || !std::isfinite(targetPosition.z)) {
+        return CameraRayLimit{0.05F, 0.0F, true};
+    }
+    if (!std::isfinite(wallClearance) || wallClearance < 0.0F) wallClearance = 0.55F;
+    samples = std::clamp(samples, 8U, 256U);
+
+    const float dx = targetPosition.x - cameraPosition.x;
+    const float dy = targetPosition.y - cameraPosition.y;
+    const float dz = targetPosition.z - cameraPosition.z;
+    float lastSafeFraction = 0.0F;
+    float minimumClearance = std::numeric_limits<float>::infinity();
+
+    for (unsigned int i = 0U; i <= samples; ++i) {
+        const float fraction = static_cast<float>(i) / static_cast<float>(samples);
+        const FrameVector3 point{
+            cameraPosition.x + dx * fraction,
+            cameraPosition.y + dy * fraction,
+            cameraPosition.z + dz * fraction
+        };
+        const double frameDistance = cameraDistance +
+            (targetDistance - cameraDistance) * static_cast<double>(fraction);
+        const auto frame = sampleTunnelFrame(seed, referenceDistance, frameDistance);
+        const FrameVector3 relative{
+            point.x - frame.center.x,
+            point.y - frame.center.y,
+            point.z - frame.center.z
+        };
+        const float right = frameDot(relative, frame.right);
+        const float up = frameDot(relative, frame.up);
+        const float radial = std::hypot(right, up);
+        const float safeRadius = std::max(0.25F, frame.radius - wallClearance);
+        const float clearance = safeRadius - radial;
+        minimumClearance = std::min(minimumClearance, clearance);
+        if (!std::isfinite(radial) || radial > safeRadius) {
+            // Back off more than one sample to leave margin for curvature
+            // between sample points instead of stopping exactly at the wall.
+            const float backoff = 1.5F / static_cast<float>(samples);
+            const float safe = std::clamp(lastSafeFraction - backoff, 0.05F, 1.0F);
+            return CameraRayLimit{safe, minimumClearance, true};
+        }
+        lastSafeFraction = fraction;
+    }
+    return CameraRayLimit{1.0F, minimumClearance, false};
 }
 
 } // namespace tunrun

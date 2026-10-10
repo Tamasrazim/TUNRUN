@@ -98,6 +98,24 @@ int main() {
     assert(std::isfinite(invalidFirstPersonOffset.up));
     assert(invalidFirstPersonOffset.clampedToTunnel);
 
+    const auto cameraPathStartFrame = tunrun::sampleTunnelFrame(frameSeed, 0.0, -1.25);
+    const auto cameraPathEndFrame = tunrun::sampleTunnelFrame(frameSeed, 0.0, 8.0);
+    const auto safeCameraPath = tunrun::limitCameraRayInsideTunnel(
+        frameSeed, 0.0, -1.25,
+        tunrun::tunnelFramePoint(cameraPathStartFrame, 0.0F, 0.0F),
+        8.0, tunrun::tunnelFramePoint(cameraPathEndFrame, 0.0F, 0.0F),
+        0.55F, 64U);
+    assert(!safeCameraPath.clipped);
+    assert(safeCameraPath.safeFraction == 1.0F);
+    const auto wallLookRay = tunrun::limitCameraRayInsideTunnel(
+        frameSeed, 0.0, -1.25,
+        tunrun::tunnelFramePoint(cameraPathStartFrame, 0.0F, 0.0F),
+        8.0, tunrun::tunnelFramePoint(cameraPathEndFrame, 5.45F, 0.0F),
+        0.55F, 64U);
+    assert(wallLookRay.clipped);
+    assert(wallLookRay.safeFraction > 0.05F && wallLookRay.safeFraction < 1.0F);
+    assert(wallLookRay.minimumWallClearance < 0.0F);
+
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
     assert(std::abs(straightLook.up) < 0.0001F);
@@ -143,9 +161,16 @@ int main() {
     assert(std::abs(throatCenter.centerX - throatGate.offsetX) < 0.0001F);
     assert(std::abs(throatCenter.centerY - throatGate.offsetY) < 0.0001F);
     assert(std::abs(throatCenter.radius - throatGate.apertureRadius) < 0.0001F);
+    const auto throatCore = tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate, throatGate.distance - 4.5);
+    assert(throatCore.active);
+    assert(std::abs(throatCore.radius - throatGate.apertureRadius) < 0.0001F);
     const auto throatEntry = tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate, throatGate.distance - 9.0);
+    const auto throatExit = tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate, throatGate.distance + 9.0);
     assert(throatEntry.active && throatEntry.radius > throatGate.apertureRadius);
+    assert(std::abs(throatExit.centerX - throatEntry.centerX) > 1.9F);
     assert(!tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate,
         throatGate.distance - tunrun::kGateThroatHalfLength).active);

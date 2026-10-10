@@ -38,7 +38,9 @@ const Color kDanger{255, 142, 142, 255};
 
 Color tunnelDepthFog(Color color, float distanceAhead) {
     if (!std::isfinite(distanceAhead)) distanceAhead = 0.0F;
-    const float amount = std::clamp((distanceAhead - 8.0F) / 40.0F, 0.0F, 1.0F);
+    // Far sections disappear into the wormhole haze much sooner than before.
+    // The next constriction stays readable while later geometry fades away.
+    const float amount = std::clamp((distanceAhead - 3.0F) / 16.0F, 0.0F, 1.0F);
     const float fog = amount * amount * (3.0F - 2.0F * amount);
     constexpr float visibilityFloor = 0.025F;
     const float visibility = 1.0F - fog * (1.0F - visibilityFloor);
@@ -1025,6 +1027,26 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             cameraFrame, firstPersonX, firstPersonY));
         camera.target = rayVector(tunrun::tunnelFramePoint(
             forwardFrame, lookTargetX, lookTargetY));
+    }
+    // Keep the camera's centre look ray inside the tunnel all the way to its
+    // target, not just at two individually safe end points. This matters when
+    // mouse-look points around a sharp bend or through a constricted sleeve.
+    const double cameraOriginDistance = tpp
+        ? static_cast<double>(distance) - 6.0 : cameraDistance;
+    const double cameraTargetDistance = static_cast<double>(distance) + lookCourseOffset;
+    const auto cameraRayLimit = tunrun::limitCameraRayInsideTunnel(
+        seed, distance, cameraOriginDistance,
+        tunrun::FrameVector3{camera.position.x, camera.position.y, camera.position.z},
+        cameraTargetDistance,
+        tunrun::FrameVector3{camera.target.x, camera.target.y, camera.target.z},
+        0.55F, 64U);
+    if (cameraRayLimit.clipped) {
+        const float t = cameraRayLimit.safeFraction;
+        camera.target = Vector3{
+            camera.position.x + (camera.target.x - camera.position.x) * t,
+            camera.position.y + (camera.target.y - camera.position.y) * t,
+            camera.position.z + (camera.target.z - camera.position.z) * t
+        };
     }
     const auto& cameraBasisFrame = tpp ? rearFrame : cameraFrame;
     camera.up = rayVector(tunrun::frameAdd(
