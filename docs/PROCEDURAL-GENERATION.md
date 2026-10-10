@@ -136,3 +136,10 @@ Generated sections behind the player can be unloaded once they are outside the r
 - Cross-run checks that the same seed produces the same canonical course hash.
 - Performance tests at the highest speed and densest allowed geometry.
 - Failure reports that reproduce by seed, generator version, section index, and ship id.
+
+
+## Gate support silhouettes (visual generator v1)
+
+Gate gameplay generation remains separate from its decorative construction. A second seeded channel (`191`) assigns every gate one of five support designs: **Radial Cage**, **Segmented Crown**, **Chevron Brace**, **Twin Rails**, or **Split Clamps**. Each style uses the existing gate aperture as its reference and draws lines only on the surrounding annulus; the minimum visual inset is 0.18 world units beyond the aperture edge.
+
+These styles do not modify `GateKind`, aperture radius, offsets, spacing, throat geometry, scoring, reachability checks, collision tests, or the obstacle hash. Replaying the same seed and gate index yields the same silhouette. The in-run gate cue reports both the gameplay gate kind and the visual structure. Unit tests cover determinism, name/index validity and family coverage over 512 gates; they do not replace a manual in-game visual review.
