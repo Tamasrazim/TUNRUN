@@ -16,15 +16,15 @@ Ships must have separate visual silhouettes, cockpit anchors, engine shapes, aud
 | Ship id | Name | Role | Handling trade-off | Proposed unlock |
 |---|---|---|---|---|
 | `driftwing` | Driftwing | Balanced starter | Predictable response; average hull | Unlocked at start |
-| `wraith` | Wraith | Agile | High steering response; lower hull | 600 Aether Shards |
-| `bulwark` | Bulwark | Heavy | Larger hull pool; slower response | 900 Aether Shards |
-| `manta` | Manta | Stable | Smooth control; broad collision profile | 1,100 Aether Shards |
-| `comet` | Comet | Racer | Strong acceleration; precision required | 1,400 Aether Shards |
-| `spectre` | Spectre | Energy specialist | Boost efficiency; lower hull | 8 Singularity Cores |
-| `vortex` | Vortex | Precision craft | Fast correction; advanced control | 12 Singularity Cores |
-| `obsidian` | Obsidian | Prototype | Specialist hybrid; higher skill ceiling | 20 Singularity Cores + mastery objective |
+| `wraith` | Wraith | Agile | High steering response; lower hull | 8,000 Aether Shards |
+| `bulwark` | Bulwark | Heavy | Larger hull pool; slower response | 15,000 Aether Shards |
+| `manta` | Manta | Stable | Smooth control; broad collision profile | 25,000 Aether Shards |
+| `comet` | Comet | Racer | Strong acceleration; precision required | 38,000 Aether Shards |
+| `spectre` | Spectre | Energy specialist | Boost efficiency; lower hull | 200 Singularity Cores |
+| `vortex` | Vortex | Precision craft | Fast correction; advanced control | 400 Singularity Cores |
+| `obsidian` | Obsidian | Prototype | Specialist hybrid; higher skill ceiling | 800 Singularity Cores + mastery objective |
 
-These proposed prices must be tuned so a typical player can unlock ships through reasonable play. Do not implement prices as constants scattered through UI or gameplay code; use a central catalog with ids, display name, stat profile, unlock condition, and presentation metadata.
+The catalogue prices are now ten times the previous prototype values, as requested. Reward rates still need hands-on playtesting to confirm that unlocks remain achievable without trivialising progression. Do not implement prices as constants scattered through UI or gameplay code; use a central catalog with ids, display name, stat profile, unlock condition, and presentation metadata.
 
 ## Ship stat model
 
