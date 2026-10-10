@@ -8,6 +8,7 @@
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
 #include "app/run_results.hpp"
+#include "app/raw_mouse.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
 
@@ -55,6 +56,9 @@ struct AppState {
     bool exitRequested = false;
     tunrun::FlightState flight;
     float flightAccumulator = 0.0F;
+    float mouseAimX = 0.0F;
+    float mouseAimY = 0.0F;
+    bool mouseControlEngaged = false;
     std::uint64_t rootSeed = 0;
     std::uint64_t courseSeed = 0;
     std::uint64_t runSerial = 0;
@@ -141,6 +145,9 @@ void resetFlight(AppState& app, bool& tpp) {
         (IsGamepadAvailable(0) &&
          IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
     app.flightAccumulator = 0.0F;
+    app.mouseAimX = 0.0F;
+    app.mouseAimY = 0.0F;
+    app.mouseControlEngaged = false;
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
@@ -810,18 +817,23 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             shipX, shipY, forwardX, forwardY, forwardZ,
             rearCenterX, rearCenterY, rearSection.radius);
         camera.position = Vector3{chasePose.x, chasePose.y, chasePose.z};
+        // Aim along the tunnel centreline rather than the ship's raw heading.
+        // This prevents hard turns from pointing the chase view through a wall.
         camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX + shipX + forwardX * 8.0F,
-            forwardSection.centerY - playerSection.centerY + shipY + forwardY * 8.0F,
-            forwardZ * 24.0F};
+            forwardSection.centerX - playerSection.centerX + shipX * 0.18F,
+            forwardSection.centerY - playerSection.centerY + shipY * 0.18F,
+            -24.0F};
     } else {
         camera.position = Vector3{shipX, shipY, 1.25F};
+        // Keep first-person looking down-course even when the craft spins.
+        // Heading still contributes a small amount of responsive nose-follow.
         camera.target = Vector3{
-            forwardSection.centerX - playerSection.centerX + shipX + forwardX * 24.0F,
-            forwardSection.centerY - playerSection.centerY + shipY + forwardY * 24.0F,
+            forwardSection.centerX - playerSection.centerX + shipX * 0.12F + forwardX * 1.0F,
+            forwardSection.centerY - playerSection.centerY + shipY * 0.12F + forwardY * 1.0F,
             1.25F + forwardZ * 24.0F};
     }
-    camera.up = Vector3{-std::sin(roll), std::cos(roll), 0.0F};
+    const float tunnelRoll = roll + playerSection.twist;
+    camera.up = Vector3{-std::sin(tunnelRoll), std::cos(tunnelRoll), 0.0F};
     camera.fovy = 70.0F;
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
@@ -946,7 +958,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
-    DrawText("WASD: MOVE   ARROWS / RIGHT STICK: ROTATE   Q/E: ROLL   SPACE / A: DASH   SHIFT / RT: BOOST   V: CAMERA",
+    DrawText("WASD / MOUSE: STEER   ARROWS / RIGHT STICK: ROTATE   Q/E: ROLL   SPACE / A: DASH   SHIFT / RT: BOOST   V: CAMERA",
              36, GetScreenHeight() - 42, 11, kMuted);
 }
 } // namespace
@@ -954,6 +966,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     InitWindow(1280, 800, "TUNRUN | Procedural Tunnel Runner");
+    RawMouse rawMouse;
+    (void)rawMouse.install(GetWindowHandle());
     SetWindowMinSize(800, 560);
     SetExitKey(KEY_NULL);
     const int monitorRefreshRate = GetMonitorRefreshRate(GetCurrentMonitor());
@@ -1043,8 +1057,8 @@ int main() {
         "CANCEL", "DISCARD + RETURN TO MENU"
     };
     const std::vector<std::string> settingsItems{
-        "TOGGLE FULLSCREEN", "TOGGLE FPS COUNTER", "TOGGLE REDUCED MOTION",
-        "RESET OPTIONS", "BACK"
+        "FULLSCREEN: ON", "FPS COUNTER: ON", "REDUCED MOTION: OFF",
+        "MOUSE FLIGHT: ON", "MOUSE SENSITIVITY: 0.0040", "RESET OPTIONS", "BACK"
     };
     const std::vector<std::string> resetSettingsItems{"CANCEL", "RESET OPTIONS"};
     const std::vector<std::string> exitItems{"CANCEL", "EXIT"};
@@ -1058,6 +1072,12 @@ int main() {
     const std::vector<std::string> recoveryItems{"RESET PROFILE (PRESERVE DAMAGED FILES)", "EXIT WITHOUT RESET"};
 
     while (!WindowShouldClose() && !app.exitRequested) {
+        const bool mouseCaptureWanted =
+            app.screens.current() == tunrun::Screen::Preview &&
+            app.profile.mouseSteering && IsWindowFocused();
+        if (rawMouse.installed() && rawMouse.active() != mouseCaptureWanted) {
+            rawMouse.setActive(mouseCaptureWanted);
+        }
         const float dt = std::min(GetFrameTime(), 0.05F);
         if (tunrun::shouldAdvanceRunClock(app.screens)) app.elapsed += dt;
 
@@ -1075,9 +1095,11 @@ int main() {
                                     (IsKeyDown(KEY_DOWN) ? 1.0F : 0.0F);
                 float rollInput = (IsKeyDown(KEY_E) ? 1.0F : 0.0F) -
                                   (IsKeyDown(KEY_Q) ? 1.0F : 0.0F);
+                float padX = 0.0F;
+                float padY = 0.0F;
                 if (IsGamepadAvailable(0)) {
-                    float padX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-                    float padY = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+                    padX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+                    padY = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
                     if (std::abs(padX) < 0.18F) padX = 0.0F;
                     else padX = std::copysign((std::abs(padX) - 0.18F) / 0.82F, padX);
                     if (std::abs(padY) < 0.18F) padY = 0.0F;
@@ -1088,6 +1110,50 @@ int main() {
                     rotatePitch = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
                     if (std::abs(rotateYaw) < 0.16F) rotateYaw = 0.0F;
                     if (std::abs(rotatePitch) < 0.16F) rotatePitch = 0.0F;
+                }
+
+                const bool manualFlightInput =
+                    IsKeyDown(KEY_A) || IsKeyDown(KEY_D) ||
+                    IsKeyDown(KEY_W) || IsKeyDown(KEY_S) ||
+                    std::abs(padX) > 0.01F || std::abs(padY) > 0.01F ||
+                    std::abs(rotateYaw) > 0.01F || std::abs(rotatePitch) > 0.01F ||
+                    std::abs(rollInput) > 0.01F;
+                if (manualFlightInput) {
+                    app.mouseControlEngaged = false;
+                    app.mouseAimX = app.flight.x;
+                    app.mouseAimY = app.flight.y;
+                }
+
+                if (app.profile.mouseSteering) {
+                    RelativeMouseDelta mouseDelta{};
+                    if (rawMouse.installed()) {
+                        mouseDelta = rawMouse.consume();
+                    } else {
+                        const Vector2 pointerDelta = GetMouseDelta();
+                        mouseDelta = RelativeMouseDelta{pointerDelta.x, pointerDelta.y};
+                    }
+                    if (!manualFlightInput &&
+                        (std::abs(mouseDelta.x) > 0.01F ||
+                         std::abs(mouseDelta.y) > 0.01F)) {
+                        applyRelativeMouseSteering(
+                            app.mouseAimX, app.mouseAimY, mouseDelta,
+                            app.profile.mouseSensitivity);
+                        app.mouseControlEngaged = true;
+                    }
+                } else {
+                    app.mouseControlEngaged = false;
+                    app.mouseAimX = app.flight.x;
+                    app.mouseAimY = app.flight.y;
+                }
+
+                // The target persists between raw-delta events and is tracked
+                // with damping, so frame rate does not dictate steering strength.
+                if (app.profile.mouseSteering && app.mouseControlEngaged &&
+                    !manualFlightInput) {
+                    steerX += mouseTargetSteering(
+                        app.mouseAimX, app.flight.x, app.flight.velocityX);
+                    steerY += mouseTargetSteering(
+                        app.mouseAimY, app.flight.y, app.flight.velocityY);
                 }
                 const float previousElapsed = std::max(0.0F, app.elapsed - dt);
                 const float previousX = app.flight.x;
@@ -1361,7 +1427,7 @@ int main() {
         }
         case tunrun::Screen::Controls: {
             drawHeader("SYSTEM / CONTROLS", "CONTROLS",
-                       "Keyboard/gamepad control flight; mouse is UI-only.");
+                       "Keyboard, relative mouse and gamepad all control flight.");
             DrawText("KEYBOARD", 70, 184, 15, kAccent);
             DrawText("MOVE  W / A / S / D", 78, 218, 13, kText);
             DrawText("ROTATE  ARROW KEYS", 78, 246, 13, kText);
@@ -1369,7 +1435,7 @@ int main() {
             DrawText("BOOST  LEFT SHIFT", 78, 302, 13, kText);
             DrawText("PRECISION  LEFT CTRL", 78, 330, 13, kText);
             DrawText("DASH  SPACE  /  CAMERA  V", 78, 358, 13, kText);
-            DrawText("MOUSE: UI POINTER ONLY", 78, 402, 12, kAccent);
+            DrawText("MOUSE: RELATIVE X/Y STEERING", 78, 402, 12, kAccent);
             DrawText("PAUSE / BACK  ESC", 78, 426, 12, kMuted);
             DrawLine(402, 184, 402, 448, kEdge);
             DrawText("GAMEPAD", 432, 184, 15, kAccent);
@@ -1426,15 +1492,64 @@ int main() {
         }
         case tunrun::Screen::Settings: {
             drawHeader("03 / CONFIGURATION", "SETTINGS",
-                       "Mouse is reserved for UI navigation; flight uses keyboard/gamepad.");
+                       "Adjust relative mouse steering, sensitivity, and display options.");
             auto labels = settingsItems;
             labels[0] = std::string("FULLSCREEN: ") + (app.fullscreen ? "ON" : "OFF");
             labels[1] = std::string("FPS COUNTER: ") + (app.showFps ? "ON" : "OFF");
             labels[2] = std::string("REDUCED MOTION: ") + (app.reduceMotion ? "ON" : "OFF");
+            labels[3] = std::string("MOUSE FLIGHT: ") +
+                (app.profile.mouseSteering ? "ON" : "OFF");
+            labels[4] = std::string("MOUSE SENSITIVITY: ") +
+                TextFormat("%.4f", app.profile.mouseSensitivity);
             const int settingsMenuY = std::max(
-                145, std::min(205, GetScreenHeight() - 320));
-            const int picked = drawMenu(labels, settingsSelection, settingsMenuY);
+                130, std::min(185, GetScreenHeight() - 360));
+            const float settingsButtonHeight = 40.0F;
+            const float settingsButtonGap = 7.0F;
+            const int picked = drawMenu(labels, settingsSelection, settingsMenuY,
+                true, -1, true, settingsButtonHeight, settingsButtonGap);
+
+            const float panelX = (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F;
+            const float sliderX = panelX + 18.0F;
+            const float sliderWidth = kPanelWidth - 36.0F;
+            const float sliderY = static_cast<float>(settingsMenuY) +
+                4.0F * (settingsButtonHeight + settingsButtonGap) + 33.0F;
+            const float sliderPosition = mouseSensitivitySliderPosition(
+                app.profile.mouseSensitivity);
+            DrawRectangle(static_cast<int>(sliderX), static_cast<int>(sliderY),
+                static_cast<int>(sliderWidth), 3, Color{42, 51, 64, 255});
+            DrawRectangle(static_cast<int>(sliderX), static_cast<int>(sliderY),
+                static_cast<int>(sliderWidth * sliderPosition), 3, kAccent);
+            DrawCircle(static_cast<int>(sliderX + sliderWidth * sliderPosition),
+                static_cast<int>(sliderY + 1.0F), 5.0F, kAccent);
+
             const bool settingsBackRequested = backPressed();
+            bool sensitivityChanged = false;
+            const Rectangle sensitivityRow{
+                panelX, static_cast<float>(settingsMenuY) +
+                    4.0F * (settingsButtonHeight + settingsButtonGap),
+                kPanelWidth, settingsButtonHeight
+            };
+            if (settingsSelection == 4 && picked < 0 &&
+                (leftPressed() || rightPressed())) {
+                app.profile.mouseSensitivity = adjustMouseSensitivity(
+                    app.profile.mouseSensitivity, leftPressed() ? -1 : 1);
+                sensitivityChanged = true;
+            } else if (picked == 4) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+                    CheckCollisionPointRec(GetMousePosition(), sensitivityRow)) {
+                    const float normalized = std::clamp(
+                        (GetMouseX() - sliderX) / sliderWidth, 0.0F, 1.0F);
+                    app.profile.mouseSensitivity = mouseSensitivityFromSlider(normalized);
+                } else if (leftPressed()) {
+                    app.profile.mouseSensitivity = adjustMouseSensitivity(
+                        app.profile.mouseSensitivity, -1);
+                } else if (rightPressed() || confirmPressed()) {
+                    app.profile.mouseSensitivity = adjustMouseSensitivity(
+                        app.profile.mouseSensitivity, 1);
+                }
+                sensitivityChanged = true;
+            }
+
             if (picked == 0) {
                 app.fullscreen = !app.fullscreen;
                 ToggleFullscreen();
@@ -1443,13 +1558,23 @@ int main() {
             } else if (picked == 2) {
                 app.reduceMotion = !app.reduceMotion;
             } else if (picked == 3) {
+                app.profile.mouseSteering = !app.profile.mouseSteering;
+                app.mouseControlEngaged = false;
+                app.mouseAimX = app.flight.x;
+                app.mouseAimY = app.flight.y;
+                rawMouse.clear();
+                if (!app.profile.mouseSteering && rawMouse.installed()) {
+                    rawMouse.setActive(false);
+                }
+            } else if (picked == 5) {
                 settingsResetSelection = 0;
                 app.screens.push(tunrun::Screen::SettingsResetConfirm);
-            } else if (picked == 4) {
+            } else if (picked == 6) {
                 app.screens.pop();
             }
-            if (picked >= 0 && picked <= 2) (void)persistProfile(app);
-            if (settingsBackRequested && picked != 4) app.screens.pop();
+            if (picked >= 0 && picked <= 3) (void)persistProfile(app);
+            if (sensitivityChanged) (void)persistProfile(app);
+            if (settingsBackRequested && picked != 6) app.screens.pop();
             break;
         }
         case tunrun::Screen::SettingsResetConfirm: {
@@ -1460,10 +1585,16 @@ int main() {
             if (picked == 0 || (picked < 0 && backPressed())) {
                 app.screens.pop();
             } else if (picked == 1) {
-                if (app.fullscreen) ToggleFullscreen();
-                app.fullscreen = false;
+                if (!app.fullscreen) ToggleFullscreen();
+                app.fullscreen = true;
                 app.showFps = true;
                 app.reduceMotion = false;
+                app.profile.mouseSteering = true;
+                app.profile.mouseSensitivity = kMouseSensitivityDefault;
+                app.mouseControlEngaged = false;
+                app.mouseAimX = app.flight.x;
+                app.mouseAimY = app.flight.y;
+                rawMouse.clear();
                 (void)persistProfile(app);
                 app.screens.pop();
             }
@@ -1843,6 +1974,7 @@ case tunrun::Screen::SaveRecovery: {
         EndDrawing();
     }
     if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
+    rawMouse.uninstall();
     CloseWindow();
     return 0;
 }
