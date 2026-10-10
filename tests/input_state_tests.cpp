@@ -1,7 +1,8 @@
 #include "app/input_state.hpp"
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
-#include "app/flight_physics.hpp"
+#include "app/tunnel_visuals.hpp"
+#include "app/flight_physics.hpp
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
@@ -1023,6 +1024,45 @@ int main() {
     assert(!tunrun::validateHazardSet(seed, 10001U).valid);
     assert(tunrun::collidesWithHazard(std::numeric_limits<float>::quiet_NaN(),
                                       0.0F, hazard, 0.0));
+
+    // Tunnel surface architecture is reproducible but never affects physics.
+    assert(tunrun::tunnelVisualSectionIndex(0.0) == 0);
+    assert(tunrun::tunnelVisualSectionIndex(23.99) == 0);
+    assert(tunrun::tunnelVisualSectionIndex(24.0) == 1);
+    assert(tunrun::tunnelVisualSectionIndex(-0.01) == -1);
+    assert(tunrun::tunnelVisualSectionIndex(
+        std::numeric_limits<double>::quiet_NaN()) == 0);
+    bool seenRibbed = false, seenPlasma = false, seenFractured = false;
+    bool seenSpiral = false, seenLattice = false;
+    for (std::int64_t section = 0; section < 512; ++section) {
+        const auto style = tunrun::tunnelVisualProfileAt(seed, section);
+        const auto repeatedStyle = tunrun::tunnelVisualProfileAt(seed, section);
+        assert(style.family == repeatedStyle.family);
+        assert(style.palette.red == repeatedStyle.palette.red &&
+               style.palette.green == repeatedStyle.palette.green &&
+               style.palette.blue == repeatedStyle.palette.blue);
+        assert(style.railMask == repeatedStyle.railMask);
+        assert(style.intensity == repeatedStyle.intensity);
+        assert(tunrun::validTunnelVisualFamily(style.family));
+        assert(style.intensity >= 0.58F && style.intensity <= 0.9201F);
+        int enabledRails = 0;
+        for (int rail = 0; rail < 6; ++rail) {
+            if (tunrun::tunnelVisualRailEnabled(style, rail)) ++enabledRails;
+        }
+        assert(enabledRails >= 2 && enabledRails <= 6);
+        switch (style.family) {
+        case tunrun::TunnelVisualFamily::RibbedMetal: seenRibbed = true; break;
+        case tunrun::TunnelVisualFamily::PlasmaRails: seenPlasma = true; break;
+        case tunrun::TunnelVisualFamily::FracturedPanels: seenFractured = true; break;
+        case tunrun::TunnelVisualFamily::SpiralConduits: seenSpiral = true; break;
+        case tunrun::TunnelVisualFamily::Lattice: seenLattice = true; break;
+        }
+    }
+    assert(seenRibbed && seenPlasma && seenFractured && seenSpiral && seenLattice);
+    assert(tunrun::tunnelVisualFamilyAt(seed, 14) ==
+           tunrun::tunnelVisualFamilyAt(seed, 14));
+    assert(std::string_view(tunrun::tunnelVisualFamilyName(
+        tunrun::tunnelVisualFamilyAt(seed, 14))).size() > 0U);
 
     // Obstacle layout has its own deterministic versioned fingerprint.
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));

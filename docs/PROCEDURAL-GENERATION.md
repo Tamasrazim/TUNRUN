@@ -28,7 +28,7 @@ Each run has:
 
 Text seed entry normalizes ASCII case and repeated whitespace before hashing into a root seed; a `0x`-prefixed or 16-character hexadecimal seed is parsed literally. The chosen root seed and run serial are persisted so the selected course identity can be reconstructed after restart. Course identity includes the root seed, generator version, ruleset, and relevant generation settings. The same identity must recreate the same canonical section parameters and obstacle course.
 
-Use deterministic pseudorandom streams derived independently from (root seed, generator version, section index, subsystem id). Separate streams are required for tunnel geometry, structural topology, obstacle motion, resources, and cosmetic variation. Adding a visual particle must not rearrange obstacle placement.
+Use deterministic pseudorandom streams derived independently from (root seed, generator version, section index, subsystem id). Separate streams are required for tunnel geometry, structural topology, obstacle motion, resources, and cosmetic variation. The renderer uses its own tunnel-visual channel to choose five repeating wall-architecture motifs in 24-unit zones; changing a decorative style must not rearrange obstacle placement or alter collision geometry. Adding a visual particle must not rearrange obstacle placement.
 
 Quantise the generated canonical parameters before mesh construction. The promise is reproducibility of course data and gameplay placements; tiny renderer differences across drivers do not invalidate that promise.
 

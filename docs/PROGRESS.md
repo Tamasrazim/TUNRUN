@@ -48,3 +48,8 @@ After each meaningful implementation chunk, update this snapshot, the root READM
 ### Moving hazard motion profiles
 
 Generator version 3 now assigns every mine one of four reproducible trajectories: lateral sweep, vertical sweep, elliptic orbit, or figure-eight. This motion channel is seeded independently from the four cosmetic shell silhouettes. The HUD shows both layers, motion profiles are included in the canonical hazard hash, and tests cover deterministic family selection and movement bounds. Collision still uses the shared spherical proxy; richer multi-part hazard choreography remains future work.
+
+
+### Procedural tunnel-wall architecture
+
+The renderer now selects one of five deterministic decorative wall motifs every 24 course units: Ribbed Metal, Plasma Rails, Fractured Panels, Spiral Conduits, or Lattice. Motifs vary panel seams, rib density, active rail lanes, and subdued palette through a rendering-only seed channel. The opaque tunnel remains continuous and continues to use the existing collision sampler; no decorative motif creates a gameplay obstacle. Coverage and deterministic repeatability are unit-tested across 512 sections.

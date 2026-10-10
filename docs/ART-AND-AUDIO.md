@@ -15,7 +15,7 @@ Critical hazards must remain readable against both bright and dark backgrounds. 
 
 ## Generated geometry and identity
 
-Procedural variation should feel intentional. Combine a small set of low-level geometry operations to produce a broad space of structures with consistent visual language. Avoid making all generation look like primitive cubes arranged randomly.
+Procedural variation should feel intentional. Combine a small set of low-level geometry operations to produce a broad space of structures with consistent visual language. Avoid making all generation look like primitive cubes arranged randomly. Tunnel-wall zones may vary between ribbed metal, plasma rails, fractured panels, spiral conduits, and lattice; keep palettes subdued at depth and keep decorative details embedded in the existing opaque wall skin.
 
 Each generated gameplay object separates:
 1. canonical gameplay parameters;

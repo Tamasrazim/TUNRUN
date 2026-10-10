@@ -10,7 +10,8 @@
 #include "app/run_results.hpp"
 #include "app/raw_mouse.hpp"
 #include "app/tunnel_frame.hpp"
-#include "app/save_profile.hpp"
+#include "app/tunnel_visuals.hpp"
+#include "app/save_profile.hpp
 #include "raylib.h"
 
 #include <algorithm>
@@ -1256,11 +1257,23 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 static_cast<double>(distance) + static_cast<double>(ring) * ringSpacing);
     }
     for (int ring = firstRing; ring < lastRing; ++ring) {
+        const double ringWorldDistance = static_cast<double>(distance) +
+            static_cast<double>(ring) * static_cast<double>(ringSpacing);
+        const auto visual = tunrun::tunnelVisualProfileAt(
+            seed, tunrun::tunnelVisualSectionIndex(ringWorldDistance));
         const float ringAhead = std::max(0.0F, static_cast<float>(ring) * ringSpacing);
-        const Color ringColor = tunnelDepthFog(
-            ring % 4 == 0 ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140},
-            ringAhead);
+        const bool strongRib = (ring % (visual.family == tunrun::TunnelVisualFamily::RibbedMetal
+            ? 2 : visual.family == tunrun::TunnelVisualFamily::Lattice ? 3 : 4)) == 0;
+        const float intensity = visual.intensity;
+        const auto& palette = visual.palette;
+        const Color ringAccent{
+            static_cast<unsigned char>(palette.red * (strongRib ? 0.93F : 0.52F) * intensity),
+            static_cast<unsigned char>(palette.green * (strongRib ? 0.93F : 0.52F) * intensity),
+            static_cast<unsigned char>(palette.blue * (strongRib ? 0.93F : 0.52F) * intensity),
+            static_cast<unsigned char>(strongRib ? 188 : 112)};
+        const Color ringColor = tunnelDepthFog(ringAccent, ringAhead);
         const auto& ringFrame = tunnelFrames[static_cast<std::size_t>(ring - firstRing)];
+        const std::int64_t sectionIndex = tunrun::tunnelVisualSectionIndex(ringWorldDistance);
         for (int side = 0; side < sideCount; ++side) {
             const int nextSide = (side + 1) % sideCount;
             const Vector3 a = tunnelPoint(ringFrame, side);
@@ -1269,32 +1282,64 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 const auto& nextFrame = tunnelFrames[static_cast<std::size_t>(ring + 1 - firstRing)];
                 const Vector3 d = tunnelPoint(nextFrame, side);
                 const Vector3 c = tunnelPoint(nextFrame, nextSide);
-                const bool panelRidge = (side % 5 == 0) || (ring % 8 == 0);
+                bool panelRidge = false;
+                switch (visual.family) {
+                case tunrun::TunnelVisualFamily::RibbedMetal:
+                    panelRidge = (side % 4 == 0) || (ring % 2 == 0);
+                    break;
+                case tunrun::TunnelVisualFamily::PlasmaRails:
+                    panelRidge = (side % 5 == 0) || (ring % 8 == 0);
+                    break;
+                case tunrun::TunnelVisualFamily::FracturedPanels:
+                    panelRidge = ((side * 3 + ring + static_cast<int>(sectionIndex % 7)) % 7) < 2;
+                    break;
+                case tunrun::TunnelVisualFamily::SpiralConduits:
+                    panelRidge = (side % 6 == 0) || (side % 6 == 1);
+                    break;
+                case tunrun::TunnelVisualFamily::Lattice:
+                    panelRidge = ((side % 2 == 0) && (ring % 2 == 0)) ||
+                                 (ring % 6 == 0);
+                    break;
+                }
                 const Color panel = tunnelDepthFog(panelRidge
-                    ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255}, ringAhead);
-                // Keep far tunnel surfaces opaque but near-black so their
-                // depth haze hides sharp detail beyond a narrow throat.
+                    ? Color{static_cast<unsigned char>(12 + palette.red / 5),
+                            static_cast<unsigned char>(14 + palette.green / 5),
+                            static_cast<unsigned char>(18 + palette.blue / 5), 255}
+                    : Color{static_cast<unsigned char>(8 + palette.red / 18),
+                            static_cast<unsigned char>(10 + palette.green / 18),
+                            static_cast<unsigned char>(15 + palette.blue / 18), 255}, ringAhead);
+                const Color seam = tunnelDepthFog(Color{
+                    static_cast<unsigned char>(palette.red * 0.30F * intensity),
+                    static_cast<unsigned char>(palette.green * 0.30F * intensity),
+                    static_cast<unsigned char>(palette.blue * 0.30F * intensity),
+                    static_cast<unsigned char>(panelRidge ? 118 : 64)}, ringAhead);
+                // Cosmetic motifs never alter the continuous wall or collision.
                 DrawTriangle3D(a, b, c, panel);
                 DrawTriangle3D(a, c, d, panel);
-                DrawLine3D(a, d, tunnelDepthFog(Color{48, 65, 83, 125}, ringAhead));
+                if (visual.family == tunrun::TunnelVisualFamily::FracturedPanels &&
+                    ((side + ring) % 2 == 0)) {
+                    DrawLine3D(a, c, seam);
+                } else {
+                    DrawLine3D(a, d, seam);
+                }
             }
             DrawLine3D(a, b, ringColor);
         }
     }
-    // Rotating inner-wall filaments give the continuously generated tube a
-    // wormhole-like sense of depth while following bends and twist exactly.
+    // Decorative rail masks vary by zone. Every rail occupies one of six fixed
+    // angular slots, so the pattern stays spatially anchored on style changes.
     constexpr int ribbonCount = 6;
-    constexpr std::array<Color, ribbonCount> ribbonColors{{
-        Color{73, 222, 255, 205}, Color{154, 103, 255, 205},
-        Color{74, 255, 202, 190}, Color{83, 151, 255, 195},
-        Color{233, 103, 255, 195}, Color{104, 247, 255, 185}
-    }};
     for (int ribbon = 0; ribbon < ribbonCount; ++ribbon) {
         const float phase = static_cast<float>(ribbon) * 2.0F * PI /
             static_cast<float>(ribbonCount) + elapsedSeconds * 0.38F;
         for (int ring = firstRing; ring + 1 < lastRing; ++ring) {
             const auto& frameA = tunnelFrames[static_cast<std::size_t>(ring - firstRing)];
             const auto& frameB = tunnelFrames[static_cast<std::size_t>(ring + 1 - firstRing)];
+            const double midpointDistance = static_cast<double>(distance) +
+                (static_cast<double>(ring) + 0.5) * static_cast<double>(ringSpacing);
+            const auto visual = tunrun::tunnelVisualProfileAt(
+                seed, tunrun::tunnelVisualSectionIndex(midpointDistance));
+            if (!tunrun::tunnelVisualRailEnabled(visual, ribbon)) continue;
             const float angleA = phase + static_cast<float>(ring - firstRing) * 0.19F;
             const float angleB = phase + static_cast<float>(ring + 1 - firstRing) * 0.19F;
             const float radiusA = std::max(0.25F, frameA.radius - 0.16F);
@@ -1303,9 +1348,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 frameA, std::cos(angleA) * radiusA, std::sin(angleA) * radiusA));
             const Vector3 b = rayVector(tunrun::tunnelFramePoint(
                 frameB, std::cos(angleB) * radiusB, std::sin(angleB) * radiusB));
+            const auto& palette = visual.palette;
+            const Color rail{
+                static_cast<unsigned char>(palette.red * visual.intensity),
+                static_cast<unsigned char>(palette.green * visual.intensity),
+                static_cast<unsigned char>(palette.blue * visual.intensity), 190};
             DrawLine3D(a, b, tunnelDepthFog(
-                ribbonColors[static_cast<std::size_t>(ribbon)],
-                std::max(0.0F, static_cast<float>(ring + 1) * ringSpacing)));
+                rail, std::max(0.0F, static_cast<float>(ring + 1) * ringSpacing)));
         }
     }
     if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {
