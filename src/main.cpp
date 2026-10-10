@@ -1901,14 +1901,14 @@ int main() {
                                    reachability.valid ? "PASS" : "FAIL",
                                    reachability.minimumReachableSlack),
                         249.0F, 10, reachability.valid ? kAccent : kDanger);
-            drawCentred(TextFormat("STATE GRAPH: %s   GATES %u/12   PEAK %u   MULTI %u   PRUNED %u   MINE HITS %u",
-                                   routeGraph.valid ? "PASS" : "FAIL",
+            drawCentred(TextFormat("ROUTE GRAPH: %s   GATES %u/12   PEAK %u   MULTI %u   PRUNED %u   MINE HITS %u",
+                                   routeGraph.valid ? "WITNESS" : "NO WITNESS",
                                    routeGraph.gatesChecked,
                                    routeGraph.peakStateCount,
                                    routeGraph.gatesWithMultiplePassingStates,
                                    routeGraph.beamPrunedStates,
                                    routeGraph.hazardCollisionStates),
-                        269.0F, 10, routeGraph.valid ? kAccent : kDanger);
+                        269.0F, 10, routeGraph.valid ? kAccent : kText);
             drawCentred(TextFormat("MINES V%u %s %u/32 H %016llX   REWARDS V%u H %016llX",
                                    tunrun::kHazardGeneratorVersion,
                                    hazardValidation.valid ? "PASS" : "FAIL",
