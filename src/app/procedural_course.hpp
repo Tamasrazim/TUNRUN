@@ -19,8 +19,11 @@ inline constexpr double kGateBaseDistance = 26.0;
 inline constexpr double kGateSpacing = 42.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
 inline constexpr float kGateThroatHalfLength = 18.0F;
+inline constexpr float kGateThroatNarrowCoreFraction = 0.50F;
+inline constexpr float kGateThroatBendAmplitudeX = 2.00F;
+inline constexpr float kGateThroatBendAmplitudeY = 0.35F;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 3U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 4U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -213,14 +216,14 @@ struct GateThroatSection {
         return GateThroatSection{false, gate.index, 0.0F, 0.0F,
                                  course.radius, 0.0F};
     }
-    // Keep the narrow core for the first third of the sleeve, then flare
-    // smoothly into the main tunnel. The older profile opened too quickly,
-    // making a small aperture behave like a thin ring visually and physically.
-    constexpr float narrowCoreFraction = 0.24F;
+    // Keep the minimum aperture for half the sleeve length on each side of
+    // the plane, then flare into the main tunnel. This creates a genuinely
+    // deep constriction rather than a thin ring that reveals the next section.
     const float normalizedDistance = static_cast<float>(
         absoluteOffset / static_cast<double>(kGateThroatHalfLength));
     const float taperProgress = std::clamp(
-        (normalizedDistance - narrowCoreFraction) / (1.0F - narrowCoreFraction),
+        (normalizedDistance - kGateThroatNarrowCoreFraction) /
+            (1.0F - kGateThroatNarrowCoreFraction),
         0.0F, 1.0F);
     const float taper = taperProgress * taperProgress * (3.0F - 2.0F * taperProgress);
     const float pinch = 1.0F - taper;
@@ -239,8 +242,8 @@ struct GateThroatSection {
     const std::uint64_t turnBits = mixCourseBits(
         seed ^ (static_cast<std::uint64_t>(gate.index) * 0x9E3779B97F4A7C15ULL));
     const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
-    const float bendX = turnSign * 0.40F * wave;
-    const float bendY = 0.14F * verticalWave;
+    const float bendX = turnSign * kGateThroatBendAmplitudeX * wave;
+    const float bendY = kGateThroatBendAmplitudeY * verticalWave;
     return GateThroatSection{
         true, gate.index, gate.offsetX * pinch + bendX,
         gate.offsetY * pinch + bendY,

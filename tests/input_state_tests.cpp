@@ -266,15 +266,39 @@ int main() {
     const auto throatCore = tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate, throatGate.distance - 6.0);
     const auto throatEntry = tunrun::gateThroatSectionAtDistance(
-        frameSeed, throatGate, throatGate.distance - 9.0);
+        frameSeed, throatGate, throatGate.distance - 12.0);
     const auto throatExit = tunrun::gateThroatSectionAtDistance(
-        frameSeed, throatGate, throatGate.distance + 9.0);
+        frameSeed, throatGate, throatGate.distance + 12.0);
     assert(throatCore.active);
-    assert(throatCore.radius > throatGate.apertureRadius);
+    assert(std::abs(throatCore.radius - throatGate.apertureRadius) < 0.0001F);
     assert(throatCore.radius < throatEntry.radius);
     assert(throatEntry.radius > throatCore.radius + 0.45F);
     assert(throatEntry.active && throatEntry.radius > throatGate.apertureRadius);
     assert(std::abs(throatExit.centerX - throatEntry.centerX) > 0.7F);
+
+    // Narrow throats deliberately bend out of the straight sight line before
+    // they flare; otherwise far gates remain visible through a tiny aperture.
+    auto narrowSightlineGate = throatGate;
+    narrowSightlineGate.offsetX = 0.0F;
+    narrowSightlineGate.offsetY = 0.0F;
+    narrowSightlineGate.apertureRadius = tunrun::kGateMinApertureRadius;
+    const auto narrowSightline = tunrun::gateThroatSectionAtDistance(
+        frameSeed, narrowSightlineGate, narrowSightlineGate.distance + 6.0);
+    assert(narrowSightline.active);
+    assert(std::abs(narrowSightline.radius -
+                    narrowSightlineGate.apertureRadius) < 0.0001F);
+    assert(std::hypot(narrowSightline.centerX, narrowSightline.centerY) >
+           narrowSightline.radius);
+
+    auto standardSightlineGate = narrowSightlineGate;
+    standardSightlineGate.apertureRadius = 1.85F;
+    const auto standardSightline = tunrun::gateThroatSectionAtDistance(
+        frameSeed, standardSightlineGate, standardSightlineGate.distance + 7.0);
+    assert(standardSightline.active);
+    assert(std::abs(standardSightline.radius -
+                    standardSightlineGate.apertureRadius) < 0.0001F);
+    assert(std::hypot(standardSightline.centerX, standardSightline.centerY) >
+           standardSightline.radius);
     assert(!tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate,
         throatGate.distance - tunrun::kGateThroatHalfLength).active);
