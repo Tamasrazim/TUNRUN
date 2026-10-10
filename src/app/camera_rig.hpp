@@ -186,8 +186,18 @@ struct CameraRayLimit {
         };
         const float right = frameDot(relative, frame.right);
         const float up = frameDot(relative, frame.up);
-        const float radial = std::hypot(right, up);
-        const float safeRadius = std::max(0.25F, frame.radius - wallClearance);
+        // Gate throats are smaller, bent interior surfaces nested inside the
+        // main tube. Sampling only the outer tunnel radius would allow a
+        // camera's straight look ray to cut across the sleeve wall even though
+        // both endpoints were individually valid. Use the same throat sample
+        // as live collisions and the visible mesh whenever one is active.
+        const auto throat = gateThroatSectionAtDistance(seed, frameDistance);
+        const float crossSectionCenterX = throat.active ? throat.centerX : 0.0F;
+        const float crossSectionCenterY = throat.active ? throat.centerY : 0.0F;
+        const float crossSectionRadius = throat.active ? throat.radius : frame.radius;
+        const float radial = std::hypot(
+            right - crossSectionCenterX, up - crossSectionCenterY);
+        const float safeRadius = std::max(0.25F, crossSectionRadius - wallClearance);
         const float clearance = safeRadius - radial;
         minimumClearance = std::min(minimumClearance, clearance);
         if (!std::isfinite(radial) || radial > safeRadius) {

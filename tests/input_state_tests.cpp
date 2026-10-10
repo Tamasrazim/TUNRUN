@@ -116,6 +116,32 @@ int main() {
     assert(wallLookRay.safeFraction > 0.05F && wallLookRay.safeFraction < 1.0F);
     assert(wallLookRay.minimumWallClearance < 0.0F);
 
+    // A camera ray can be inside the large tunnel but outside the aperture
+    // throat. It must still shorten before looking through that solid sleeve.
+    const auto cameraTestGate = tunrun::gateAt(frameSeed, 1U);
+    const double throatCameraDistance = cameraTestGate.distance - 12.0;
+    const auto throatCameraFrame = tunrun::sampleTunnelFrame(
+        frameSeed, throatCameraDistance, throatCameraDistance);
+    const auto throatTargetFrame = tunrun::sampleTunnelFrame(
+        frameSeed, throatCameraDistance, cameraTestGate.distance);
+    const auto throatCameraSection = tunrun::gateThroatSectionAtDistance(
+        frameSeed, cameraTestGate, throatCameraDistance);
+    const auto throatTargetSection = tunrun::gateThroatSectionAtDistance(
+        frameSeed, cameraTestGate, cameraTestGate.distance);
+    assert(throatCameraSection.active && throatTargetSection.active);
+    const auto narrowSleeveRay = tunrun::limitCameraRayInsideTunnel(
+        frameSeed, throatCameraDistance, throatCameraDistance,
+        tunrun::tunnelFramePoint(throatCameraFrame,
+            throatCameraSection.centerX, throatCameraSection.centerY),
+        cameraTestGate.distance,
+        tunrun::tunnelFramePoint(throatTargetFrame,
+            throatTargetSection.centerX + cameraTestGate.apertureRadius - 0.20F,
+            throatTargetSection.centerY),
+        0.55F, 64U);
+    assert(narrowSleeveRay.clipped);
+    assert(narrowSleeveRay.safeFraction > 0.05F && narrowSleeveRay.safeFraction < 1.0F);
+    assert(narrowSleeveRay.minimumWallClearance < 0.0F);
+
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
     assert(std::abs(straightLook.up) < 0.0001F);
