@@ -63,6 +63,26 @@ inline void applyRelativeMouseSteering(float& x, float& y,
     y = std::clamp(y - delta.y * sensitivity, -limit, limit);
 }
 
+// Keep the requested aim point inside the available circular tunnel opening.
+// Component-wise clamps form a square and can put the corner outside the wall.
+[[nodiscard]] inline bool clampMouseTargetToRadius(
+    float& x, float& y, float maximumRadius) noexcept {
+    if (!std::isfinite(x)) x = 0.0F;
+    if (!std::isfinite(y)) y = 0.0F;
+    if (!std::isfinite(maximumRadius) || maximumRadius < 0.0F) maximumRadius = 0.0F;
+    const float radius = std::hypot(x, y);
+    if (!std::isfinite(radius)) {
+        x = 0.0F;
+        y = 0.0F;
+        return true;
+    }
+    if (radius <= maximumRadius || radius <= 1.0e-6F) return false;
+    const float scale = maximumRadius / radius;
+    x *= scale;
+    y *= scale;
+    return true;
+}
+
 [[nodiscard]] inline float mouseTargetSteering(
     float target, float position, float velocity,
     float gain = 0.78F, float damping = 0.30F) noexcept {

@@ -249,6 +249,19 @@ int main() {
     assert(mouseTargetSteering(std::numeric_limits<float>::quiet_NaN(),
         0.0F, 0.0F) == 0.0F);
 
+    float aimX = 3.1F;
+    float aimY = 3.1F;
+    assert(clampMouseTargetToRadius(aimX, aimY, 4.0F));
+    assert(std::abs(std::hypot(aimX, aimY) - 4.0F) < 0.001F);
+    assert(!clampMouseTargetToRadius(aimX, aimY, 4.5F));
+    float invalidAimX = std::numeric_limits<float>::quiet_NaN();
+    float invalidAimY = std::numeric_limits<float>::infinity();
+    (void)clampMouseTargetToRadius(invalidAimX, invalidAimY, 3.0F);
+    assert(std::isfinite(invalidAimX) && std::isfinite(invalidAimY));
+    float zeroAimX = 1.0F, zeroAimY = -1.0F;
+    assert(clampMouseTargetToRadius(zeroAimX, zeroAimY, 0.0F));
+    assert(zeroAimX == 0.0F && zeroAimY == 0.0F);
+
     assert(adjustMouseSensitivity(kMouseSensitivityDefault, 1) ==
            kMouseSensitivityDefault + kMouseSensitivityStep);
     assert(adjustMouseSensitivity(kMouseSensitivityDefault, -1) ==

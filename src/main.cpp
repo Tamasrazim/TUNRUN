@@ -735,6 +735,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 std::uint32_t shipId, bool tpp, bool reduceMotion,
+                float mouseAimX, float mouseAimY, bool showAimReticle,
                 float pitch, float yaw, float roll,
                 float boostEnergy, float dashCooldownRemaining,
                 float dashRemaining, float elapsedSeconds,
@@ -851,6 +852,26 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     if (tpp) {
         drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll, &playerFrame);
+    }
+    if (showAimReticle) {
+        const Color aimColor{111, 225, 255, 235};
+        constexpr float aimDepth = 1.9F;
+        constexpr float halfWidth = 0.24F;
+        constexpr float halfHeight = 0.24F;
+        const auto aimPoint = [&](float x, float y) {
+            return rayVector(tunrun::tunnelFramePoint(playerFrame, x, y, aimDepth));
+        };
+        const Vector3 aimCenter = aimPoint(mouseAimX, mouseAimY);
+        DrawSphere(aimCenter, 0.045F, aimColor);
+        DrawLine3D(aimPoint(mouseAimX - halfWidth, mouseAimY),
+                   aimPoint(mouseAimX - 0.07F, mouseAimY), aimColor);
+        DrawLine3D(aimPoint(mouseAimX + 0.07F, mouseAimY),
+                   aimPoint(mouseAimX + halfWidth, mouseAimY), aimColor);
+        DrawLine3D(aimPoint(mouseAimX, mouseAimY - halfHeight),
+                   aimPoint(mouseAimX, mouseAimY - 0.07F), aimColor);
+        DrawLine3D(aimPoint(mouseAimX, mouseAimY + 0.07F),
+                   aimPoint(mouseAimX, mouseAimY + halfHeight), aimColor);
+        DrawSphereWires(aimCenter, 0.15F, 6, 12, aimColor);
     }
     EndMode3D();
     DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});
@@ -1091,6 +1112,15 @@ int main() {
                     app.mouseAimY = app.flight.y;
                 }
 
+                if (app.profile.mouseSteering) {
+                    const auto aimSection = tunrun::sampleCourse(
+                        app.courseSeed, static_cast<double>(app.flight.distance));
+                    const float safeAimRadius = std::max(
+                        0.1F, aimSection.radius - tunrun::kCraftCollisionRadius - 0.08F);
+                    (void)clampMouseTargetToRadius(
+                        app.mouseAimX, app.mouseAimY, safeAimRadius);
+                }
+
                 // The target persists between raw-delta events and is tracked
                 // with damping, so frame rate does not dictate steering strength.
                 if (app.profile.mouseSteering && app.mouseControlEngaged &&
@@ -1228,6 +1258,8 @@ int main() {
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip), tpp, app.reduceMotion,
+                       app.mouseAimX, app.mouseAimY,
+                       app.profile.mouseSteering && app.mouseControlEngaged,
                        app.flight.pitch, app.flight.yaw, app.flight.roll,
                        app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
