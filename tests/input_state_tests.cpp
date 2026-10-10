@@ -680,6 +680,14 @@ int main() {
     for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
         const auto graph =
             tunrun::validateStateGraphRouteReachability(seed, 12U, shipId);
+        if (!graph.valid) {
+            std::cerr << "State graph failed: seed=" << seed
+                      << " ship=" << shipId
+                      << " gate=" << graph.firstFailedGate
+                      << " hazardHits=" << graph.hazardCollisionStates
+                      << " discarded=" << graph.discardedStates
+                      << " reason=" << graph.failure << '\n';
+        }
         assert(graph.valid);
         assert(graph.gatesChecked == 12U);
         assert(graph.transitionsChecked == 11U);

@@ -435,8 +435,75 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 ship.speedMultiplier;
             const float aimSpan = std::max(
                 0.0F, activeGate.apertureRadius - kCraftCollisionRadius - 0.16F);
-            const float aimX = activeGate.offsetX + candidate.aimBiasX * aimSpan;
-            const float aimY = activeGate.offsetY + candidate.aimBiasY * aimSpan;
+            float aimX = activeGate.offsetX + candidate.aimBiasX * aimSpan;
+            float aimY = activeGate.offsetY + candidate.aimBiasY * aimSpan;
+
+            // If a mine sits between this state and the target gate and the
+            // target ray would thread the mine's collision envelope, bias the
+            // steering target around it. This is a policy sample, not an
+            // oracle: the same swept collision test below still decides safety.
+            constexpr double kMineAvoidanceLookahead = 24.0;
+            const auto firstHazardForAim = hazardAt(seed, 0U);
+            const int firstAimHazard = std::max(0, static_cast<int>(std::floor(
+                (static_cast<double>(candidate.state.distance) -
+                 firstHazardForAim.distance) / kHazardSpacing)));
+            const auto playerSection = sampleCourse(
+                seed, static_cast<double>(candidate.state.distance));
+            for (int hazardIndex = firstAimHazard;
+                 hazardIndex <= firstAimHazard + 1; ++hazardIndex) {
+                const auto hazard = hazardAt(seed, static_cast<std::uint32_t>(hazardIndex));
+                const double ahead = hazard.distance -
+                    static_cast<double>(candidate.state.distance);
+                if (ahead < 0.0 || ahead > kMineAvoidanceLookahead ||
+                    hazard.distance >= activeGate.distance) continue;
+
+                const auto hazardSection = sampleCourse(seed, hazard.distance);
+                const double predictedMineTime = candidate.elapsedSeconds +
+                    ahead / std::max(0.25F, maximumLateralSpeed);
+                const auto movingCenter = hazardCenterAt(hazard, predictedMineTime);
+                const float mineX = movingCenter.x +
+                    hazardSection.centerX - playerSection.centerX;
+                const float mineY = movingCenter.y +
+                    hazardSection.centerY - playerSection.centerY;
+                const float towardX = aimX - mineX;
+                const float towardY = aimY - mineY;
+                const float towardLength = std::hypot(towardX, towardY);
+                const float safeDistance = hazard.radius +
+                    kHazardCraftCollisionRadius + 0.38F;
+                if (towardLength >= safeDistance) continue;
+
+                float awayX = towardX;
+                float awayY = towardY;
+                float awayLength = towardLength;
+                if (awayLength < 0.001F) {
+                    awayX = candidate.state.x - mineX;
+                    awayY = candidate.state.y - mineY;
+                    awayLength = std::hypot(awayX, awayY);
+                }
+                if (awayLength < 0.001F) {
+                    awayX = candidate.aimBiasX;
+                    awayY = candidate.aimBiasY;
+                    awayLength = std::hypot(awayX, awayY);
+                }
+                if (awayLength < 0.001F) {
+                    awayX = (hazard.index % 2U == 0U) ? -1.0F : 1.0F;
+                    awayY = 0.0F;
+                    awayLength = 1.0F;
+                }
+                aimX = mineX + awayX / awayLength * safeDistance;
+                aimY = mineY + awayY / awayLength * safeDistance;
+
+                const float maximumTargetOffset = std::max(
+                    0.0F, kCourseMinRadius - kCraftCollisionRadius - 0.20F);
+                const float targetRadius = std::hypot(aimX, aimY);
+                if (targetRadius > maximumTargetOffset && targetRadius > 0.001F) {
+                    const float scale = maximumTargetOffset / targetRadius;
+                    aimX *= scale;
+                    aimY *= scale;
+                }
+                break;
+            }
+
             const float steerX = std::clamp(
                 ((aimX - candidate.state.x) * 2.8F -
                  candidate.state.velocityX * 1.25F) / maximumLateralSpeed,
