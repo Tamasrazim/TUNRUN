@@ -150,8 +150,10 @@ int main() {
         tunrun::tunnelFramePoint(throatCameraFrame,
             throatCameraSection.centerX, throatCameraSection.centerY),
         0.15F, 64U, 0.55F);
-    assert(reverseSleeveRay.clipped);
-    assert(reverseSleeveRay.safeFraction > 0.05F && reverseSleeveRay.safeFraction < 1.0F);
+    // With the ship's smaller collision-hull clearance at the focus, this
+    // reverse line is accepted; the fixed camera margin above rejected it.
+    assert(!reverseSleeveRay.clipped);
+    assert(reverseSleeveRay.safeFraction == 1.0F);
 
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
