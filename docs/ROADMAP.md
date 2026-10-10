@@ -85,3 +85,6 @@ Fix crashes, input lockups, data loss, impossible generated courses and corrupte
 
 
 - Gate rendering now has five deterministic support silhouettes on an independent visual channel: Radial Cage, Segmented Crown, Chevron Brace, Twin Rails, and Split Clamps. The gate HUD identifies the selected structure alongside the existing difficulty type. The renderer confines all added supports to the bulkhead annulus outside the aperture; gameplay generation and collision data are unchanged.
+
+
+- Obstacle generator v5 varies the actual passage geometry independently for every gate: lateral bend amplitude spans 1.45–1.90 units and vertical-wave amplitude spans 0.20–0.35. The amplitudes stay within the previous worst-case envelope, are part of the obstacle hash, and are consumed by the shared throat sampler used for mesh rendering, collision, guidance, and camera clearance.
