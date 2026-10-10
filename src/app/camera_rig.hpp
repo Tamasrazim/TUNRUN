@@ -168,8 +168,34 @@ struct CameraOrbitOffset {
 struct CameraFollowState {
     float right = 0.0F;
     float up = 0.0F;
+    float behindDistance = 6.0F;
     bool initialized = false;
+    bool depthInitialized = false;
 };
+
+// Smooth the orbit camera's longitudinal offset as the cursor moves around the
+// ship. Without this, side/front angles changed course sample instantly while
+// only the lateral offset was damped, creating a visible camera snap.
+inline void smoothCameraOrbitDistance(CameraFollowState& state,
+                                      float targetBehindDistance,
+                                      float deltaTime,
+                                      float responsiveness = 14.0F) noexcept {
+    if (!std::isfinite(targetBehindDistance)) targetBehindDistance = 6.0F;
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0F) return;
+    deltaTime = std::min(deltaTime, 0.1F);
+    if (!std::isfinite(responsiveness) || responsiveness <= 0.0F) {
+        responsiveness = 14.0F;
+    }
+    responsiveness = std::clamp(responsiveness, 0.1F, 40.0F);
+    if (!state.depthInitialized || !std::isfinite(state.behindDistance)) {
+        state.behindDistance = targetBehindDistance;
+        state.depthInitialized = true;
+        return;
+    }
+    const float blend = 1.0F - std::exp(-responsiveness * deltaTime);
+    state.behindDistance +=
+        (targetBehindDistance - state.behindDistance) * blend;
+}
 
 inline void smoothCameraFollow(CameraFollowState& state,
                                float targetRight, float targetUp,

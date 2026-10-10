@@ -962,11 +962,17 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     const auto orbit = tunrun::cameraOrbitOffset(viewYaw, viewPitch);
-    // In TPP the eye moves around the craft; in FPP it stays at the cockpit.
-    // Sampling the eye's course distance separately lets it follow sharp bends
-    // without cutting the camera through a tunnel wall.
+    if (tpp) {
+        tunrun::smoothCameraOrbitDistance(
+            tppCameraFollow, orbit.behindDistance, frameDeltaTime);
+    } else {
+        tppCameraFollow.initialized = false;
+        tppCameraFollow.depthInitialized = false;
+    }
+    // In TPP the eye moves around the craft; its cross-section and longitudinal
+    // offsets both ease toward the orbit target before the wall/throat clamps.
     const double cameraDistance = static_cast<double>(distance) -
-        (tpp ? static_cast<double>(orbit.behindDistance) : 1.25);
+        (tpp ? static_cast<double>(tppCameraFollow.behindDistance) : 1.25);
     const auto rearSection = tunrun::sampleCourse(seed, cameraDistance);
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, cameraDistance);
     const auto cameraFrame = tunrun::sampleTunnelFrame(
@@ -992,7 +998,6 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         lookTargetY = lookThroat.centerY + safeTarget.up;
     }
     Camera3D camera{};
-    if (!tpp) tppCameraFollow.initialized = false;
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
         const float rearCenterY = rearSection.centerY - playerSection.centerY;

@@ -177,6 +177,22 @@ int main() {
     assert(std::isfinite(invalidOrbit.right) && std::isfinite(invalidOrbit.up) &&
            std::isfinite(invalidOrbit.behindDistance));
 
+    // Orbit depth also eases across rear/side/front angles instead of moving
+    // the camera's longitudinal sample instantaneously.
+    tunrun::CameraFollowState orbitFollow;
+    tunrun::smoothCameraOrbitDistance(orbitFollow, 6.0F, 1.0F / 60.0F);
+    assert(orbitFollow.depthInitialized);
+    assert(std::abs(orbitFollow.behindDistance - 6.0F) < 0.0001F);
+    tunrun::smoothCameraOrbitDistance(orbitFollow, -6.0F, 1.0F / 60.0F);
+    assert(orbitFollow.behindDistance < 6.0F && orbitFollow.behindDistance > -6.0F);
+    for (int i = 0; i < 120; ++i) {
+        tunrun::smoothCameraOrbitDistance(orbitFollow, -6.0F, 1.0F / 120.0F);
+    }
+    assert(std::abs(orbitFollow.behindDistance + 6.0F) < 0.001F);
+    tunrun::smoothCameraOrbitDistance(orbitFollow,
+        std::numeric_limits<float>::quiet_NaN(), 1.0F / 60.0F);
+    assert(std::isfinite(orbitFollow.behindDistance));
+
     // Chase offsets ease laterally instead of snapping. Exponential smoothing
     // converges with consistent time response across different render rates.
     tunrun::CameraFollowState chaseFollow;
