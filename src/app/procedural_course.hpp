@@ -28,7 +28,7 @@ inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 6U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 7U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -292,12 +292,23 @@ struct GateThroatBendOffset {
         vertical = 0.38F * single + 0.62F * doubleWave;
         break;
     }
+    // Keep the core waveform intact and ease only the final quarter of each
+    // sleeve. Smoothstep has a zero slope at both ends of the easing region;
+    // multiplied by the sine waves, it makes the throat bend meet the main
+    // tunnel with zero lateral/vertical slope instead of a direction kink.
+    constexpr double edgeEaseStart = 0.75;
+    const double edgeEaseProgress = std::clamp(
+        (std::abs(t) - edgeEaseStart) / (1.0 - edgeEaseStart), 0.0, 1.0);
+    const double edgeEaseCurve = edgeEaseProgress * edgeEaseProgress *
+        (3.0 - 2.0 * edgeEaseProgress);
+    const float edgeEnvelope = static_cast<float>(1.0 - edgeEaseCurve);
+
     const std::uint64_t turnBits = mixCourseBits(
         seed ^ (static_cast<std::uint64_t>(gateIndex) * 0x9E3779B97F4A7C15ULL));
     const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
     return GateThroatBendOffset{
-        turnSign * profile.amplitudeX * horizontal,
-        profile.amplitudeY * vertical
+        turnSign * profile.amplitudeX * horizontal * edgeEnvelope,
+        profile.amplitudeY * vertical * edgeEnvelope
     };
 }
 
