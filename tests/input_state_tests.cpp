@@ -1110,10 +1110,11 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 5U);
+    assert(tunrun::kObstacleGeneratorVersion == 6U);
 
-    // Each throat has independent, bounded bend amplitudes. The aperture plane
-    // stays fixed, and physics/rendering use the same sampled profile.
+    // The actual throat chooses four bounded waveform topologies on a channel
+    // separate from amplitude and aperture selection.
+    std::array<bool, 4U> seenThroatShapes{};
     float minimumBendX = std::numeric_limits<float>::infinity();
     float maximumBendX = 0.0F;
     float minimumBendY = std::numeric_limits<float>::infinity();
@@ -1123,6 +1124,13 @@ int main() {
         const auto repeatedBend = tunrun::gateThroatBendProfileAt(seed, index);
         assert(bend.amplitudeX == repeatedBend.amplitudeX);
         assert(bend.amplitudeY == repeatedBend.amplitudeY);
+        assert(bend.family == repeatedBend.family);
+        assert(tunrun::validGateThroatShapeFamily(bend.family));
+        const auto familyIndex = static_cast<std::size_t>(bend.family);
+        assert(familyIndex < seenThroatShapes.size());
+        seenThroatShapes[familyIndex] = true;
+        const char* familyName = tunrun::gateThroatShapeFamilyName(bend.family);
+        assert(familyName && std::string_view(familyName).size() > 0U);
         assert(bend.amplitudeX >= tunrun::kGateThroatBendMinimumAmplitudeX);
         assert(bend.amplitudeX <= tunrun::kGateThroatBendAmplitudeX);
         assert(bend.amplitudeY >= tunrun::kGateThroatBendMinimumAmplitudeY);
@@ -1135,15 +1143,29 @@ int main() {
         const auto generatedGate = tunrun::gateAt(seed, index);
         const auto atPlane = tunrun::gateThroatSectionAtDistance(
             seed, generatedGate, generatedGate.distance);
-        const auto atVerticalSweep = tunrun::gateThroatSectionAtDistance(
-            seed, generatedGate, generatedGate.distance + 4.5);
         assert(atPlane.active &&
                std::abs(atPlane.centerX - generatedGate.offsetX) < 0.0001F);
         assert(std::abs(atPlane.centerY - generatedGate.offsetY) < 0.0001F);
-        assert(std::abs(atVerticalSweep.centerY -
-                        (generatedGate.offsetY + bend.amplitudeY)) < 0.0002F);
-        assert(atVerticalSweep.radius == generatedGate.apertureRadius);
+        for (int sample = -35; sample <= 35; ++sample) {
+            const double offset = static_cast<double>(sample) * 0.5;
+            const auto wave = tunrun::gateThroatBendOffsetAt(seed, index, offset);
+            assert(std::isfinite(wave.x) && std::isfinite(wave.y));
+            assert(std::abs(wave.x) <= bend.amplitudeX + 0.0001F);
+            assert(std::abs(wave.y) <= bend.amplitudeY + 0.0001F);
+            const auto section = tunrun::gateThroatSectionAtDistance(
+                seed, generatedGate, generatedGate.distance + offset);
+            if (std::abs(offset) < tunrun::kGateThroatHalfLength) {
+                assert(section.active);
+                assert(std::abs(section.centerX -
+                    (generatedGate.offsetX * section.pinch + wave.x)) < 0.0001F);
+                assert(std::abs(section.centerY -
+                    (generatedGate.offsetY * section.pinch + wave.y)) < 0.0001F);
+            }
+        }
     }
+    for (const bool seen : seenThroatShapes) assert(seen);
+    assert(!tunrun::validGateThroatShapeFamily(
+        static_cast<tunrun::GateThroatShapeFamily>(255U)));
     assert(maximumBendX - minimumBendX > 0.30F);
     assert(maximumBendY - minimumBendY > 0.10F);
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
