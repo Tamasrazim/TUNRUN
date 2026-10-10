@@ -20,8 +20,8 @@ Current slice:
 - Windows x64 build/test workflow on pushes to `main`.
 
 Still required before M1 can pass:
-- Verify the Windows CI build and fix all compile/test failures. Maintain fullscreen startup, an enclosed TPP camera, keyboard/gamepad rotation controls, and mouse-only UI input as acceptance requirements.
-- Verify UI pointer focus/hitboxes on real Windows hardware at normal and scaled DPI, windowed and fullscreen; gameplay must never read mouse deltas.
+- Verify the Windows CI build and fix all compile/test failures. Maintain fullscreen startup, an enclosed TPP camera, keyboard/gamepad rotation controls, and configurable mouse flight with pointer-driven UI outside gameplay.
+- Verify UI pointer focus/hitboxes on real Windows hardware at normal and scaled DPI, windowed and fullscreen. Relative mouse deltas must be consumed only during an active focused run when mouse flight is enabled, and must not affect menus.
 - Test pointer hitboxes after resize/fullscreen transitions; make every screen fully operable by mouse, keyboard and gamepad.
 - Add integration tests for focus-loss pause, capture/release and nested Settings → Pause behavior.
 

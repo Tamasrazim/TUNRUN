@@ -982,7 +982,7 @@ int main() {
     assert(economyProfile.aetherShards == 2000U && economyProfile.unlockedShips[1U]);
     assert(tunrun::purchaseShip(economyProfile, 1U) ==
            tunrun::ShipTransactionStatus::AlreadyUnlocked);
-    assert(economyProfile.aetherShards == 200U); // duplicate activation cannot charge twice
+    assert(economyProfile.aetherShards == 2000U); // duplicate activation cannot charge twice
     assert(tunrun::equipShip(economyProfile, 1U) == tunrun::ShipTransactionStatus::Equipped);
     assert(economyProfile.selectedShip == 1U);
     const auto shardsBeforeFailedBuy = economyProfile.aetherShards;
