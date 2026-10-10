@@ -28,7 +28,7 @@ inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 8U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 9U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -290,7 +290,7 @@ struct GateThroatBendOffset {
     case GateThroatShapeFamily::SplitWave:
         // Keep a dependable lateral displacement through the narrow core while
         // using the third harmonic vertically for the split-wave crossover.
-        horizontal = 0.62F * single + 0.38F * doubleWave;
+        horizontal = 0.75F * single + 0.25F * doubleWave;
         vertical = 0.38F * single + 0.62F * triple;
         break;
     }
