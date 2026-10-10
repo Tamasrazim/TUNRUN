@@ -19,7 +19,7 @@ struct Profile {
     bool showFps = true;
     bool reduceMotion = false;
     bool mouseSteering = true;
-    bool fullscreen = false;
+    bool fullscreen = true;
     float mouseSensitivity = 0.004F;
     std::uint32_t selectedShip = 0U;
     std::array<bool, kProfileShipCount> unlockedShips{
