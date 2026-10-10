@@ -691,7 +691,7 @@ int main() {
     assert(!tunrun::validateStateGraphRouteReachability(seed, 0U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 513U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 12U, 999U).valid);
-    for (std::uint64_t graphSeedIndex = 0U; graphSeedIndex < 4U; ++graphSeedIndex) {
+    for (std::uint64_t graphSeedIndex = 0U; graphSeedIndex < 12U; ++graphSeedIndex) {
         const auto graphSeed = tunrun::deriveCourseSeed(seed, 300U + graphSeedIndex);
         const auto graph =
             tunrun::validateStateGraphRouteReachability(graphSeed, 8U);

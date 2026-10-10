@@ -24,7 +24,7 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 - Camera target follows the spacecraft's yaw/pitch using a target point clamped inside the sampled tunnel frame. Longitudinal target distance follows the heading, including controlled look-back.
 - Four seed-selected mine presentation families are implemented: Orbital, Prism, Rotor and Cross. Family names are reflected in the in-run hazard cue; these are cosmetic and do not alter the mine physics hash.
 - Camera targeting and visual-family coverage have automated unit assertions.
-- The Seed Lab route diagnostics now use a bounded, fixed-size state graph: each viable gate-crossing state branches into multiple target policies for the next gate. Automated tests cover every ship on a 12-gate graph plus a small deterministic multi-seed batch. This improves trajectory coverage but is not an exhaustive reachable-state proof.
+- The Seed Lab route diagnostics now use a bounded, fixed-size state graph: each viable gate-crossing state branches into multiple target policies for the next gate. Automated tests cover every ship on a 12-gate graph plus a 12-seed deterministic route-graph batch. This improves trajectory coverage but is not an exhaustive reachable-state proof.
 - Repository integrity, secret scanning and Windows build/unit-test workflows run on pushes to `main`. Their state is available through live badges and [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions).
 
 ## Update rule
