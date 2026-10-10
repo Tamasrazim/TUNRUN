@@ -15,7 +15,7 @@
 Play, Hangar, Modes, Seed Lab, Records / Statistics, Controls, Settings, Credits, Exit. The menu tightens row sizing at the minimum supported window height so every action remains visible. Continue is shown only when a valid profile contains resumable progress.
 
 ### Hangar
-Rotatable ship preview, name, handling stats, selected/unlocked/locked states, unlock requirements, resource balance, purchase confirmation, cosmetic preview, and equip action.
+Rotatable 3D ship preview, name, handling stats, selected/unlocked/locked states, exact unlock price and resource balance, explicit cancel/confirm unlock flow, and a separate equip action. Purchases do not silently replace the active ship.
 
 ### Mode Select
 The current build exposes Custom Seed Run and Practice Preview. Campaign and a separate Endless mode are explicitly marked in development; selecting either displays what is unavailable instead of silently doing nothing. Seed Challenge, Daily Run, Rival Run, and Ghost Race remain planned.
