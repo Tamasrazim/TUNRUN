@@ -409,6 +409,7 @@ struct StateGraphRouteValidation {
     std::uint32_t maximumPassingStatesAtGate = 0U;
     std::uint32_t firstFailedGate = 0U;
     float minimumGateClearance = std::numeric_limits<float>::infinity();
+    float bestWitnessMinimumClearance = 0.0F;
     float maximumLateralOffset = 0.0F;
     double simulatedDistance = 0.0;
     const char* failure = "not validated";
@@ -438,6 +439,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         double elapsedSeconds = 0.0;
         float aimBiasX = 0.0F;
         float aimBiasY = 0.0F;
+        float minimumRouteClearance = std::numeric_limits<float>::infinity();
         bool boost = false;
         bool precision = false;
         bool active = true;
@@ -490,11 +492,24 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 static_cast<std::uint32_t>(passingCount));
             if (passingCount > 1U) ++result.gatesWithMultiplePassingStates;
             if (result.gatesChecked >= gateCount) {
+                for (std::size_t i = 0U; i < passingCount; ++i) {
+                    result.bestWitnessMinimumClearance = std::max(
+                        result.bestWitnessMinimumClearance,
+                        passingStates[i].minimumRouteClearance);
+                }
                 result.valid = true;
                 result.failure = "ok (bounded state graph)";
                 return result;
             }
 
+            // Keep trajectories with larger worst-case gate margins first.
+            // The following parent-stratified branch step still preserves the
+            // whole passing beam, while safer parents can receive extra branches.
+            std::stable_sort(passingStates.begin(),
+                passingStates.begin() + passingCount,
+                [](const CandidateState& lhs, const CandidateState& rhs) {
+                    return lhs.minimumRouteClearance > rhs.minimumRouteClearance;
+                });
             ++result.transitionsChecked;
             activeGate = gateAt(seed, result.gatesChecked);
             std::array<CandidateState, kMaximumStates> nextStates{};
@@ -712,6 +727,8 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 kCraftCollisionRadius - std::hypot(offsetX, offsetY);
             result.minimumGateClearance = std::min(
                 result.minimumGateClearance, clearance);
+            candidate.minimumRouteClearance = std::min(
+                candidate.minimumRouteClearance, clearance);
             if (passingCount < kMaximumStates) {
                 passingStates[passingCount++] = candidate;
             }

@@ -1901,11 +1901,12 @@ int main() {
                                    reachability.valid ? "PASS" : "FAIL",
                                    reachability.minimumReachableSlack),
                         249.0F, 10, reachability.valid ? kAccent : kDanger);
-            drawCentred(TextFormat("ROUTE GRAPH: %s   GATES %u/12   PEAK %u   MULTI %u   PRUNED %u   MINES %u/%u",
+            drawCentred(TextFormat("ROUTE GRAPH: %s   GATES %u/12   PEAK %u   MULTI %u   CLR %.2F   PRUNED %u   MINES %u/%u",
                                    routeGraph.valid ? "WITNESS" : "NO WITNESS",
                                    routeGraph.gatesChecked,
                                    routeGraph.peakStateCount,
                                    routeGraph.gatesWithMultiplePassingStates,
+                                   routeGraph.bestWitnessMinimumClearance,
                                    routeGraph.beamPrunedStates,
                                    routeGraph.hazardCollisionStates,
                                    routeGraph.hazardChecks),

@@ -809,6 +809,8 @@ int main() {
                 assert(graph.gatesChecked == 8U);
                 assert(graph.transitionsChecked == 7U);
                 assert(graph.minimumGateClearance >= 0.0F);
+                assert(graph.bestWitnessMinimumClearance >=
+                       graph.minimumGateClearance);
             } else {
                 assert(graph.firstFailedGate <= 8U);
             }
@@ -831,6 +833,8 @@ int main() {
                    graph.maximumPassingStatesAtGate);
             assert(repeat.firstFailedGate == graph.firstFailedGate);
             assert(repeat.minimumGateClearance == graph.minimumGateClearance);
+            assert(repeat.bestWitnessMinimumClearance ==
+                   graph.bestWitnessMinimumClearance);
             assert(repeat.maximumLateralOffset == graph.maximumLateralOffset);
             assert(repeat.simulatedDistance == graph.simulatedDistance);
             assert(std::string_view(repeat.failure) == graph.failure);
