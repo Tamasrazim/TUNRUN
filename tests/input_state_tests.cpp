@@ -2,6 +2,7 @@
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
+#include "app/gate_visuals.hpp"
 #include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
@@ -1089,6 +1090,22 @@ int main() {
     }
     assert(seenStandard && seenPrecision && seenOffset && seenWide);
     assert(tunrun::validateObstacleSet(seed, 64U).valid);
+
+    // Gate architecture uses a visual-only channel, separate from gate rules.
+    assert(tunrun::kGateStructureVisualGeneratorVersion == 1U);
+    assert(tunrun::kGateStructureFamilyCount == 5U);
+    assert(tunrun::kGateStructureMinimumApertureGap >= 0.15F);
+    std::array<bool, tunrun::kGateStructureFamilyCount> seenGateStructures{};
+    for (std::uint32_t index = 0U; index < 512U; ++index) {
+        const auto family = tunrun::gateStructureFamilyAt(seed, index);
+        const auto familyIndex = tunrun::gateStructureFamilyIndex(family);
+        assert(familyIndex < tunrun::kGateStructureFamilyCount);
+        assert(family == tunrun::gateStructureFamilyAt(seed, index));
+        const char* familyName = tunrun::gateStructureFamilyName(family);
+        assert(familyName != nullptr && std::string_view(familyName).size() > 0U);
+        seenGateStructures[familyIndex] = true;
+    }
+    for (const bool seen : seenGateStructures) assert(seen);
 
     // The ship catalog is shared by the hangar, renderer, and physics model.
     assert(tunrun::kShipCatalog.size() == 8U);
