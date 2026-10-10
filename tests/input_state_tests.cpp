@@ -690,6 +690,26 @@ int main() {
         assert(graph.maximumPassingStatesAtGate > 0U);
         assert(graph.minimumGateClearance >= 0.0F);
         assert(graph.maximumLateralOffset < tunrun::kFlightLimit);
+        assert(graph.simulatedDistance > 0.0);
+        if (shipId == 0U) {
+            const auto repeatedGraph =
+                tunrun::validateStateGraphRouteReachability(seed, 12U, shipId);
+            assert(repeatedGraph.valid == graph.valid);
+            assert(repeatedGraph.gatesChecked == graph.gatesChecked);
+            assert(repeatedGraph.transitionsChecked == graph.transitionsChecked);
+            assert(repeatedGraph.simulationSteps == graph.simulationSteps);
+            assert(repeatedGraph.candidateStatesGenerated == graph.candidateStatesGenerated);
+            assert(repeatedGraph.beamPrunedStates == graph.beamPrunedStates);
+            assert(repeatedGraph.discardedStates == graph.discardedStates);
+            assert(repeatedGraph.peakStateCount == graph.peakStateCount);
+            assert(repeatedGraph.gatesWithMultiplePassingStates ==
+                   graph.gatesWithMultiplePassingStates);
+            assert(repeatedGraph.maximumPassingStatesAtGate ==
+                   graph.maximumPassingStatesAtGate);
+            assert(repeatedGraph.minimumGateClearance == graph.minimumGateClearance);
+            assert(repeatedGraph.maximumLateralOffset == graph.maximumLateralOffset);
+            assert(repeatedGraph.simulatedDistance == graph.simulatedDistance);
+        }
     }
     assert(sawGraphBeamPruning);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 0U).valid);

@@ -454,7 +454,8 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             }
             result.maximumLateralOffset = std::max(
                 result.maximumLateralOffset, std::hypot(state.x, state.y));
-            result.simulatedDistance = static_cast<double>(state.distance);
+            result.simulatedDistance = std::max(
+                result.simulatedDistance, static_cast<double>(state.distance));
             if (collidesWithTunnelWall(state.x, state.y, conservativeTunnel)) {
                 candidate.active = false;
                 ++result.discardedStates;
