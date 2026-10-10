@@ -674,6 +674,33 @@ int main() {
     assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
 
 
+    // The local mine-avoidance projection must be stable at the singular
+    // case where the requested target is exactly on the mine center.
+    const auto unchangedAim = tunrun::routeAimOutsideMineEnvelope(
+        2.0F, 0.0F, 0.0F, 0.0F, 1.0F, 5.0F,
+        0.0F, 0.0F, 0.0F, 0.0F, 0U);
+    assert(!unchangedAim.adjusted && unchangedAim.x == 2.0F &&
+           unchangedAim.y == 0.0F);
+    const auto centeredAim = tunrun::routeAimOutsideMineEnvelope(
+        0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 5.0F,
+        0.0F, 0.0F, 0.0F, 0.0F, 0U);
+    assert(centeredAim.adjusted);
+    assert(std::abs(std::hypot(centeredAim.x, centeredAim.y) - 1.0F) < 0.0001F);
+    assert(centeredAim.x < 0.0F);
+    const auto otherFallback = tunrun::routeAimOutsideMineEnvelope(
+        0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 5.0F,
+        0.0F, 0.0F, 0.0F, 0.0F, 1U);
+    assert(otherFallback.x > 0.0F);
+    const auto boundedAim = tunrun::routeAimOutsideMineEnvelope(
+        0.2F, 0.0F, 0.0F, 0.0F, 1.0F, 0.6F,
+        0.0F, 0.0F, 0.0F, 0.0F, 0U);
+    assert(boundedAim.adjusted);
+    assert(std::abs(std::hypot(boundedAim.x, boundedAim.y) - 0.6F) < 0.0001F);
+    const auto invalidAim = tunrun::routeAimOutsideMineEnvelope(
+        std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 1.0F, 5.0F,
+        0.0F, 0.0F, 0.0F, 0.0F, 0U);
+    assert(!invalidAim.adjusted && std::isnan(invalidAim.x));
+
     // Bounded state-propagating route graph: viable gate crossings branch
     // into multiple target policies while preserving the actual flight state.
     bool sawGraphBeamPruning = false;

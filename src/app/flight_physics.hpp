@@ -287,6 +287,67 @@ inline SimulatedRouteValidation validateSimulatedRouteReachability(
 }
 
  
+// Pure, testable part of the route graph's local mine-avoidance steering.
+// It projects an aim outside a mine envelope when possible, then keeps that
+// target within the conservative tunnel radius. A bounded search may still miss
+// routes; this helper never claims the whole trajectory is collision-free.
+struct RouteAimAdjustment {
+    float x = 0.0F;
+    float y = 0.0F;
+    bool adjusted = false;
+};
+
+inline RouteAimAdjustment routeAimOutsideMineEnvelope(
+    float targetX, float targetY, float mineX, float mineY,
+    float safeDistance, float maximumTargetRadius,
+    float fallbackX, float fallbackY,
+    float fallbackBiasX, float fallbackBiasY,
+    std::uint32_t hazardIndex) noexcept {
+    RouteAimAdjustment result{targetX, targetY, false};
+    if (!std::isfinite(targetX) || !std::isfinite(targetY) ||
+        !std::isfinite(mineX) || !std::isfinite(mineY) ||
+        !std::isfinite(safeDistance) || !std::isfinite(maximumTargetRadius)) {
+        return result;
+    }
+
+    safeDistance = std::max(0.0F, safeDistance);
+    maximumTargetRadius = std::max(0.0F, maximumTargetRadius);
+    float dx = targetX - mineX;
+    float dy = targetY - mineY;
+    float length = std::hypot(dx, dy);
+    if (length >= safeDistance) return result;
+
+    // A target centered exactly on a mine needs a stable fallback direction:
+    // prefer the current craft offset, then the policy bias, then index parity.
+    if (length < 0.001F && std::isfinite(fallbackX) && std::isfinite(fallbackY)) {
+        dx = fallbackX - mineX;
+        dy = fallbackY - mineY;
+        length = std::hypot(dx, dy);
+    }
+    if (length < 0.001F &&
+        std::isfinite(fallbackBiasX) && std::isfinite(fallbackBiasY)) {
+        dx = fallbackBiasX;
+        dy = fallbackBiasY;
+        length = std::hypot(dx, dy);
+    }
+    if (length < 0.001F) {
+        dx = (hazardIndex % 2U == 0U) ? -1.0F : 1.0F;
+        dy = 0.0F;
+        length = 1.0F;
+    }
+
+    result.x = mineX + dx / length * safeDistance;
+    result.y = mineY + dy / length * safeDistance;
+    const float targetRadius = std::hypot(result.x, result.y);
+    if (targetRadius > maximumTargetRadius && targetRadius > 0.001F) {
+        const float scale = maximumTargetRadius / targetRadius;
+        result.x *= scale;
+        result.y *= scale;
+    }
+    result.adjusted = true;
+    return result;
+}
+
 // Bounded state-propagating route search. Each viable gate-crossing state
 // branches into multiple in-aperture target policies for the next gate. The
 // beam cap keeps validation deterministic and bounded; this is multi-trajectory
@@ -478,35 +539,14 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                     kHazardCraftCollisionRadius + 0.38F;
                 if (towardLength >= safeDistance) continue;
 
-                float awayX = towardX;
-                float awayY = towardY;
-                float awayLength = towardLength;
-                if (awayLength < 0.001F) {
-                    awayX = candidate.state.x - mineX;
-                    awayY = candidate.state.y - mineY;
-                    awayLength = std::hypot(awayX, awayY);
-                }
-                if (awayLength < 0.001F) {
-                    awayX = candidate.aimBiasX;
-                    awayY = candidate.aimBiasY;
-                    awayLength = std::hypot(awayX, awayY);
-                }
-                if (awayLength < 0.001F) {
-                    awayX = (hazard.index % 2U == 0U) ? -1.0F : 1.0F;
-                    awayY = 0.0F;
-                    awayLength = 1.0F;
-                }
-                aimX = mineX + awayX / awayLength * safeDistance;
-                aimY = mineY + awayY / awayLength * safeDistance;
-
                 const float maximumTargetOffset = std::max(
                     0.0F, kCourseMinRadius - kCraftCollisionRadius - 0.20F);
-                const float targetRadius = std::hypot(aimX, aimY);
-                if (targetRadius > maximumTargetOffset && targetRadius > 0.001F) {
-                    const float scale = maximumTargetOffset / targetRadius;
-                    aimX *= scale;
-                    aimY *= scale;
-                }
+                const auto adjustedAim = routeAimOutsideMineEnvelope(
+                    aimX, aimY, mineX, mineY, safeDistance,
+                    maximumTargetOffset, candidate.state.x, candidate.state.y,
+                    candidate.aimBiasX, candidate.aimBiasY, hazard.index);
+                aimX = adjustedAim.x;
+                aimY = adjustedAim.y;
                 break;
             }
 
