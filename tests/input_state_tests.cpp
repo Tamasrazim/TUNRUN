@@ -874,6 +874,7 @@ int main() {
            tunrun::hazardMotionFamilyAt(seed, 0U));
     bool seenOrbitalMine = false, seenPrismMine = false;
     bool seenRotorMine = false, seenCrossMine = false;
+    bool seenHaloArrayMine = false, seenShardClusterMine = false;
     bool seenLateralSweep = false, seenVerticalSweep = false;
     bool seenEllipticOrbit = false, seenFigureEight = false;
     for (std::uint32_t index = 0U; index < 512U; ++index) {
@@ -882,6 +883,8 @@ int main() {
         case tunrun::HazardVisualFamily::Prism: seenPrismMine = true; break;
         case tunrun::HazardVisualFamily::Rotor: seenRotorMine = true; break;
         case tunrun::HazardVisualFamily::Cross: seenCrossMine = true; break;
+        case tunrun::HazardVisualFamily::HaloArray: seenHaloArrayMine = true; break;
+        case tunrun::HazardVisualFamily::ShardCluster: seenShardClusterMine = true; break;
         }
         const auto generatedHazard = tunrun::hazardAt(seed, index);
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
@@ -901,6 +904,11 @@ int main() {
         }
     }
     assert(seenOrbitalMine && seenPrismMine && seenRotorMine && seenCrossMine);
+    assert(seenHaloArrayMine && seenShardClusterMine);
+    assert(tunrun::validHazardVisualFamily(
+        tunrun::hazardVisualFamilyAt(seed, 511U)));
+    assert(!tunrun::validHazardVisualFamily(
+        static_cast<tunrun::HazardVisualFamily>(255U)));
     assert(seenLateralSweep && seenVerticalSweep && seenEllipticOrbit && seenFigureEight);
     assert(std::string_view(tunrun::hazardVisualFamilyName(
         tunrun::hazardVisualFamilyAt(seed, 0U))).size() > 0U);
