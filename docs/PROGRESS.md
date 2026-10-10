@@ -22,7 +22,7 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 ## Latest implementation slice
 
 - Camera aim now follows mouse-look angles independently from ship yaw/pitch; the third-person camera base stays behind the course tangent through sharp turns rather than swinging behind the ship's nose. FPP camera position is also clamped to its own local cross-section so a narrow rear section cannot clip the camera through the wall.
-- W accelerates above cruise, S brakes even when boost or precision is held, and released speed control settles back toward cruise. An already-triggered dash keeps its short committed burst; new regression assertions cover brake priority.
+- W accelerates above cruise, S brakes even when boost or precision is held, blocks new dash activations, and settles back toward cruise when released. An already-triggered dash keeps its short committed burst; regression assertions cover these priorities.
 - Narrow apertures now get an opaque, tapered inner passage whose radius and offset match the gate's collision opening. The sleeve twists gently along its depth, improving the wormhole feel and breaking up the long straight sightline through a flat ring.
 - The Hangar uses explicit keyboard focus: confirming Back cannot accidentally purchase/equip the selected ship. Purchase/equip is a separate focused action, and the shop layout now adapts to narrower windows.
 - All eight spacecraft now use filled, ship-specific wing planforms with a defined canopy and twin engine bells instead of only thin outline silhouettes.

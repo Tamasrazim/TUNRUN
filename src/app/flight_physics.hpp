@@ -106,20 +106,20 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
     const float speedResponse = input.speedControl < -0.1F ? 18.0F : 7.0F;
     state.forwardSpeed = approach(state.forwardSpeed, desiredCruiseSpeed,
                                   speedResponse * dt);
+    const bool braking = input.speedControl < -0.1F;
     const bool dashPressedEdge = input.dash && !state.dashButtonWasDown;
     state.dashButtonWasDown = input.dash;
     state.dashCooldownRemaining = std::max(0.0F, state.dashCooldownRemaining - dt);
     state.dashRemaining = std::max(0.0F, state.dashRemaining - dt);
-    if (dashPressedEdge && !precision &&
+    if (dashPressedEdge && !braking && !precision &&
         state.dashCooldownRemaining <= 0.0F &&
         state.boostEnergy >= kDashEnergyCost) {
         state.boostEnergy -= kDashEnergyCost;
         state.dashRemaining = kDashDuration;
         state.dashCooldownRemaining = kDashCooldown;
     }
-    const bool braking = input.speedControl < -0.1F;
-    // A deliberate brake input takes priority over boost and precision speed.
-    // The short dash remains a committed burst once activated.
+    // S takes priority over boost and precision speed; an already-triggered
+    // dash remains a committed short burst, but braking blocks new activations.
     const bool boosting = input.boost && !precision && !braking &&
                           state.boostEnergy > 0.0F;
     const float maximumSpeed =

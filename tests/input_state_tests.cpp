@@ -987,6 +987,22 @@ int main() {
     assert(brakingBoostFlight.distance < cruiseFlight.distance);
     assert(brakingPrecisionFlight.distance < cruiseFlight.distance);
 
+    tunrun::FlightState brakeDashFlight;
+    tunrun::updateFlight(brakeDashFlight,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+            tunrun::kStarterShipId, true, 0.0F, 0.0F, 0.0F, -1.0F},
+        tunrun::kFlightFixedStep);
+    assert(brakeDashFlight.dashRemaining == 0.0F);
+    assert(brakeDashFlight.dashCooldownRemaining == 0.0F);
+    // Releasing and pressing dash again after braking allows the edge-triggered burst.
+    tunrun::updateFlight(brakeDashFlight,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+            tunrun::kStarterShipId, false}, tunrun::kFlightFixedStep);
+    tunrun::updateFlight(brakeDashFlight,
+        tunrun::FlightInput{0.0F, 0.0F, false, false,
+            tunrun::kStarterShipId, true}, tunrun::kFlightFixedStep);
+    assert(brakeDashFlight.dashRemaining > 0.0F);
+
     // Dash is an edge-triggered, energy-costed burst. Holding the button
     // does not auto-repeat when the cooldown expires.
     tunrun::FlightState ordinaryFlight;
