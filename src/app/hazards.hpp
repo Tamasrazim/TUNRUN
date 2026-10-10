@@ -35,6 +35,36 @@ struct HazardCenter {
     float y = 0.0F;
 };
 
+enum class HazardVisualFamily : std::uint8_t {
+    Orbital,
+    Prism,
+    Rotor,
+    Cross
+};
+
+// Stable cosmetic archetypes are seeded separately from hazard physics.
+// Changing their appearance must not change collision, motion, or hazardHash.
+[[nodiscard]] inline HazardVisualFamily hazardVisualFamilyAt(
+    std::uint64_t seed, std::uint32_t index) noexcept {
+    const float roll = courseUnit(
+        seed, static_cast<std::int64_t>(index), 910U);
+    if (roll < 0.25F) return HazardVisualFamily::Orbital;
+    if (roll < 0.50F) return HazardVisualFamily::Prism;
+    if (roll < 0.75F) return HazardVisualFamily::Rotor;
+    return HazardVisualFamily::Cross;
+}
+
+[[nodiscard]] inline const char* hazardVisualFamilyName(
+    HazardVisualFamily family) noexcept {
+    switch (family) {
+    case HazardVisualFamily::Orbital: return "ORBITAL MINE";
+    case HazardVisualFamily::Prism: return "PRISM MINE";
+    case HazardVisualFamily::Rotor: return "ROTOR MINE";
+    case HazardVisualFamily::Cross: return "CROSS MINE";
+    }
+    return "UNKNOWN HAZARD";
+}
+
 struct HazardValidation {
     bool valid = false;
     std::uint32_t hazardsChecked = 0U;
