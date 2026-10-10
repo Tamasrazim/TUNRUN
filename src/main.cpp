@@ -36,6 +36,21 @@ const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
+Color tunnelDepthFog(Color color, float distanceAhead) {
+    if (!std::isfinite(distanceAhead)) distanceAhead = 0.0F;
+    const float amount = std::clamp((distanceAhead - 8.0F) / 40.0F, 0.0F, 1.0F);
+    const float fog = amount * amount * (3.0F - 2.0F * amount);
+    constexpr float visibilityFloor = 0.025F;
+    const float visibility = 1.0F - fog * (1.0F - visibilityFloor);
+    color.r = static_cast<unsigned char>(std::clamp(
+        8.0F + (static_cast<float>(color.r) - 8.0F) * visibility, 0.0F, 255.0F));
+    color.g = static_cast<unsigned char>(std::clamp(
+        10.0F + (static_cast<float>(color.g) - 10.0F) * visibility, 0.0F, 255.0F));
+    color.b = static_cast<unsigned char>(std::clamp(
+        15.0F + (static_cast<float>(color.b) - 15.0F) * visibility, 0.0F, 255.0F));
+    return color;
+}
+
 enum class CrashCause { Wall, Gate, Hazard };
 enum class PendingRunAction { None, RestartSameSeed, ReturnToMainMenu };
 
@@ -396,6 +411,8 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
     case tunrun::GateKind::Offset: outer={108,92,154,225}; inner={194,172,255,255}; break;
     case tunrun::GateKind::Wide: outer={70,133,120,220}; inner={150,245,213,255}; break;
     }
+    outer = tunnelDepthFog(outer, std::max(0.0F, ahead));
+    inner = tunnelDepthFog(inner, std::max(0.0F, ahead));
     for(int i=0;i<segments;++i) {
         const float a0=static_cast<float>(i)*2.0F*PI/segments;
         const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
@@ -404,14 +421,17 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         const Vector3 i1=p(a1,gate.apertureRadius,gate.offsetX,gate.offsetY);
         // Opaque bulkhead panels close the space outside the true aperture.
         // The old ring-only gate let the whole next section show through.
-        const Color bulkhead = (i % 4 == 0)
-            ? Color{26, 38, 54, 255} : Color{13, 20, 31, 255};
+        const Color bulkhead = tunnelDepthFog((i % 4 == 0)
+            ? Color{26, 38, 54, 255} : Color{13, 20, 31, 255},
+            std::max(0.0F, ahead));
         DrawTriangle3D(o0, o1, i1, bulkhead);
         DrawTriangle3D(o0, i1, i0, bulkhead);
         DrawLine3D(o0,o1,outer); DrawLine3D(i0,i1,inner);
-        if(i%2==0) DrawLine3D(o0,i0,Color{76,99,125,205});
+        if(i%2==0) DrawLine3D(o0,i0,tunnelDepthFog(
+            Color{76,99,125,205}, std::max(0.0F, ahead)));
     }
     const auto halo=[&](float radius,Color c) {
+        c = tunnelDepthFog(c, std::max(0.0F, ahead));
         for(int i=0;i<segments;++i) {
             const float a0=static_cast<float>(i)*2.0F*PI/segments;
             const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
@@ -448,7 +468,7 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
 }
 void drawGateThroat(std::uint64_t seed, float playerDistance,
                     const tunrun::ProceduralGate& gate) {
-    constexpr float halfLength = 18.0F;
+    constexpr float halfLength = tunrun::kGateThroatHalfLength;
     const float ahead = static_cast<float>(
         gate.distance - static_cast<double>(playerDistance));
     if (ahead < -halfLength - 3.0F || ahead > halfLength + 24.0F) return;
@@ -467,14 +487,11 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
         const float offset = offsets[ring];
         frames[ring] = tunrun::sampleTunnelFrame(
             seed, playerDistance, gate.distance + static_cast<double>(offset));
-        const float normalized = 1.0F - std::abs(offset) / halfLength;
-        const float pinch = normalized * normalized * (3.0F - 2.0F * normalized);
-        const float safeRadius = std::max(0.8F, frames[ring].radius - 0.16F);
-        const float aperture = std::clamp(gate.apertureRadius, 0.8F, safeRadius);
-        radii[ring] = frames[ring].radius -
-            (frames[ring].radius - aperture) * pinch;
-        centerX[ring] = gate.offsetX * pinch;
-        centerY[ring] = gate.offsetY * pinch;
+        const auto section = tunrun::gateThroatSectionAtDistance(
+            seed, gate, gate.distance + static_cast<double>(offset));
+        radii[ring] = section.radius;
+        centerX[ring] = section.centerX;
+        centerY[ring] = section.centerY;
     }
 
     Color wallDark{9, 17, 28, 255};
@@ -515,11 +532,15 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
                                     radii[ring + 1U], a1 + twistB);
             const Vector3 d = point(next, centerX[ring + 1U], centerY[ring + 1U],
                                     radii[ring + 1U], a0 + twistB);
-            const Color wall = ((side % 4) == 0 || (ring % 2U) == 0)
-                ? wallLight : wallDark;
+            const float wallAhead = std::max(0.0F, static_cast<float>(
+                gate.distance + static_cast<double>(offsets[ring]) -
+                static_cast<double>(playerDistance)));
+            const Color wall = tunnelDepthFog(
+                ((side % 4) == 0 || (ring % 2U) == 0) ? wallLight : wallDark,
+                wallAhead);
             DrawTriangle3D(a, b, c, wall);
             DrawTriangle3D(a, c, d, wall);
-            if (ring % 2U == 1U) DrawLine3D(a, b, edge);
+            if (ring % 2U == 1U) DrawLine3D(a, b, tunnelDepthFog(edge, wallAhead));
         }
     }
 }
@@ -535,9 +556,12 @@ void drawProceduralReward(std::uint64_t seed,float playerDistance,
     const float x=reward.offsetX,y=reward.offsetY;
     const float size=reward.kind==tunrun::RewardKind::SingularityCore?0.48F:0.34F;
     const bool core=reward.kind==tunrun::RewardKind::SingularityCore;
-    const Color color=core?Color{255,174,108,255}:Color{111,225,255,255};
-    const Color bright=core?Color{255,204,140,255}:Color{165,243,255,255};
-    const Color dark=core?Color{132,57,29,255}:Color{27,107,153,255};
+    const Color color=tunnelDepthFog(
+        core?Color{255,174,108,255}:Color{111,225,255,255}, ahead);
+    const Color bright=tunnelDepthFog(
+        core?Color{255,204,140,255}:Color{165,243,255,255}, ahead);
+    const Color dark=tunnelDepthFog(
+        core?Color{132,57,29,255}:Color{27,107,153,255}, ahead);
     const Vector3 top=p(x,y+size),right=p(x+size*0.72F,y);
     const Vector3 bottom=p(x,y-size),left=p(x-size*0.72F,y);
     const Vector3 front=p(x,y,size*0.42F),back=p(x,y,-size*0.42F);
@@ -854,6 +878,11 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         color={255,211,91,255}; blade={255,244,174,245}; shell={98,62,20,255};
         facetLight={255,226,122,255}; facetDark={112,65,17,255}; break;
     }
+    color=tunnelDepthFog(color,ahead);
+    blade=tunnelDepthFog(blade,ahead);
+    shell=tunnelDepthFog(shell,ahead);
+    facetLight=tunnelDepthFog(facetLight,ahead);
+    facetDark=tunnelDepthFog(facetDark,ahead);
     const float phase=elapsedSeconds*(1.1F+hazard.frequency*0.4F)+
                       static_cast<float>(hazard.index)*0.73F;
     switch (family) {
@@ -926,7 +955,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
 
-    const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
+    const double cameraDistance = static_cast<double>(distance) - 1.25;
+    const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, cameraDistance);
     const float viewYaw = std::remainder(cameraLookYaw, 2.0F * PI);
     const float viewPitch = std::clamp(cameraLookPitch, -1.20F, 1.20F);
     // Camera look is independent from the spacecraft's heading: mouse motion
@@ -938,6 +968,17 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         seed, distance, static_cast<double>(distance) + lookCourseOffset);
     const auto lookOffset = tunrun::cameraLookOffset(
         viewYaw, viewPitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
+    float lookTargetX = lookOffset.right;
+    float lookTargetY = lookOffset.up;
+    const auto lookThroat = tunrun::gateThroatSectionAtDistance(
+        seed, static_cast<double>(distance) + lookCourseOffset);
+    if (lookThroat.active) {
+        const auto safeTarget = tunrun::cameraSafeOffset(
+            lookTargetX - lookThroat.centerX, lookTargetY - lookThroat.centerY,
+            lookThroat.radius, 0.60F);
+        lookTargetX = lookThroat.centerX + safeTarget.right;
+        lookTargetY = lookThroat.centerY + safeTarget.up;
+    }
     Camera3D camera{};
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
@@ -948,17 +989,42 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const auto chasePose = tunrun::thirdPersonCameraPose(
             shipX, shipY, 0.0F, 0.0F, -1.0F,
             rearCenterX, rearCenterY, rearSection.radius);
-        camera.position = rayVector(tunrun::tunnelFramePoint(
-            rearFrame, chasePose.x - rearCenterX, chasePose.y - rearCenterY));
+        float chaseX = chasePose.x - rearCenterX;
+        float chaseY = chasePose.y - rearCenterY;
+        const auto chaseThroat = tunrun::gateThroatSectionAtDistance(
+            seed, static_cast<double>(distance) - 6.0);
+        if (chaseThroat.active) {
+            const auto safeChase = tunrun::cameraSafeOffset(
+                chaseX - chaseThroat.centerX, chaseY - chaseThroat.centerY,
+                chaseThroat.radius, 0.80F);
+            chaseX = chaseThroat.centerX + safeChase.right;
+            chaseY = chaseThroat.centerY + safeChase.up;
+        }
+        camera.position = rayVector(tunrun::tunnelFramePoint(rearFrame, chaseX, chaseY));
         camera.target = rayVector(tunrun::tunnelFramePoint(
-            forwardFrame, lookOffset.right, lookOffset.up));
+            forwardFrame, lookTargetX, lookTargetY));
     } else {
-        const auto safeCameraOffset = tunrun::cameraSafeOffset(
-            shipX, shipY, cameraFrame.radius, 0.55F);
+        float firstPersonX = shipX;
+        float firstPersonY = shipY;
+        const auto cameraThroat = tunrun::gateThroatSectionAtDistance(
+            seed, cameraDistance);
+        if (cameraThroat.active) {
+            const auto safeCameraOffset = tunrun::cameraSafeOffset(
+                firstPersonX - cameraThroat.centerX,
+                firstPersonY - cameraThroat.centerY,
+                cameraThroat.radius, 0.55F);
+            firstPersonX = cameraThroat.centerX + safeCameraOffset.right;
+            firstPersonY = cameraThroat.centerY + safeCameraOffset.up;
+        } else {
+            const auto safeCameraOffset = tunrun::cameraSafeOffset(
+                firstPersonX, firstPersonY, cameraFrame.radius, 0.55F);
+            firstPersonX = safeCameraOffset.right;
+            firstPersonY = safeCameraOffset.up;
+        }
         camera.position = rayVector(tunrun::tunnelFramePoint(
-            cameraFrame, safeCameraOffset.right, safeCameraOffset.up));
+            cameraFrame, firstPersonX, firstPersonY));
         camera.target = rayVector(tunrun::tunnelFramePoint(
-            forwardFrame, lookOffset.right, lookOffset.up));
+            forwardFrame, lookTargetX, lookTargetY));
     }
     const auto& cameraBasisFrame = tpp ? rearFrame : cameraFrame;
     camera.up = rayVector(tunrun::frameAdd(
@@ -979,8 +1045,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 static_cast<double>(distance) + static_cast<double>(ring) * ringSpacing);
     }
     for (int ring = firstRing; ring < lastRing; ++ring) {
-        const Color ringColor = ring % 4 == 0
-            ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140};
+        const float ringAhead = std::max(0.0F, static_cast<float>(ring) * ringSpacing);
+        const Color ringColor = tunnelDepthFog(
+            ring % 4 == 0 ? Color{164, 193, 225, 190} : Color{58, 78, 101, 140},
+            ringAhead);
         const auto& ringFrame = tunnelFrames[static_cast<std::size_t>(ring - firstRing)];
         for (int side = 0; side < sideCount; ++side) {
             const int nextSide = (side + 1) % sideCount;
@@ -991,13 +1059,13 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 const Vector3 d = tunnelPoint(nextFrame, side);
                 const Vector3 c = tunnelPoint(nextFrame, nextSide);
                 const bool panelRidge = (side % 5 == 0) || (ring % 8 == 0);
-                const Color panel = panelRidge
-                    ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255};
-                // Fill the tunnel interior with actual 3D polygon faces, not
-                // just projected grid lines. The brighter ribs stay visible.
+                const Color panel = tunnelDepthFog(panelRidge
+                    ? Color{29, 41, 56, 255} : Color{17, 23, 34, 255}, ringAhead);
+                // Keep far tunnel surfaces opaque but near-black so their
+                // depth haze hides sharp detail beyond a narrow throat.
                 DrawTriangle3D(a, b, c, panel);
                 DrawTriangle3D(a, c, d, panel);
-                DrawLine3D(a, d, Color{48, 65, 83, 125});
+                DrawLine3D(a, d, tunnelDepthFog(Color{48, 65, 83, 125}, ringAhead));
             }
             DrawLine3D(a, b, ringColor);
         }
@@ -1024,7 +1092,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 frameA, std::cos(angleA) * radiusA, std::sin(angleA) * radiusA));
             const Vector3 b = rayVector(tunrun::tunnelFramePoint(
                 frameB, std::cos(angleB) * radiusB, std::sin(angleB) * radiusB));
-            DrawLine3D(a, b, ribbonColors[static_cast<std::size_t>(ribbon)]);
+            DrawLine3D(a, b, tunnelDepthFog(
+                ribbonColors[static_cast<std::size_t>(ribbon)],
+                std::max(0.0F, static_cast<float>(ring + 1) * ringSpacing)));
         }
     }
     if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {
@@ -1356,7 +1426,36 @@ int main() {
                 const tunrun::TunnelCrossSection centredSection{
                     0.0F, 0.0F, tunnelSection.radius, tunnelSection.twist
                 };
-                if (tunrun::collidesWithTunnelWall(
+                const auto firstGateForThroat = tunrun::gateAt(app.courseSeed, 0U);
+                const double segmentMinimumDistance = std::min(
+                    previousDistance, static_cast<double>(app.flight.distance));
+                const double segmentMaximumDistance = std::max(
+                    previousDistance, static_cast<double>(app.flight.distance));
+                const int firstThroatGate = std::max(0, static_cast<int>(std::floor(
+                    (segmentMinimumDistance - tunrun::kGateThroatHalfLength -
+                     firstGateForThroat.distance) / tunrun::kGateSpacing)) - 1);
+                const int lastThroatGate = std::max(firstThroatGate, static_cast<int>(std::ceil(
+                    (segmentMaximumDistance + tunrun::kGateThroatHalfLength -
+                     firstGateForThroat.distance) / tunrun::kGateSpacing)) + 1);
+                std::uint32_t throatCollisionGate = std::numeric_limits<std::uint32_t>::max();
+                for (int gateIndex = firstThroatGate; gateIndex <= lastThroatGate; ++gateIndex) {
+                    const auto throatGate = tunrun::gateAt(
+                        app.courseSeed, static_cast<std::uint32_t>(gateIndex));
+                    if (tunrun::collidesWithGateThroatAlongSegment(
+                            app.courseSeed, throatGate,
+                            previousX, previousY, previousDistance,
+                            app.flight.x, app.flight.y,
+                            static_cast<double>(app.flight.distance))) {
+                        throatCollisionGate = throatGate.index;
+                        break;
+                    }
+                }
+                if (throatCollisionGate != std::numeric_limits<std::uint32_t>::max()) {
+                    app.crashCause = CrashCause::Gate;
+                    app.lastHitObjectIndex = throatCollisionGate;
+                    finishRun(app);
+                    app.screens.replace(tunrun::Screen::Crash);
+                } else if (tunrun::collidesWithTunnelWall(
                         app.flight.x, app.flight.y, centredSection)) {
                     app.crashCause = CrashCause::Wall;
                     finishRun(app);

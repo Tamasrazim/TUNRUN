@@ -591,17 +591,25 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             const float maximumLateralSpeed =
                 (candidate.precision ? 2.0F : (boosting ? 6.0F : 4.0F)) *
                 ship.speedMultiplier;
+            const auto aimThroat = gateThroatSectionAtDistance(
+                seed, activeGate, static_cast<double>(candidate.state.distance));
+            const float aimRadius = aimThroat.active
+                ? aimThroat.radius : activeGate.apertureRadius;
             const float aimSpan = std::max(
-                0.0F, activeGate.apertureRadius - kCraftCollisionRadius - 0.16F);
-            // Convert the gate aim into the player's current course-relative
-            // frame instead of comparing offsets from different centerline points.
+                0.0F, aimRadius - kCraftCollisionRadius - 0.16F);
+            // Inside the sleeve, aim at its local cross-section; elsewhere aim
+            // at the gate plane in the player's course-relative frame.
             const auto playerSectionForAim = sampleCourse(
                 seed, static_cast<double>(candidate.state.distance));
             const auto gateSectionForAim = sampleCourse(seed, activeGate.distance);
-            float aimX = activeGate.offsetX + gateSectionForAim.centerX -
-                playerSectionForAim.centerX + candidate.aimBiasX * aimSpan;
-            float aimY = activeGate.offsetY + gateSectionForAim.centerY -
-                playerSectionForAim.centerY + candidate.aimBiasY * aimSpan;
+            float aimX = aimThroat.active
+                ? aimThroat.centerX + candidate.aimBiasX * aimSpan
+                : activeGate.offsetX + gateSectionForAim.centerX -
+                    playerSectionForAim.centerX + candidate.aimBiasX * aimSpan;
+            float aimY = aimThroat.active
+                ? aimThroat.centerY + candidate.aimBiasY * aimSpan
+                : activeGate.offsetY + gateSectionForAim.centerY -
+                    playerSectionForAim.centerY + candidate.aimBiasY * aimSpan;
 
             // If a mine sits between this state and the target gate and the
             // target ray would thread the mine's collision envelope, bias the
@@ -692,6 +700,19 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 break;
             }
 
+            if (aimThroat.active) {
+                const float dx = aimX - aimThroat.centerX;
+                const float dy = aimY - aimThroat.centerY;
+                const float targetRadius = std::hypot(dx, dy);
+                const float maximumThroatTarget = std::max(
+                    0.0F, aimThroat.radius - kCraftCollisionRadius - 0.16F);
+                if (targetRadius > maximumThroatTarget && targetRadius > 0.001F) {
+                    const float scale = maximumThroatTarget / targetRadius;
+                    aimX = aimThroat.centerX + dx * scale;
+                    aimY = aimThroat.centerY + dy * scale;
+                }
+            }
+
             const float steerX = std::clamp(
                 ((aimX - candidate.state.x) * 2.8F -
                  candidate.state.velocityX * 1.25F) / maximumLateralSpeed,
@@ -753,6 +774,19 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 break;
             }
             if (hazardCollision) continue;
+
+            const bool currentThroatCollision = collidesWithGateThroatAtDistance(
+                state.x, state.y, seed, activeGate,
+                static_cast<double>(state.distance));
+            const bool previousThroatCollision = activeGate.index > 0U &&
+                collidesWithGateThroatAtDistance(
+                    state.x, state.y, seed, gateAt(seed, activeGate.index - 1U),
+                    static_cast<double>(state.distance));
+            if (currentThroatCollision || previousThroatCollision) {
+                candidate.active = false;
+                ++result.discardedStates;
+                continue;
+            }
 
             if (collidesWithTunnelWall(state.x, state.y, conservativeTunnel)) {
                 candidate.active = false;

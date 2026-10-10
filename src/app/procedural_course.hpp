@@ -18,8 +18,9 @@ inline constexpr float kCourseMaxTwist = 0.58F;
 inline constexpr double kGateBaseDistance = 26.0;
 inline constexpr double kGateSpacing = 42.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
+inline constexpr float kGateThroatHalfLength = 18.0F;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 2U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 3U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -185,6 +186,116 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
         radiusMin + courseUnit(seed, sample, 123U) * (radiusMax - radiusMin),
         kind
     };
+}
+
+// Shared gate-passage geometry. Rendering, camera clearance, route guidance,
+// and collision all use this same taper so the opening is a real corridor.
+struct GateThroatSection {
+    bool active = false;
+    std::uint32_t gateIndex = 0U;
+    float centerX = 0.0F;
+    float centerY = 0.0F;
+    float radius = 5.75F;
+    float pinch = 0.0F;
+};
+
+[[nodiscard]] inline GateThroatSection gateThroatSectionAtDistance(
+    std::uint64_t seed, const ProceduralGate& gate, double distance) noexcept {
+    if (!std::isfinite(distance) || !std::isfinite(gate.distance)) {
+        return GateThroatSection{false, gate.index, 0.0F, 0.0F,
+                                 kCourseMinRadius, 0.0F};
+    }
+    distance = std::clamp(distance, -18000000.0, 18000000.0);
+    const auto course = sampleCourse(seed, distance);
+    const double offset = distance - gate.distance;
+    const double absoluteOffset = std::abs(offset);
+    if (absoluteOffset >= static_cast<double>(kGateThroatHalfLength)) {
+        return GateThroatSection{false, gate.index, 0.0F, 0.0F,
+                                 course.radius, 0.0F};
+    }
+    const float normalized = std::clamp(
+        1.0F - static_cast<float>(absoluteOffset) / kGateThroatHalfLength,
+        0.0F, 1.0F);
+    const float pinch = normalized * normalized * (3.0F - 2.0F * normalized);
+    const float safeRadius = std::max(0.8F, course.radius - 0.16F);
+    const float aperture = std::clamp(gate.apertureRadius, 0.8F, safeRadius);
+    return GateThroatSection{
+        true, gate.index, gate.offsetX * pinch, gate.offsetY * pinch,
+        course.radius - (course.radius - aperture) * pinch, pinch
+    };
+}
+
+[[nodiscard]] inline GateThroatSection gateThroatSectionAtDistance(
+    std::uint64_t seed, double distance) noexcept {
+    if (!std::isfinite(distance)) {
+        return GateThroatSection{false, 0U, 0.0F, 0.0F,
+                                 kCourseMinRadius, 0.0F};
+    }
+    distance = std::clamp(distance, -18000000.0, 18000000.0);
+    const auto first = gateAt(seed, 0U);
+    const auto slot = static_cast<std::int64_t>(
+        std::floor((distance - first.distance) / kGateSpacing));
+    const std::uint32_t start = slot <= 0 ? 0U
+        : static_cast<std::uint32_t>(std::min<std::int64_t>(slot, 1000000));
+    for (std::uint32_t i = start; i <= start + 1U; ++i) {
+        const auto throat = gateThroatSectionAtDistance(seed, gateAt(seed, i), distance);
+        if (throat.active) return throat;
+    }
+    return GateThroatSection{false, start, 0.0F, 0.0F,
+                             sampleCourse(seed, distance).radius, 0.0F};
+}
+
+[[nodiscard]] inline bool collidesWithGateThroatAtDistance(
+    float x, float y, std::uint64_t seed, const ProceduralGate& gate,
+    double distance, float craftRadius = kCraftCollisionRadius) noexcept {
+    const auto throat = gateThroatSectionAtDistance(seed, gate, distance);
+    if (!throat.active) return false;
+    if (!std::isfinite(x) || !std::isfinite(y) ||
+        !std::isfinite(craftRadius)) return true;
+    const float safeRadius = throat.radius - std::max(0.0F, craftRadius);
+    if (safeRadius <= 0.0F) return true;
+    const float dx = x - throat.centerX;
+    const float dy = y - throat.centerY;
+    return dx * dx + dy * dy >= safeRadius * safeRadius;
+}
+
+[[nodiscard]] inline bool collidesWithGateThroatAlongSegment(
+    std::uint64_t seed, const ProceduralGate& gate,
+    float previousX, float previousY, double previousDistance,
+    float currentX, float currentY, double currentDistance,
+    float craftRadius = kCraftCollisionRadius) noexcept {
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance)) return true;
+    const double distanceSpan = std::abs(currentDistance - previousDistance);
+    const auto previousCourse = sampleCourse(seed, previousDistance);
+    const auto currentCourse = sampleCourse(seed, currentDistance);
+    const double worldX0 = static_cast<double>(previousX) + previousCourse.centerX;
+    const double worldY0 = static_cast<double>(previousY) + previousCourse.centerY;
+    const double worldX1 = static_cast<double>(currentX) + currentCourse.centerX;
+    const double worldY1 = static_cast<double>(currentY) + currentCourse.centerY;
+    const double lateralSpan = std::hypot(worldX1 - worldX0, worldY1 - worldY0);
+    const double sampleSpan = std::max(distanceSpan, lateralSpan);
+    if (!std::isfinite(sampleSpan) || sampleSpan > 256.0) return true;
+    const int samples = std::clamp(
+        static_cast<int>(std::ceil(sampleSpan / 0.15)), 1, 2048);
+    for (int i = 0; i <= samples; ++i) {
+        const double t = static_cast<double>(i) / static_cast<double>(samples);
+        const double distance = previousDistance +
+            (currentDistance - previousDistance) * t;
+        // Gate-plane contact uses shared crossing interpolation below. The
+        // sleeve handles finite approach/departure length around that plane.
+        if (std::abs(distance - gate.distance) <= kGateDepthHalfThickness) continue;
+        const auto course = sampleCourse(seed, distance);
+        const float x = static_cast<float>(
+            worldX0 + (worldX1 - worldX0) * t - course.centerX);
+        const float y = static_cast<float>(
+            worldY0 + (worldY1 - worldY0) * t - course.centerY);
+        if (collidesWithGateThroatAtDistance(x, y, seed, gate, distance, craftRadius)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Canonical identity for obstacle gameplay data, separate from the tunnel

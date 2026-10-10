@@ -136,6 +136,30 @@ int main() {
            std::isfinite(invalidChasePose.y) &&
            std::isfinite(invalidChasePose.z));
 
+    const auto throatGate = tunrun::gateAt(frameSeed, 1U);
+    const auto throatCenter = tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate, throatGate.distance);
+    assert(throatCenter.active && throatCenter.gateIndex == throatGate.index);
+    assert(std::abs(throatCenter.centerX - throatGate.offsetX) < 0.0001F);
+    assert(std::abs(throatCenter.centerY - throatGate.offsetY) < 0.0001F);
+    assert(std::abs(throatCenter.radius - throatGate.apertureRadius) < 0.0001F);
+    const auto throatEntry = tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate, throatGate.distance - 9.0);
+    assert(throatEntry.active && throatEntry.radius > throatGate.apertureRadius);
+    assert(!tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate,
+        throatGate.distance - tunrun::kGateThroatHalfLength).active);
+    assert(!tunrun::collidesWithGateThroatAtDistance(
+        throatCenter.centerX, throatCenter.centerY,
+        frameSeed, throatGate, throatGate.distance));
+    assert(tunrun::collidesWithGateThroatAtDistance(
+        throatCenter.centerX + throatCenter.radius - tunrun::kCraftCollisionRadius + 0.01F,
+        throatCenter.centerY, frameSeed, throatGate, throatGate.distance));
+    assert(!tunrun::collidesWithGateThroatAlongSegment(
+        frameSeed, throatGate,
+        throatCenter.centerX, throatCenter.centerY, throatGate.distance - 1.0,
+        throatCenter.centerX, throatCenter.centerY, throatGate.distance + 1.0));
+
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Campaign));
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::CustomSeedRun));
