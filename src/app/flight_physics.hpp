@@ -19,7 +19,8 @@ struct FlightState {
     float velocityY = 0.0F;
     float boostEnergy = 100.0F;
     float distance = 0.0F;
-    float forwardSpeed = 11.0F;
+    float forwardSpeed = 11.0F; // selected cruise target after throttle response
+    float actualForwardSpeed = 11.0F; // speed after boost/precision/dash and ship multiplier
     float dashRemaining = 0.0F;
     float dashCooldownRemaining = 0.0F;
     bool dashButtonWasDown = false;
@@ -150,7 +151,8 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         : braking ? state.forwardSpeed
         : precision ? 8.0F
         : boosting ? 16.0F : state.forwardSpeed) * ship.speedMultiplier;
-    state.distance += forwardSpeed * dt;
+    state.actualForwardSpeed = forwardSpeed;
+    state.distance += state.actualForwardSpeed * dt;
 
     const float energyDelta = boosting
         ? -38.0F * dt * ship.boostDrainMultiplier

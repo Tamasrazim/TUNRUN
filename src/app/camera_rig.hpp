@@ -191,6 +191,18 @@ inline constexpr float kFirstPersonCockpitUpOffset = 0.12F;
     return shipRoll * (1.0F - thirdPersonBlend);
 }
 
+// Fade the spacecraft in only after the blended camera has moved outside its
+// hull. This avoids the ship filling/clipping the view during a V-key switch.
+[[nodiscard]] inline float cameraShipVisibility(float thirdPersonBlend) noexcept {
+    if (!std::isfinite(thirdPersonBlend)) thirdPersonBlend = 0.0F;
+    thirdPersonBlend = std::clamp(thirdPersonBlend, 0.0F, 1.0F);
+    constexpr float fadeStart = 0.32F;
+    constexpr float fadeEnd = 0.84F;
+    const float t = std::clamp(
+        (thirdPersonBlend - fadeStart) / (fadeEnd - fadeStart), 0.0F, 1.0F);
+    return t * t * (3.0F - 2.0F * t);
+}
+
 // FPP looks along the mouse-selected direction. TPP focuses on the spacecraft
 // itself while its eye orbits, so the ship cannot slide away from the centre
 // of the view when the player looks around or behind.

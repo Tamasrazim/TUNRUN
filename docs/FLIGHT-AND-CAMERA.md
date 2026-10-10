@@ -68,7 +68,7 @@ On a collision:
 
 - Mount the eye just ahead of and above the ship origin inside its canopy, not behind an invisible hull.
 - Clamp the actual camera origin to the camera's sampled cross-section; a valid ship position in the current section does not guarantee that a camera placed in a narrower rear section will fit.
-- Follow the craft's orientation in the local tunnel frame and show the centered in-tunnel reticle for aperture alignment.
+- Follow the craft's orientation in the local tunnel frame and show the centered in-tunnel reticle once FPP mode has settled.
 - Keep a minimum look-ahead view; use warning shapes/lighting to make hazards readable.
 - Avoid extreme camera roll, zoom, or shake by default.
 - Permit FOV and comfort settings inside tested limits.

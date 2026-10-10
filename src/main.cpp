@@ -592,22 +592,32 @@ void drawProceduralReward(std::uint64_t seed,float playerDistance,
 
 void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
                     float pitch, float yaw, float roll,
-                    const tunrun::TunnelFrame* tunnelFrame = nullptr) {
+                    const tunrun::TunnelFrame* tunnelFrame = nullptr,
+                    float visibility = 1.0F) {
+    if (!std::isfinite(visibility)) visibility = 1.0F;
+    visibility = std::clamp(visibility, 0.0F, 1.0F);
+    if (visibility <= 0.001F) return;
+    const auto withVisibility = [visibility](Color c) {
+        c.a = static_cast<unsigned char>(std::clamp(
+            std::round(static_cast<float>(c.a) * visibility), 0.0F, 255.0F));
+        return c;
+    };
     const Color hullColors[] = {
         kAccent, Color{190, 157, 255, 255}, Color{255, 186, 116, 255},
         Color{115, 238, 207, 255}, Color{255, 125, 145, 255},
         Color{187, 166, 255, 255}, Color{255, 218, 130, 255},
         Color{165, 190, 218, 255}
     };
-    const Color color = hullColors[shipId < 8U ? shipId : 0U];
+    Color color = hullColors[shipId < 8U ? shipId : 0U];
+    color.a = static_cast<unsigned char>(std::round(255.0F * visibility));
     const Color hullLight{
         static_cast<unsigned char>(std::min(255, static_cast<int>(color.r) + 34)),
         static_cast<unsigned char>(std::min(255, static_cast<int>(color.g) + 34)),
-        static_cast<unsigned char>(std::min(255, static_cast<int>(color.b) + 34)), 255};
+        static_cast<unsigned char>(std::min(255, static_cast<int>(color.b) + 34)), color.a};
     const Color hullShade{
         static_cast<unsigned char>(color.r * 0.48F),
         static_cast<unsigned char>(color.g * 0.48F),
-        static_cast<unsigned char>(color.b * 0.48F), 255};
+        static_cast<unsigned char>(color.b * 0.48F), color.a};
     const float cp = std::cos(pitch), sp = std::sin(pitch);
     const float cy = std::cos(yaw), sy = std::sin(yaw);
     const float cr = std::cos(roll), sr = std::sin(roll);
@@ -707,16 +717,17 @@ void drawPlayerShip(std::uint32_t shipId, float shipX, float shipY,
     // Blue-glass canopy and engine bells add recognizable spacecraft details.
     DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
                    v(0.0F, 0.205F, -0.48F),
-                   v(0.15F, 0.135F, -0.28F), Color{43, 90, 130, 255});
+                   v(0.15F, 0.135F, -0.28F), withVisibility(Color{43, 90, 130, 255}));
     DrawTriangle3D(v(-0.15F, 0.135F, -0.28F),
                    v(0.15F, 0.135F, -0.28F),
-                   v(0.0F, 0.155F, -0.04F), Color{26, 57, 88, 255});
+                   v(0.0F, 0.155F, -0.04F), withVisibility(Color{26, 57, 88, 255}));
     DrawCylinderEx(v(-0.205F, -0.06F, 0.61F), v(-0.205F, -0.06F, 0.90F),
                    0.095F, 0.072F, 8, hullShade);
     DrawCylinderEx(v(0.205F, -0.06F, 0.61F), v(0.205F, -0.06F, 0.90F),
                    0.095F, 0.072F, 8, hullShade);
-    const Color engineGlow = shipId == 4U ? Color{255, 139, 96, 255}
+    Color engineGlow = shipId == 4U ? Color{255, 139, 96, 255}
         : shipId == 6U ? Color{179, 123, 255, 255} : Color{88, 226, 255, 255};
+    engineGlow.a = color.a;
     DrawSphere(v(-0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
     DrawSphere(v(0.205F, -0.06F, 0.91F), 0.073F, engineGlow);
     switch (shipId) {
@@ -956,8 +967,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 float mouseAimX, float mouseAimY, bool showAimReticle,
                 float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
                 float roll, float shipBank,
-                float boostEnergy, float dashCooldownRemaining,
-                float dashRemaining, float elapsedSeconds,
+                float actualForwardSpeed, float boostEnergy,
+                float dashCooldownRemaining, float dashRemaining, float elapsedSeconds,
                 const tunrun::RunScore& score,
                 std::uint64_t aetherPickedUp, std::uint64_t coresPickedUp,
                 tunrun::CameraFollowState& tppCameraFollow,
@@ -1310,10 +1321,12 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         drawProceduralHazard(seed, distance, elapsedSeconds,
             tunrun::hazardAt(seed, static_cast<std::uint32_t>(i)));
     }
-    if (cameraModeBlend > 0.02F) {
-        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll + shipBank, &playerFrame);
+    const float shipVisibility = tunrun::cameraShipVisibility(modeBlend);
+    if (shipVisibility > 0.001F) {
+        drawPlayerShip(shipId, shipX, shipY, pitch, yaw, roll + shipBank,
+                       &playerFrame, shipVisibility);
     }
-    if (showAimReticle) {
+    if (showAimReticle && modeBlend < 0.05F) {
         const Color aimColor{111, 225, 255, 235};
         constexpr float halfWidth = 0.24F;
         constexpr float halfHeight = 0.24F;
@@ -1338,9 +1351,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangleLines(22, 18, 344, 220, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
-    DrawText(TextFormat("%s / CAMERA: %s",
+    DrawText(TextFormat("%s / %s / %4.1f U/S",
              modeName ? modeName : "FLIGHT",
-             cameraModeBlend > 0.5F ? "TPP" : "FPP"),
+             cameraModeBlend > 0.5F ? "TPP" : "FPP", actualForwardSpeed),
              35, 52, 12, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
@@ -1352,9 +1365,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     if (hazardCue.valid) {
         const auto hazardFamily = tunrun::hazardVisualFamilyAt(
             seed, hazardCue.hazardIndex);
-        DrawText(TextFormat("NEXT %s: %.1f UNITS",
+        const float timeToHazard = hazardCue.distanceAhead /
+            std::max(0.1F, actualForwardSpeed);
+        DrawText(TextFormat("NEXT %s: %.1fU / %.1fS",
                  tunrun::hazardVisualFamilyName(hazardFamily),
-                 hazardCue.distanceAhead),
+                 hazardCue.distanceAhead, timeToHazard),
                  35, 137, 10, Color{255, 153, 125, 255});
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
@@ -1734,7 +1749,8 @@ int main() {
                        app.mouseAimX, app.mouseAimY, !tpp,
                        app.flight.pitch, app.flight.yaw,
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
-                       app.flight.bank, app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       app.flight.bank, app.flight.actualForwardSpeed,
+                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
                        app.flight.dashRemaining, app.elapsed, app.runScore,
                        app.runAetherPickupReward, app.runSingularityCorePickupReward,
                        app.tppCameraFollow, app.cameraModeBlend, dt);

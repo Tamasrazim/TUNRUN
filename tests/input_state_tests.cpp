@@ -279,6 +279,13 @@ int main() {
     assert(std::abs(tunrun::cameraRollForMode(0.6F, 1.0F)) < 0.0001F);
     assert(std::abs(tunrun::cameraRollForMode(
         std::numeric_limits<float>::quiet_NaN(), 1.0F)) < 0.0001F);
+    assert(tunrun::cameraShipVisibility(0.0F) == 0.0F);
+    assert(tunrun::cameraShipVisibility(0.32F) == 0.0F);
+    assert(std::abs(tunrun::cameraShipVisibility(0.58F) - 0.5F) < 0.0001F);
+    assert(tunrun::cameraShipVisibility(0.84F) == 1.0F);
+    assert(tunrun::cameraShipVisibility(1.0F) == 1.0F);
+    assert(tunrun::cameraShipVisibility(
+        std::numeric_limits<float>::quiet_NaN()) == 0.0F);
     const auto defaultOrbit = tunrun::cameraOrbitOffset(0.0F, 0.0F);
     assert(std::abs(defaultOrbit.right) < 0.0001F);
     assert(std::abs(defaultOrbit.up) < 0.0001F);
@@ -1251,6 +1258,9 @@ int main() {
     assert(brakingFlight.distance < cruiseFlight.distance);
     assert(brakingFlight.forwardSpeed < cruiseFlight.forwardSpeed);
     assert(acceleratedFlight.forwardSpeed > cruiseFlight.forwardSpeed);
+    assert(acceleratedFlight.actualForwardSpeed > cruiseFlight.actualForwardSpeed);
+    assert(brakingFlight.actualForwardSpeed < cruiseFlight.actualForwardSpeed);
+    assert(std::abs(cruiseFlight.actualForwardSpeed - 11.0F) < 0.0001F);
 
     // Braking has priority over a held boost or precision modifier.
     tunrun::FlightState brakingBoostFlight;
