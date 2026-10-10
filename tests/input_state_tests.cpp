@@ -116,6 +116,18 @@ int main() {
     assert(wallLookRay.safeFraction > 0.05F && wallLookRay.safeFraction < 1.0F);
     assert(wallLookRay.minimumWallClearance < 0.0F);
 
+    // The camera eye needs more clearance than the ship's collision centre.
+    // A focus close to the outer wall can be valid while an eye at the same
+    // location would clip, so the ray validator must interpolate the margin.
+    const auto nearHullFrame = tunrun::sampleTunnelFrame(frameSeed, 0.0, 0.0);
+    const auto nearHullRay = tunrun::limitCameraRayInsideTunnel(
+        frameSeed, 0.0, 0.0,
+        tunrun::tunnelFramePoint(nearHullFrame, 0.0F, 0.0F),
+        0.0, tunrun::tunnelFramePoint(nearHullFrame, 5.20F, 0.0F),
+        0.80F, 64U, 0.35F);
+    assert(!nearHullRay.clipped);
+    assert(nearHullRay.safeFraction == 1.0F);
+
     // A camera ray can be inside the large tunnel but outside the aperture
     // throat. It must still shorten before looking through that solid sleeve.
     const auto cameraTestGate = tunrun::gateAt(frameSeed, 1U);
@@ -150,10 +162,11 @@ int main() {
         tunrun::tunnelFramePoint(throatCameraFrame,
             throatCameraSection.centerX, throatCameraSection.centerY),
         0.15F, 64U, 0.55F);
-    // With the ship's smaller collision-hull clearance at the focus, this
-    // reverse line is accepted; the fixed camera margin above rejected it.
-    assert(!reverseSleeveRay.clipped);
-    assert(reverseSleeveRay.safeFraction == 1.0F);
+    // This reverse line is now genuinely blocked by the deeper S-bend sleeve,
+    // so the third-person camera must pull inward along its safeFraction.
+    assert(reverseSleeveRay.clipped);
+    assert(reverseSleeveRay.safeFraction > 0.05F &&
+           reverseSleeveRay.safeFraction < 1.0F);
 
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
     assert(std::abs(straightLook.right) < 0.0001F);
