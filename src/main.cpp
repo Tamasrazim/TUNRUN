@@ -1422,7 +1422,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
             ? "CENTRE" : throatGuidance.lateralError < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalCue = std::abs(throatGuidance.verticalError) < 0.22F
-            ? "LEVEL" : throatGuidance.verticalError < 0.0F ? "DOWN" : "UP";
+            ? "LEVEL" : throatGuidance.verticalError < 0.0F ? "PITCH DOWN" : "PITCH UP";
         DrawText(TextFormat("THROAT AIM: %s / %s  +%.1fU",
                  lateralCue, verticalCue, throatGuidance.distanceAhead),
                  35, 137, 10, kAccent);
