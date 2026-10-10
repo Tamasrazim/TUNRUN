@@ -1121,35 +1121,53 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     double tppEyePositionDistance = tppEyeDistance;
     double fppFocusDistance = fppTargetDistance;
     double tppFocusDistance = tppTargetDistance;
-    clipCameraRay(fppCamera, fppEyePositionDistance, fppFocusDistance,
-                  false, 0.55F, 0.55F);
-    clipCameraRay(tppCamera, tppEyePositionDistance, tppFocusDistance,
-                  true, 0.80F, 0.35F);
-
-    const auto mix = [modeBlend](float a, float b) {
-        return a + (b - a) * modeBlend;
-    };
     Camera3D camera{};
-    camera.position = Vector3{
-        mix(fppCamera.position.x, tppCamera.position.x),
-        mix(fppCamera.position.y, tppCamera.position.y),
-        mix(fppCamera.position.z, tppCamera.position.z)
-    };
-    camera.target = Vector3{
-        mix(fppCamera.target.x, tppCamera.target.x),
-        mix(fppCamera.target.y, tppCamera.target.y),
-        mix(fppCamera.target.z, tppCamera.target.z)
-    };
-    double cameraOriginDistance = fppEyePositionDistance +
-        (tppEyePositionDistance - fppEyePositionDistance) * static_cast<double>(modeBlend);
-    double cameraTargetDistance = fppFocusDistance +
-        (tppFocusDistance - fppFocusDistance) * static_cast<double>(modeBlend);
-    const float blendEyeClearance = 0.55F + (0.80F - 0.55F) * modeBlend;
-    const float blendFocusClearance = 0.55F + (0.35F - 0.55F) * modeBlend;
-    // A blend between two safe rays can still cut a corner at an S-bend.
-    // Validate the final blended ray instead of trusting the endpoints.
-    clipCameraRay(camera, cameraOriginDistance, cameraTargetDistance,
-                  modeBlend >= 0.5F, blendEyeClearance, blendFocusClearance);
+    double cameraOriginDistance = fppEyePositionDistance;
+    double cameraTargetDistance = fppFocusDistance;
+    if (modeBlend <= 0.001F) {
+        // The steady FPP case needs only one 64-sample ray test. Avoid doing
+        // three full tunnel/throat scans on every high-refresh render frame.
+        clipCameraRay(fppCamera, fppEyePositionDistance, fppFocusDistance,
+                      false, 0.55F, 0.55F);
+        camera = fppCamera;
+        cameraOriginDistance = fppEyePositionDistance;
+        cameraTargetDistance = fppFocusDistance;
+    } else if (modeBlend >= 0.999F) {
+        // Likewise, steady TPP needs just its own candidate-ray test.
+        clipCameraRay(tppCamera, tppEyePositionDistance, tppFocusDistance,
+                      true, 0.80F, 0.35F);
+        camera = tppCamera;
+        cameraOriginDistance = tppEyePositionDistance;
+        cameraTargetDistance = tppFocusDistance;
+    } else {
+        clipCameraRay(fppCamera, fppEyePositionDistance, fppFocusDistance,
+                      false, 0.55F, 0.55F);
+        clipCameraRay(tppCamera, tppEyePositionDistance, tppFocusDistance,
+                      true, 0.80F, 0.35F);
+        const auto mix = [modeBlend](float a, float b) {
+            return a + (b - a) * modeBlend;
+        };
+        camera.position = Vector3{
+            mix(fppCamera.position.x, tppCamera.position.x),
+            mix(fppCamera.position.y, tppCamera.position.y),
+            mix(fppCamera.position.z, tppCamera.position.z)
+        };
+        camera.target = Vector3{
+            mix(fppCamera.target.x, tppCamera.target.x),
+            mix(fppCamera.target.y, tppCamera.target.y),
+            mix(fppCamera.target.z, tppCamera.target.z)
+        };
+        cameraOriginDistance = fppEyePositionDistance +
+            (tppEyePositionDistance - fppEyePositionDistance) * static_cast<double>(modeBlend);
+        cameraTargetDistance = fppFocusDistance +
+            (tppFocusDistance - fppFocusDistance) * static_cast<double>(modeBlend);
+        const float blendEyeClearance = 0.55F + (0.80F - 0.55F) * modeBlend;
+        const float blendFocusClearance = 0.55F + (0.35F - 0.55F) * modeBlend;
+        // A blend between two safe rays can still cut a corner at an S-bend.
+        // Validate the final blended ray instead of trusting the endpoints.
+        clipCameraRay(camera, cameraOriginDistance, cameraTargetDistance,
+                      modeBlend >= 0.5F, blendEyeClearance, blendFocusClearance);
+    }
     const auto cameraBasisFrame = tunrun::sampleTunnelFrame(
         seed, distance, cameraOriginDistance);
     camera.up = rayVector(tunrun::frameAdd(
