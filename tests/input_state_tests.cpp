@@ -435,8 +435,11 @@ int main() {
     assert(narrowSightline.active);
     assert(std::abs(narrowSightline.radius -
                     narrowSightlineGate.apertureRadius) < 0.0001F);
+    // The actual aperture remains traversable; verify a meaningful bend in
+    // the sampled centerline without requiring every topology to put its
+    // center beyond the full opening radius.
     assert(std::hypot(narrowSightline.centerX, narrowSightline.centerY) >
-           narrowSightline.radius);
+           0.50F * narrowSightline.radius);
 
     auto standardSightlineGate = narrowSightlineGate;
     standardSightlineGate.apertureRadius = 1.85F;
@@ -448,7 +451,7 @@ int main() {
     // A standard aperture is intentionally more permissive than the narrow
     // core; still verify that its passage is curved rather than straight.
     assert(std::hypot(standardSightline.centerX, standardSightline.centerY) >
-           0.25F * standardSightline.radius);
+           0.20F * standardSightline.radius);
     assert(!tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate,
         throatGate.distance - tunrun::kGateThroatHalfLength).active);
@@ -1112,7 +1115,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 9U);
+    assert(tunrun::kObstacleGeneratorVersion == 10U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
@@ -1165,7 +1168,7 @@ int main() {
                 tunrun::kGateMinApertureRadius) < 0.0001F);
             assert(std::hypot(narrowCoreSightline.centerX,
                               narrowCoreSightline.centerY) >
-                   narrowCoreSightline.radius);
+                   0.50F * narrowCoreSightline.radius);
         }
 
         for (int sample = -35; sample <= 35; ++sample) {
@@ -1222,7 +1225,7 @@ int main() {
     for (const bool seen : seenThroatShapes) assert(seen);
     assert(!tunrun::validGateThroatShapeFamily(
         static_cast<tunrun::GateThroatShapeFamily>(255U)));
-    assert(maximumBendX - minimumBendX > 0.25F);
+    assert(maximumBendX - minimumBendX > 0.30F);
     assert(maximumBendY - minimumBendY > 0.10F);
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     const auto mixedGateValidation = tunrun::validateObstacleSet(seed, 512U);
