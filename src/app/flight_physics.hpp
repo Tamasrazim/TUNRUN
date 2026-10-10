@@ -505,11 +505,20 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             // Keep trajectories with larger worst-case gate margins first.
             // The following parent-stratified branch step still preserves the
             // whole passing beam, while safer parents can receive extra branches.
-            std::stable_sort(passingStates.begin(),
-                passingStates.begin() + passingCount,
-                [](const CandidateState& lhs, const CandidateState& rhs) {
-                    return lhs.minimumRouteClearance > rhs.minimumRouteClearance;
-                });
+            // Stable insertion sort keeps this noexcept validator fixed-memory
+            // and avoids temporary allocations from standard-library sorting.
+            // Strict '>' preserves the beam's prior order for equal margins.
+            for (std::size_t i = 1U; i < passingCount; ++i) {
+                const CandidateState candidate = passingStates[i];
+                std::size_t position = i;
+                while (position > 0U &&
+                       candidate.minimumRouteClearance >
+                           passingStates[position - 1U].minimumRouteClearance) {
+                    passingStates[position] = passingStates[position - 1U];
+                    --position;
+                }
+                passingStates[position] = candidate;
+            }
             ++result.transitionsChecked;
             activeGate = gateAt(seed, result.gatesChecked);
             std::array<CandidateState, kMaximumStates> nextStates{};
