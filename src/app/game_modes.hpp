@@ -13,8 +13,20 @@ enum class GameModeChoice : std::uint8_t {
 };
 
 [[nodiscard]] constexpr bool isModeImplemented(GameModeChoice choice) noexcept {
-    return choice == GameModeChoice::CustomSeedRun ||
+    return choice == GameModeChoice::Endless ||
+           choice == GameModeChoice::CustomSeedRun ||
            choice == GameModeChoice::PracticePreview;
+}
+
+[[nodiscard]] constexpr const char* gameModeName(GameModeChoice choice) noexcept {
+    switch (choice) {
+    case GameModeChoice::Campaign: return "CAMPAIGN";
+    case GameModeChoice::Endless: return "ENDLESS";
+    case GameModeChoice::CustomSeedRun: return "CUSTOM SEED";
+    case GameModeChoice::PracticePreview: return "PRACTICE";
+    case GameModeChoice::Back: return "MENU";
+    }
+    return "UNKNOWN";
 }
 
 [[nodiscard]] constexpr const char* modeUnavailableMessage(
@@ -23,7 +35,7 @@ enum class GameModeChoice : std::uint8_t {
     case GameModeChoice::Campaign:
         return "Campaign mode is not implemented in this build; checkpoints and progression are still in development.";
     case GameModeChoice::Endless:
-        return "Endless is not a separate mode yet; use Play / Procedural Run for the current survival loop.";
+        return "";
     case GameModeChoice::CustomSeedRun:
     case GameModeChoice::PracticePreview:
     case GameModeChoice::Back:

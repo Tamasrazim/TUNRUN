@@ -187,7 +187,10 @@ int main() {
         throatCenter.centerX, throatCenter.centerY, throatGate.distance + 1.0));
 
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Campaign));
-    assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
+    assert(tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
+    assert(tunrun::modeUnavailableMessage(tunrun::GameModeChoice::Endless)[0] == '\0');
+    assert(std::string_view(tunrun::gameModeName(tunrun::GameModeChoice::Endless)) == "ENDLESS");
+    assert(std::string_view(tunrun::gameModeName(tunrun::GameModeChoice::CustomSeedRun)) == "CUSTOM SEED");
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::CustomSeedRun));
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::PracticePreview));
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Back));

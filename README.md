@@ -39,7 +39,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **Primary platform:** Windows x64
 - **Stack:** C++20, CMake, raylib 5.5 (pinned to an immutable upstream commit)
 - **Save location:** `%LOCALAPPDATA%\\Tamasrazim\\TUNRUN\\`
-- **Modes planned:** campaign, endless, seed challenge, daily challenge, practice, rival run, and ghost race
+- **Modes:** Endless survival, custom-seed runs, and Practice Preview are available. Campaign, daily/seed challenge variants, rival runs, and ghost racing remain planned.
 
 ## Documentation map
 
@@ -74,7 +74,7 @@ All changes are committed directly to `main`. The project does **not** use other
 
 ## Current status
 
-**TUNRUN is still a native gameplay prototype, not a finished release.** Profile v3 stores settings, active ship, seed progression, wallets, best distance, career-best score and best combo. Atomic writes, an accidental-corruption checksum, v1/v2 migration, backup recovery, and explicit non-destructive recovery are implemented and covered by automated tests. Campaign checkpoints, a separate Endless mode, additional physical hazard families/generation streaming, AI, imported production assets, installer and updater remain unfinished; four distinct procedural mine silhouettes and a longer section of the course are now shown at once. Windows CI now stages a portable development ZIP with license notices and a SHA-256 manifest; it is not the final installer. Current source-generated geometry does not justify padding the package—production assets must be real and licensed. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.
+**TUNRUN is still a native gameplay prototype, not a finished release.** Profile v3 stores settings, active ship, seed progression, wallets, best distance, career-best score and best combo. Atomic writes, an accidental-corruption checksum, v1/v2 migration, backup recovery, and explicit non-destructive recovery are implemented and covered by automated tests. Campaign checkpoints, daily challenge variants, full hazard-family expansion and streaming, AI, imported production assets, installer and updater remain unfinished. Endless mode enters the procedural survival loop and ends on collision; mode-specific records are not implemented yet. four distinct procedural mine silhouettes and a longer section of the course are now shown at once. Windows CI now stages a portable development ZIP with license notices and a SHA-256 manifest; it is not the final installer. Current source-generated geometry does not justify padding the package—production assets must be real and licensed. Check [GitHub Actions](https://github.com/Tamasrazim/TUNRUN/actions) for build/test status. No finished game is claimed.
 
 
 ### Windows package size

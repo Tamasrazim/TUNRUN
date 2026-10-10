@@ -65,6 +65,7 @@ struct AppState {
     std::string seedEntryMessage;
     bool seedEntryHasError = false;
     std::string modeMessage;
+    tunrun::GameModeChoice activeMode = tunrun::GameModeChoice::Endless;
     PendingRunAction pendingRunAction = PendingRunAction::None;
     bool showFps = true;
     bool reduceMotion = false;
@@ -942,7 +943,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
 }
 
 void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
-                std::uint32_t shipId, bool tpp, bool reduceMotion,
+                std::uint32_t shipId, const char* modeName, bool tpp, bool reduceMotion,
                 float mouseAimX, float mouseAimY, bool showAimReticle,
                 float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
                 float roll,
@@ -1193,7 +1194,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangleLines(22, 18, 344, 220, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
-    DrawText(tpp ? "CAMERA: TPP" : "CAMERA: FPP", 35, 52, 14, kText);
+    DrawText(TextFormat("%s / CAMERA: %s",
+             modeName ? modeName : "FLIGHT", tpp ? "TPP" : "FPP"),
+             35, 52, 12, kText);
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
@@ -1321,11 +1324,11 @@ int main() {
         seedLabSelection = 0, seedEntrySelection = 0, seedPickerIndex = 0, recoverySelection = 0;
     bool tpp = false;
     const std::vector<std::string> mainItems{
-        "PLAY / PROCEDURAL RUN", "HANGAR", "GAME MODES", "SEED LAB",
+        "ENDLESS SURVIVAL", "HANGAR", "GAME MODES", "SEED LAB",
         "RECORDS / STATISTICS", "CONTROLS", "SETTINGS", "CREDITS", "EXIT"
     };
     const std::vector<std::string> modes{
-        "CAMPAIGN (IN DEVELOPMENT)", "ENDLESS MODE (IN DEVELOPMENT)",
+        "CAMPAIGN (IN DEVELOPMENT)", "ENDLESS SURVIVAL",
         "CUSTOM SEED RUN", "PRACTICE PREVIEW", "BACK"
     };
     const std::vector<std::string> pauseItems{
@@ -1577,7 +1580,8 @@ int main() {
         BeginDrawing();
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
-                       static_cast<std::uint32_t>(app.selectedShip), tpp, app.reduceMotion,
+                       static_cast<std::uint32_t>(app.selectedShip),
+                       tunrun::gameModeName(app.activeMode), tpp, app.reduceMotion,
                        app.mouseAimX, app.mouseAimY, false,
                        app.flight.pitch, app.flight.yaw,
                        app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
@@ -1616,7 +1620,12 @@ int main() {
                 true, -1, true, mainButtonHeight, mainButtonGap);
             if (picked >= 0) {
                 switch (picked) {
-                case 0: resetFlight(app, tpp); chooseNextSeed(app); app.screens.push(tunrun::Screen::Preview); break;
+                case 0:
+                    app.activeMode = tunrun::GameModeChoice::Endless;
+                    resetFlight(app, tpp);
+                    chooseNextSeed(app);
+                    app.screens.push(tunrun::Screen::Preview);
+                    break;
                 case 1: app.screens.push(tunrun::Screen::Hangar); break;
                 case 2: app.modeMessage.clear(); app.screens.push(tunrun::Screen::Modes); break;
                 case 3: app.screens.push(tunrun::Screen::SeedLab); break;
@@ -1768,17 +1777,25 @@ int main() {
                 const auto choice = static_cast<tunrun::GameModeChoice>(picked);
                 switch (choice) {
                 case tunrun::GameModeChoice::Campaign:
-                case tunrun::GameModeChoice::Endless:
                     app.modeMessage = tunrun::modeUnavailableMessage(choice);
+                    break;
+                case tunrun::GameModeChoice::Endless:
+                    app.modeMessage.clear();
+                    app.activeMode = tunrun::GameModeChoice::Endless;
+                    resetFlight(app, tpp);
+                    chooseNextSeed(app);
+                    app.screens.push(tunrun::Screen::Preview);
                     break;
                 case tunrun::GameModeChoice::CustomSeedRun:
                     app.modeMessage.clear();
+                    app.activeMode = tunrun::GameModeChoice::CustomSeedRun;
                     beginSeedEntry(app);
                     seedEntrySelection = 0;
                     app.screens.push(tunrun::Screen::SeedEntry);
                     break;
                 case tunrun::GameModeChoice::PracticePreview:
                     app.modeMessage.clear();
+                    app.activeMode = tunrun::GameModeChoice::PracticePreview;
                     resetFlight(app, tpp);
                     chooseNextSeed(app);
                     app.screens.push(tunrun::Screen::Preview);
@@ -2131,7 +2148,10 @@ int main() {
                         app.profile.rootSeed=oldProfileRoot; app.profile.runSerial=oldProfileSerial;
                         app.seedEntryMessage="Seed not saved: "+saveError; app.seedEntryHasError=true;
                     } else {
-                        app.courseSeed=parsed.seed; resetFlight(app,tpp); app.screens.replace(tunrun::Screen::Preview);
+                        app.courseSeed=parsed.seed;
+                        app.activeMode = tunrun::GameModeChoice::CustomSeedRun;
+                        resetFlight(app,tpp);
+                        app.screens.replace(tunrun::Screen::Preview);
                     }
                 }
             } else if (action==1 || (action<0 && backPressed())) app.screens.pop();
@@ -2231,9 +2251,14 @@ int main() {
                             10, kAccent);
             }
             if (picked == 0) {
+                app.activeMode = tunrun::GameModeChoice::CustomSeedRun;
                 beginSeedEntry(app); seedEntrySelection=0; app.screens.push(tunrun::Screen::SeedEntry);
             } else if (picked == 1) chooseNextSeed(app);
-            else if (picked == 2) { resetFlight(app,tpp); app.screens.push(tunrun::Screen::Preview); }
+            else if (picked == 2) {
+                app.activeMode = tunrun::GameModeChoice::CustomSeedRun;
+                resetFlight(app,tpp);
+                app.screens.push(tunrun::Screen::Preview);
+            }
             else if (picked == 3) copyCourseSeed(app);
             else if (picked == 4) app.screens.pop();
             if (IsKeyPressed(KEY_N)) chooseNextSeed(app);

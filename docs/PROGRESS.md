@@ -13,7 +13,7 @@ This file is the current snapshot used by the README progress bar and project-pa
 | M4 — Obstacles and validation | In progress | Multi-state route reachability, more seed regressions, and hardware-verified warning times. |
 | M5 — Save, resources and hangar | In progress | Real Windows migration/write-interruption tests and fuller progression rewards. |
 | M6 — Gameplay and AI | Planned | Hull/damage, rival pilots, drones and compatible replay/ghost pipeline. |
-| M7 — Progression and content | Planned | Campaign, Endless, challenges, Practice and mode-specific records. |
+| M7 — Progression and content | In progress | Endless survival entry is available; campaign, challenge variants, richer Practice and mode-specific records remain. |
 | M8 — Polish and accessibility | Planned | Production art/audio, remapping, accessibility and long-session profiling. |
 | M9 — Release candidate | Planned | Installer/portable release validation, clean-machine tests, checksums and acceptance matrix. |
 
@@ -21,6 +21,7 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Endless survival is now a selectable mode and the main Play action enters it directly; the live HUD names the active mode. Custom Seed and Practice launch paths set their own run identity, while Campaign remains explicitly unfinished.
 - Camera aim now follows mouse-look angles independently from ship yaw/pitch; the third-person camera base stays behind the course tangent through sharp turns rather than swinging behind the ship's nose. FPP camera position is also clamped to its own local cross-section so a narrow rear section cannot clip the camera through the wall.
 - W accelerates above cruise, S brakes even when boost or precision is held, blocks new dash activations, and settles back toward cruise when released. An already-triggered dash keeps its short committed burst; regression assertions cover these priorities.
 - Narrow apertures use an 18-unit-per-side throat with a shallow deterministic side-to-side/vertical S-bend. One shared cross-section function drives rendering, swept collision, bounded route guidance, and camera clearance. A separate sampled camera-ray limit prevents the view centre from cutting through a curved tunnel wall between otherwise-safe endpoints; stronger near-field depth fog hides later sections beyond each opening. The exact gate plane still uses the shared interpolated crossing test.
