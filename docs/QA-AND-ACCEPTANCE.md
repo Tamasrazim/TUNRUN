@@ -22,10 +22,10 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - At the minimum supported window size, all nine Main Menu actions remain visible and clickable without overlap.
 - Every launch starts fullscreen even if the last session exited windowed; the in-session fullscreen toggle remains functional.
 - The renderer selects the reported monitor refresh rate up to 240 FPS, falls back to 144 for invalid reports, and leaves fixed-step physics independent of the render cap.
-- The Hangar's 2D silhouette preview matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
+- The Hangar's live 3D hologram matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
-- Mouse input is confined to UI navigation and never changes flight position. Keyboard and gamepad separately control translation, yaw/pitch rotation, and roll; angular state remains finite under sustained input.
+- Relative mouse input moves a persistent aim target inside the tunnel and engages a damped steering controller; keyboard/gamepad input takes over and synchronises the target. Keyboard and gamepad also control yaw/pitch rotation and roll; angular state remains finite under sustained input.
 - The tunnel has filled interior panels plus wireframe ribs; ships, reward pickups, and all four mine variants use shaded low-poly 3D faces rather than relying on line-only silhouettes. Mine collision remains the documented sphere, independent of cosmetic blade details.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
@@ -39,13 +39,13 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Keyboard and gamepad can operate the same screen.
 
 Gameplay-specific mouse checks:
-- Entering a run never captures the mouse for flight steering; the pointer remains available for on-screen UI only.
-- Relative movement steers in the intended direction; inversion and sensitivity settings work.
+- Entering a run captures relative mouse input only when mouse flight is enabled; on Windows the cursor is hidden and clipped to the client area without recentering warps.
+- Relative movement steers in the intended direction; the logarithmic sensitivity slider, bounded keyboard/controller adjustments, and enable/disable toggle work.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.
 - Focus loss pauses and releases capture immediately.
 - Resume restores steering without reversed axes, huge accumulated deltas, or a frozen cursor.
-- Switching to keyboard/gamepad disables mouse-flight deltas without affecting UI clicks.
+- Using keyboard/gamepad movement or rotation releases mouse steering for the current flight segment without affecting UI clicks.
 - Disconnect/reconnect of a controller never leaves movement or boost stuck.
 - Right-trigger boost and left-trigger precision controls activate above the neutral axis value, ignore non-finite axis readings, and release as soon as the trigger returns to neutral.
 
