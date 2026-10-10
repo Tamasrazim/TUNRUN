@@ -29,7 +29,7 @@ jobs:
       - name: Compile
         run: cmake --build build --config Release --parallel 2
       - name: Run unit tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure --verbose
       - name: Stage portable development package
         shell: pwsh
         run: ./scripts/package-windows.ps1 -BuildDirectory build/Release -OutputDirectory build/package -Version "0.1.0-dev" -CommitSha $env:GITHUB_SHA

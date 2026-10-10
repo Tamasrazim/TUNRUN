@@ -317,6 +317,13 @@ int main() {
 
     assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
     assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
+    // Emit a one-line cross-compiler fingerprint while fixed expected values
+    // are established. The exact same fixture runs under MSVC and GCC.
+    std::cout << "TUNRUN_HASH_FIXTURE seed=" << seed
+              << " course=" << tunrun::courseHash(seed)
+              << " gates=" << tunrun::obstacleHash(seed)
+              << " hazards=" << tunrun::hazardHash(seed)
+              << " rewards=" << tunrun::rewardHash(seed) << '\n';
     const auto gate = tunrun::gateAt(seed, 3U);
     tunrun::RunScore score;
     const auto perfectScore = tunrun::awardGatePass(

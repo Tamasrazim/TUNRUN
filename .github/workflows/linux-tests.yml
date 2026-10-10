@@ -37,4 +37,4 @@ jobs:
       - name: Compile portable test target
         run: cmake --build build --target tunrun_input_tests --parallel 2
       - name: Run deterministic and persistence tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --verbose
