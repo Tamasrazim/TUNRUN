@@ -11,6 +11,7 @@
 #include "app/raw_mouse.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
+#include "app/gate_visuals.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
 
@@ -490,6 +491,66 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
             DrawLine3D(p(a-0.27F,gate.apertureRadius+0.22F,gate.offsetX,gate.offsetY),
                        p(a,gate.apertureRadius+0.48F,gate.offsetX,gate.offsetY),c);
         }
+    }
+
+    // A second seeded channel changes the gate's physical-looking support
+    // silhouette, but all details stay outside the true collision aperture.
+    const auto structure = tunrun::gateStructureFamilyAt(seed, gate.index);
+    const Color structureBright = tunnelDepthFog(inner, std::max(0.0F, ahead));
+    const Color structureDim = tunnelDepthFog(outer, std::max(0.0F, ahead));
+    const auto annulusPoint = [&](float angle, float offset) {
+        return p(angle, gate.apertureRadius + offset, gate.offsetX, gate.offsetY);
+    };
+    constexpr float gap = tunrun::kGateStructureMinimumApertureGap;
+    switch (structure) {
+    case tunrun::GateStructureFamily::RadialCage: {
+        halo(gate.apertureRadius + 0.78F, outer);
+        for (int i = 0; i < segments; i += 4) {
+            const float a = static_cast<float>(i) * 2.0F * PI / segments;
+            DrawLine3D(annulusPoint(a, gap), annulusPoint(a, 0.78F), structureBright);
+        }
+        break;
+    }
+    case tunrun::GateStructureFamily::SegmentedCrown: {
+        halo(gate.apertureRadius + gap, inner);
+        halo(gate.apertureRadius + 0.48F, outer);
+        for (int i = 0; i < segments; i += 2) {
+            const float a = static_cast<float>(i) * 2.0F * PI / segments;
+            DrawLine3D(annulusPoint(a, gap), annulusPoint(a, 0.46F), structureBright);
+        }
+        break;
+    }
+    case tunrun::GateStructureFamily::ChevronBrace: {
+        constexpr float angleStep = 2.0F * PI / segments;
+        for (int i = 0; i < segments; i += 4) {
+            const float a0 = static_cast<float>(i) * angleStep;
+            const float a1 = a0 + 2.0F * angleStep;
+            const float a2 = a0 + 4.0F * angleStep;
+            DrawLine3D(annulusPoint(a0, gap), annulusPoint(a1, 0.70F), structureBright);
+            DrawLine3D(annulusPoint(a1, 0.70F), annulusPoint(a2, gap), structureBright);
+        }
+        break;
+    }
+    case tunrun::GateStructureFamily::TwinRails: {
+        for (int i = 0; i < 4; ++i) {
+            const float a = static_cast<float>(i) * PI * 0.5F;
+            DrawLine3D(annulusPoint(a - 0.10F, gap), annulusPoint(a - 0.10F, 0.80F), structureBright);
+            DrawLine3D(annulusPoint(a + 0.10F, gap), annulusPoint(a + 0.10F, 0.80F), structureBright);
+            DrawLine3D(annulusPoint(a - 0.10F, 0.39F), annulusPoint(a + 0.10F, 0.39F), structureDim);
+            DrawLine3D(annulusPoint(a - 0.10F, 0.66F), annulusPoint(a + 0.10F, 0.66F), structureDim);
+        }
+        break;
+    }
+    case tunrun::GateStructureFamily::SplitClamps: {
+        for (int i = 0; i < 4; ++i) {
+            const float a = static_cast<float>(i) * PI * 0.5F;
+            DrawLine3D(annulusPoint(a - 0.16F, gap), annulusPoint(a - 0.16F, 0.62F), structureBright);
+            DrawLine3D(annulusPoint(a - 0.16F, 0.62F), annulusPoint(a + 0.16F, 0.62F), structureBright);
+            DrawLine3D(annulusPoint(a + 0.16F, 0.62F), annulusPoint(a + 0.16F, gap), structureBright);
+            DrawLine3D(annulusPoint(a - 0.16F, 0.38F), annulusPoint(a + 0.16F, 0.38F), structureDim);
+        }
+        break;
+    }
     }
 }
 void drawGateThroat(std::uint64_t seed, float playerDistance,
@@ -1512,7 +1573,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
     DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
-    DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
+    DrawText(TextFormat("GATE: %s / %s", tunrun::gateKindName(nextGate.kind),
+             tunrun::gateStructureFamilyName(
+                 tunrun::gateStructureFamilyAt(seed, nextGate.index))),
+             35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
     if (throatGuidance.valid) {
         const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
