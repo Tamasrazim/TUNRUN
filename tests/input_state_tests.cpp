@@ -790,7 +790,7 @@ int main() {
     assert(!tunrun::validateStateGraphRouteReachability(seed, 0U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 513U).valid);
     assert(!tunrun::validateStateGraphRouteReachability(seed, 12U, 999U).valid);
-    for (std::uint64_t graphSeedIndex = 0U; graphSeedIndex < 24U; ++graphSeedIndex) {
+    for (std::uint64_t graphSeedIndex = 0U; graphSeedIndex < 32U; ++graphSeedIndex) {
         const auto graphSeed = tunrun::deriveCourseSeed(seed, 300U + graphSeedIndex);
         // Cover each ship against the same derived seeds. Bounded misses are
         // valid diagnostic outcomes; every metric must still replay identically.
