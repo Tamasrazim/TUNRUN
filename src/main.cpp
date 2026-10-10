@@ -988,6 +988,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     };
     const float cx=moving.x,cy=moving.y;
     const Vector3 center=p(cx,cy);
+    const auto warning = tunrun::hazardWarningProfileAt(ahead, elapsedSeconds);
     Color color{}, blade{}, shell{}, facetLight{}, facetDark{};
     const auto family = tunrun::hazardVisualFamilyAt(seed, hazard.index);
     switch (family) {
@@ -1062,6 +1063,50 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
         break;
     }
+    }
+
+    // An in-world segmented beacon follows the same course frame and moving
+    // center as the mine. All of its geometry is decorative, outside the mine
+    // model, and gets brighter/faster only as approach distance decreases.
+    if (warning.visible) {
+        Color warningColor = warning.urgent
+            ? Color{255, 70, 64, 255}
+            : Color{255, 184, 101, 255};
+        warningColor.a = static_cast<unsigned char>(std::clamp(
+            60.0F + warning.intensity * 175.0F, 0.0F, 255.0F));
+        warningColor = tunnelDepthFog(warningColor, std::max(0.0F, ahead));
+        const float ringRadius = hazard.radius + warning.ringOffset;
+        constexpr int warningSegments = 32;
+        for (int i = 0; i < warningSegments; ++i) {
+            // Leave regular gaps so the beacon reads as a warning instrument,
+            // not a solid obstacle that could be mistaken for its hitbox.
+            if (i % 4 == 3) continue;
+            const float a0 = static_cast<float>(i) * 2.0F * PI / warningSegments;
+            const float a1 = static_cast<float>(i + 1) * 2.0F * PI / warningSegments;
+            DrawLine3D(p(cx + std::cos(a0) * ringRadius,
+                         cy + std::sin(a0) * ringRadius),
+                       p(cx + std::cos(a1) * ringRadius,
+                         cy + std::sin(a1) * ringRadius), warningColor);
+            if (i % 4 == 0) {
+                const float tickLength = warning.urgent ? 0.22F : 0.12F;
+                DrawLine3D(p(cx + std::cos(a0) * ringRadius,
+                             cy + std::sin(a0) * ringRadius),
+                           p(cx + std::cos(a0) * (ringRadius + tickLength),
+                             cy + std::sin(a0) * (ringRadius + tickLength)),
+                           warningColor);
+            }
+        }
+        if (warning.urgent) {
+            const float innerRing = ringRadius + 0.16F;
+            for (int i = 0; i < warningSegments; i += 2) {
+                const float a0 = static_cast<float>(i) * 2.0F * PI / warningSegments;
+                const float a1 = static_cast<float>(i + 1) * 2.0F * PI / warningSegments;
+                DrawLine3D(p(cx + std::cos(a0) * innerRing,
+                             cy + std::sin(a0) * innerRing),
+                           p(cx + std::cos(a1) * innerRing,
+                             cy + std::sin(a1) * innerRing), warningColor);
+            }
+        }
     }
 }
 
@@ -1597,11 +1642,18 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             seed, hazardCue.hazardIndex);
         const float timeToHazard = hazardCue.distanceAhead /
             std::max(0.1F, actualForwardSpeed);
-        DrawText(TextFormat("NEXT %s / %s: %.1fU / %.1fS",
+        const auto warning = tunrun::hazardWarningProfileAt(
+            hazardCue.distanceAhead, elapsedSeconds);
+        const char* warningLabel = warning.urgent ? "IMMINENT"
+            : warning.visible ? "WARNING" : "TRACKING";
+        const Color warningText = warning.urgent ? Color{255, 91, 84, 255}
+            : warning.visible ? Color{255, 184, 101, 255}
+                              : Color{255, 153, 125, 255};
+        DrawText(TextFormat("%s %s / %s: %.1fU / %.1fS", warningLabel,
                  tunrun::hazardVisualFamilyName(hazardFamily),
                  tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
                  hazardCue.distanceAhead, timeToHazard),
-                 35, 157, 10, Color{255, 153, 125, 255});
+                 35, 157, 10, warningText);
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
