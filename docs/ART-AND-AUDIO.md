@@ -28,7 +28,7 @@ Material randomness and particle effects must not affect gameplay determinism.
 
 ## Player ships
 
-The native prototype now renders eight procedural third-person wireframe silhouettes and matching 2D hangar previews directly through raylib, one for each catalogue entry: DRIFTWING, WRAITH, BULWARK, MANTA, COMET, SPECTRE, VORTEX, and OBSIDIAN. These are readable development silhouettes, not final production meshes or materials.
+The native prototype now renders eight distinct procedural 3D spacecraft directly through raylib, one for each catalogue entry: DRIFTWING, WRAITH, BULWARK, MANTA, COMET, SPECTRE, VORTEX, and OBSIDIAN. Their hull proportions, wing planforms, layered wing thickness, canopy shapes, auxiliary engine layouts, and surface fins vary by ship. These source-generated models are prototype geometry, not imported production assets or final materials.
 
 Ships require clear silhouettes at typical gameplay distances. Each needs:
 - main hull;
