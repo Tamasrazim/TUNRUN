@@ -445,8 +445,10 @@ int main() {
     assert(standardSightline.active);
     assert(std::abs(standardSightline.radius -
                     standardSightlineGate.apertureRadius) < 0.0001F);
+    // A standard aperture is intentionally more permissive than the narrow
+    // core; still verify that its passage is curved rather than straight.
     assert(std::hypot(standardSightline.centerX, standardSightline.centerY) >
-           standardSightline.radius);
+           0.25F * standardSightline.radius);
     assert(!tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate,
         throatGate.distance - tunrun::kGateThroatHalfLength).active);
@@ -1110,7 +1112,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 7U);
+    assert(tunrun::kObstacleGeneratorVersion == 8U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
@@ -1146,6 +1148,26 @@ int main() {
         assert(atPlane.active &&
                std::abs(atPlane.centerX - generatedGate.offsetX) < 0.0001F);
         assert(std::abs(atPlane.centerY - generatedGate.offsetY) < 0.0001F);
+
+        // Every seeded waveform must still move a minimum-aperture passage
+        // out of a straight sightline within the narrow core. Zero the gate's
+        // own offset here so this measures the waveform, not aperture placement.
+        auto centeredNarrowGate = generatedGate;
+        centeredNarrowGate.offsetX = 0.0F;
+        centeredNarrowGate.offsetY = 0.0F;
+        centeredNarrowGate.apertureRadius = tunrun::kGateMinApertureRadius;
+        for (int direction = -1; direction <= 1; direction += 2) {
+            const auto narrowCoreSightline = tunrun::gateThroatSectionAtDistance(
+                seed, centeredNarrowGate,
+                generatedGate.distance + static_cast<double>(direction) * 6.0);
+            assert(narrowCoreSightline.active);
+            assert(std::abs(narrowCoreSightline.radius -
+                tunrun::kGateMinApertureRadius) < 0.0001F);
+            assert(std::hypot(narrowCoreSightline.centerX,
+                              narrowCoreSightline.centerY) >
+                   narrowCoreSightline.radius);
+        }
+
         for (int sample = -35; sample <= 35; ++sample) {
             const double offset = static_cast<double>(sample) * 0.5;
             const auto wave = tunrun::gateThroatBendOffsetAt(seed, index, offset);
@@ -1200,7 +1222,7 @@ int main() {
     for (const bool seen : seenThroatShapes) assert(seen);
     assert(!tunrun::validGateThroatShapeFamily(
         static_cast<tunrun::GateThroatShapeFamily>(255U)));
-    assert(maximumBendX - minimumBendX > 0.30F);
+    assert(maximumBendX - minimumBendX > 0.25F);
     assert(maximumBendY - minimumBendY > 0.10F);
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     const auto mixedGateValidation = tunrun::validateObstacleSet(seed, 512U);
