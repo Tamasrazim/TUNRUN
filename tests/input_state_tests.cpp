@@ -674,6 +674,23 @@ int main() {
     assert(!tunrun::validateGateReachability(seed, 32U, 999U).valid);
 
 
+    // Route graph control policies cover every aim offset in cruise, boost,
+    // and precision modes while keeping boost and precision mutually exclusive.
+    std::uint32_t cruisePolicyCount = 0U;
+    std::uint32_t boostPolicyCount = 0U;
+    std::uint32_t precisionPolicyCount = 0U;
+    assert(tunrun::kRouteGraphPolicies.size() == 27U);
+    for (const auto& policy : tunrun::kRouteGraphPolicies) {
+        assert(std::isfinite(policy.aimBiasX) && std::isfinite(policy.aimBiasY));
+        assert(!(policy.boost && policy.precision));
+        if (policy.precision) ++precisionPolicyCount;
+        else if (policy.boost) ++boostPolicyCount;
+        else ++cruisePolicyCount;
+    }
+    assert(cruisePolicyCount == 9U);
+    assert(boostPolicyCount == 9U);
+    assert(precisionPolicyCount == 9U);
+
     // The local mine-avoidance projection must be stable at the singular
     // case where the requested target is exactly on the mine center.
     const auto unchangedAim = tunrun::routeAimOutsideMineEnvelope(
