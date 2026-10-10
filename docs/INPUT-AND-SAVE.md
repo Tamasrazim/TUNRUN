@@ -16,7 +16,7 @@ Mappings are defaults and must be remappable later.
 
 | Action | Keyboard | Mouse | Gamepad |
 |---|---|---|---|
-| Steer horizontally/vertically | WASD or arrows | Relative movement steers while mouse-flight mode is active | Left stick |
+| Steer horizontally/vertically | WASD | Relative movement steers toward a persistent in-tunnel aim point while mouse-flight mode is active | Left stick |
 | Boost | Left Shift | Not bound in the current prototype | Right trigger (analog threshold) |
 | Energy dash | Space | Right button (optional configurable binding) | A / Cross |
 | Brake / precision mode | Left Ctrl | Not bound in the current prototype | Left trigger (analog threshold) |
@@ -27,13 +27,13 @@ Mappings are defaults and must be remappable later.
 | UI navigation | Arrows / Tab | Pointer and click | D-pad / left stick |
 | Mouse sensitivity | Left/right arrows | Click/drag the visible logarithmic slider; pointer capture is not required | D-pad left/right or left stick with rate-limited repeat |
 
-All bindings must be configurable with conflict detection, reset-to-defaults, and clear labels for the currently active device. The current mouse-sensitivity setting can be adjusted in bounded steps, persists to the local profile, and has a reset-options action that does not erase ships or progression. Platform-specific face-button labels should be rendered correctly where supported.
+All bindings must be configurable with conflict detection, reset-to-defaults, and clear labels for the currently active device. The mouse-sensitivity setting can be adjusted with a logarithmic Settings slider or bounded keyboard/controller steps, persists to the local profile, and has a reset-options action that does not erase ships or progression. Platform-specific face-button labels should be rendered correctly where supported.
 
 ## Mouse implementation requirements
 
 ### UI state
 
-- The normal system cursor is visible and interactive on Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Results, dialogs, and exit confirmation.
+- The normal system cursor is visible and interactive on Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Results, dialogs, and exit confirmation. On Windows, Raw Input is captured and the cursor hidden/clipped only while a run is active and mouse flight is enabled.
 - Every visible button must respond to mouse click. Sliders support click and drag; dropdowns, tabs, and confirmation dialogs must work.
 - UI hit testing must use the same logical coordinate system as layout. DPI scale, fullscreen, borderless mode, resizing, and resolution changes must not create offset click zones.
 - Hover styling is never the only indication of selection.
@@ -46,7 +46,7 @@ All bindings must be configurable with conflict detection, reset-to-defaults, an
 - A lost-focus event clears accumulated deltas and held mouse-button states before pausing.
 - Returning from pause re-enters gameplay input explicitly and restores only the requested gameplay capture state.
 - Sensitivity, smoothing, horizontal inversion, vertical inversion, dead-zone/response curve, and mouse-steering enable/disable are configurable.
-- If mouse steering is disabled, mouse remains available for UI and keyboard/gamepad flight is unaffected.
+- If mouse steering is disabled, mouse remains available for UI and keyboard/gamepad flight is unaffected. Settings exposes both the mouse-flight toggle and sensitivity slider.
 
 The implementation must not depend on setting the OS cursor to the center every frame. The UI must never listen to relative gameplay deltas as pointer coordinates.
 
