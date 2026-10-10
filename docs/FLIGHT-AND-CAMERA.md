@@ -49,7 +49,7 @@ The input service emits normalised intent:
 - CameraSwitch and Pause as edge-triggered actions.
 - UI navigation as directional/confirm/back actions.
 
-Keyboard is digital input with a consistent ramp/response curve. Gamepad sticks use configurable dead-zone and response curves. Mouse look uses relative delta scaled by saved sensitivity and changes the camera direction only; it must not steer the spacecraft or depend on repeated pointer warping. W accelerates, S brakes, and A/D provide lateral steering. With no speed key held the craft returns to its established cruise speed.
+Keyboard is digital input with a consistent ramp/response curve. Gamepad sticks use configurable dead-zone and response curves. Mouse look uses relative delta scaled by saved sensitivity and changes the camera direction only; it must not steer the spacecraft or depend on repeated pointer warping. W accelerates, S brakes, A steers left and B steers right (D is also accepted as a right-steer alias). With no speed key held the craft returns to its established cruise speed.
 
 ## Collision model
 

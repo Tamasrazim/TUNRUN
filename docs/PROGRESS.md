@@ -24,7 +24,7 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 - The Hangar uses explicit keyboard focus: confirming Back cannot accidentally purchase/equip the selected ship. Purchase/equip is a separate focused action, and the shop layout now adapts to narrower windows.
 - All eight spacecraft now use filled, ship-specific wing planforms with a defined canopy and twin engine bells instead of only thin outline silhouettes.
 - Narrow gate frames have opaque bulkheads around their real apertures, preventing the rest of the next section from showing through. Six animated wall filaments follow the generated centerline and twist for a more wormhole-like continuous tunnel.
-- Controls map W to accelerate, S to brake, A/D to lateral movement, and mouse movement to camera look only. Normal cruise remains at the previous speed; new deterministic tests cover acceleration and braking.
+- Controls map W to accelerate, S to brake, A to steer left and B to steer right (D remains a right-steer alias), and mouse movement to camera look only. Normal cruise remains at the previous speed; new deterministic tests cover acceleration and braking.
 - Camera target follows the spacecraft's yaw/pitch using a target point clamped inside the sampled tunnel frame. Longitudinal target distance follows the heading, including controlled look-back.
 - Four seed-selected mine presentation families are implemented: Orbital, Prism, Rotor and Cross. Family names are reflected in the in-run hazard cue; these are cosmetic and do not alter the mine physics hash.
 - Camera targeting and visual-family coverage have automated unit assertions.
