@@ -22,7 +22,9 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - At the minimum supported window size, all nine Main Menu actions remain visible and clickable without overlap.
 - Every launch starts fullscreen even if the last session exited windowed; the in-session fullscreen toggle remains functional.
 - The renderer selects the reported monitor refresh rate up to 240 FPS, falls back to 144 for invalid reports, and leaves fixed-step physics independent of the render cap.
-- The Hangar's live 3D hologram matches the currently selected ship, stays clear of navigation/action hitboxes, and updates immediately after changing the preview ship.
+- The Hangar's live 3D model matches the previewed ship, stays clear of navigation/action hitboxes at minimum window width, and updates immediately after changing the preview ship.
+- A locked ship opens an explicit unlock confirmation showing its exact price and current resource balance; Cancel leaves balances and unlock state unchanged, and Confirm persists the unlock before reporting success.
+- Unlocking a ship does not equip it. Equipping is a separate saved action, and a failed save rolls back the corresponding wallet/unlock or active-ship change.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
 - Relative mouse input moves a persistent aim target inside the tunnel and engages a damped steering controller; keyboard/gamepad input takes over and synchronises the target. Keyboard and gamepad also control yaw/pitch rotation and roll; angular state remains finite under sustained input.
