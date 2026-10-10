@@ -525,28 +525,57 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
 
                 const auto& playerSection = playerSectionForAim;
                 const auto hazardSection = sampleCourse(seed, hazard.distance);
-                const double predictedMineTime = candidate.elapsedSeconds +
-                    ahead / std::max(0.25F, maximumLateralSpeed);
+                // Flight advances longitudinally faster than the lateral
+                // controller's speed cap. Predict mine phase at forward arrival
+                // time, then test the craft's projected path, not just its aim.
+                const float predictedForwardSpeed =
+                    (candidate.state.boostEnergy > 0.0F ? 16.0F : 11.0F) *
+                    ship.speedMultiplier;
+                const double timeToMine = ahead /
+                    std::max(0.25F, predictedForwardSpeed);
+                const double predictedMineTime =
+                    candidate.elapsedSeconds + timeToMine;
                 const auto movingCenter = hazardCenterAt(hazard, predictedMineTime);
                 const float mineX = movingCenter.x +
                     hazardSection.centerX - playerSection.centerX;
                 const float mineY = movingCenter.y +
                     hazardSection.centerY - playerSection.centerY;
-                const float towardX = aimX - mineX;
-                const float towardY = aimY - mineY;
-                const float towardLength = std::hypot(towardX, towardY);
                 const float safeDistance = hazard.radius +
                     kHazardCraftCollisionRadius + 0.38F;
-                if (towardLength >= safeDistance) continue;
-
                 const float maximumTargetOffset = std::max(
                     0.0F, kCourseMinRadius - kCraftCollisionRadius - 0.20F);
-                const auto adjustedAim = routeAimOutsideMineEnvelope(
-                    aimX, aimY, mineX, mineY, safeDistance,
+
+                const float projectedCraftX = candidate.state.x +
+                    candidate.state.velocityX * static_cast<float>(timeToMine);
+                const float projectedCraftY = candidate.state.y +
+                    candidate.state.velocityY * static_cast<float>(timeToMine);
+                const auto pathAdjustment = routeAimOutsideMineEnvelope(
+                    projectedCraftX, projectedCraftY, mineX, mineY, safeDistance,
                     maximumTargetOffset, candidate.state.x, candidate.state.y,
                     candidate.aimBiasX, candidate.aimBiasY, hazard.index);
-                aimX = adjustedAim.x;
-                aimY = adjustedAim.y;
+                if (pathAdjustment.adjusted) {
+                    // Shift the original gate target by the required path
+                    // correction so the controller can steer around the mine
+                    // without abandoning its aim policy entirely.
+                    aimX += pathAdjustment.x - projectedCraftX;
+                    aimY += pathAdjustment.y - projectedCraftY;
+                } else {
+                    const auto targetAdjustment = routeAimOutsideMineEnvelope(
+                        aimX, aimY, mineX, mineY, safeDistance,
+                        maximumTargetOffset, candidate.state.x, candidate.state.y,
+                        candidate.aimBiasX, candidate.aimBiasY, hazard.index);
+                    if (!targetAdjustment.adjusted) continue;
+                    aimX = targetAdjustment.x;
+                    aimY = targetAdjustment.y;
+                }
+
+                const float finalTargetRadius = std::hypot(aimX, aimY);
+                if (finalTargetRadius > maximumTargetOffset &&
+                    finalTargetRadius > 0.001F) {
+                    const float scale = maximumTargetOffset / finalTargetRadius;
+                    aimX *= scale;
+                    aimY *= scale;
+                }
                 break;
             }
 
