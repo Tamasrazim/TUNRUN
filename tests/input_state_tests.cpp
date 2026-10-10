@@ -691,6 +691,25 @@ int main() {
     assert(boostPolicyCount == 9U);
     assert(precisionPolicyCount == 9U);
 
+    // The 32-slot beam visits every control policy before repeating and keeps
+    // the three flight modes balanced when it has to prune branches.
+    std::array<bool, 27U> policySeen{};
+    std::array<std::uint32_t, 3U> modeSlots{};
+    for (std::size_t slot = 0U; slot < 32U; ++slot) {
+        const auto policyIndex = tunrun::routeGraphPolicyIndexForSlot(slot);
+        assert(policyIndex < tunrun::kRouteGraphPolicies.size());
+        if (slot < policySeen.size()) {
+            assert(!policySeen[policyIndex]);
+            policySeen[policyIndex] = true;
+        }
+        const auto& policy = tunrun::kRouteGraphPolicies[policyIndex];
+        const std::size_t mode = policy.precision ? 2U : policy.boost ? 1U : 0U;
+        ++modeSlots[mode];
+    }
+    for (const bool seen : policySeen) assert(seen);
+    assert(modeSlots[0] >= 10U && modeSlots[1] >= 10U && modeSlots[2] >= 10U);
+    assert(modeSlots[0] <= 11U && modeSlots[1] <= 11U && modeSlots[2] <= 11U);
+
     // The local mine-avoidance projection must be stable at the singular
     // case where the requested target is exactly on the mine center.
     const auto unchangedAim = tunrun::routeAimOutsideMineEnvelope(

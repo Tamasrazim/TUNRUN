@@ -382,6 +382,14 @@ inline constexpr std::array<RouteGraphPolicy, 27> kRouteGraphPolicies = []() con
     return policies;
 }();
 
+// Rotate modes for each aim offset so a capped beam does not spend several
+// parent slots on cruise-only targets before it reaches boost/precision policies.
+[[nodiscard]] inline constexpr std::size_t routeGraphPolicyIndexForSlot(
+    std::size_t slot) noexcept {
+    return (slot % 3U) * kRouteGraphAimBiases.size() +
+           ((slot / 3U) % kRouteGraphAimBiases.size());
+}
+
 // Bounded state-propagating route search. Each viable gate-crossing state
 // branches into multiple in-aperture target policies for the next gate. The
 // beam cap keeps validation deterministic and bounded; this is multi-trajectory
@@ -498,7 +506,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             for (std::size_t slot = 0U; slot < nextCount; ++slot) {
                 const std::size_t parent = (slot * passingCount) / nextCount;
                 const auto& policy = kRouteGraphPolicies[
-                    slot % kRouteGraphPolicies.size()];
+                    routeGraphPolicyIndexForSlot(slot)];
                 nextStates[slot] = passingStates[parent];
                 nextStates[slot].aimBiasX = policy.aimBiasX;
                 nextStates[slot].aimBiasY = policy.aimBiasY;
