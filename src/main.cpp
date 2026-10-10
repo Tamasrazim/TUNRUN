@@ -148,7 +148,7 @@ void resetFlight(AppState& app, bool& tpp) {
     app.flightAccumulator = 0.0F;
     app.mouseAimX = 0.0F;
     app.mouseAimY = 0.0F;
-    app.mouseControlEngaged = false;
+    app.mouseControlEngaged = app.profile.mouseSteering;
     app.elapsed = 0.0F;
     app.runRecorded = false;
     app.runGatesCleared = 0U;
@@ -744,6 +744,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto playerSection = tunrun::sampleCourse(seed, distance);
     const auto rearSection = tunrun::sampleCourse(seed, static_cast<double>(distance) - 6.0);
     const auto playerFrame = tunrun::sampleTunnelFrame(seed, distance, distance);
+    const auto reticleFrame = tunrun::sampleTunnelFrame(
+        seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
     const auto forwardFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) + 24.0);
     const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
@@ -855,11 +857,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     }
     if (showAimReticle) {
         const Color aimColor{111, 225, 255, 235};
-        constexpr float aimDepth = 1.9F;
         constexpr float halfWidth = 0.24F;
         constexpr float halfHeight = 0.24F;
         const auto aimPoint = [&](float x, float y) {
-            return rayVector(tunrun::tunnelFramePoint(playerFrame, x, y, aimDepth));
+            return rayVector(tunrun::tunnelFramePoint(
+                reticleFrame, x, y));
         };
         const Vector3 aimCenter = aimPoint(mouseAimX, mouseAimY);
         DrawSphere(aimCenter, 0.045F, aimColor);
@@ -1115,8 +1117,13 @@ int main() {
                 if (app.profile.mouseSteering) {
                     const auto aimSection = tunrun::sampleCourse(
                         app.courseSeed, static_cast<double>(app.flight.distance));
+                    const auto reticleSection = tunrun::sampleCourse(
+                        app.courseSeed, static_cast<double>(app.flight.distance) +
+                            kMouseAimReticleDepth);
+                    const float minimumAimRadius = std::min(
+                        aimSection.radius, reticleSection.radius);
                     const float safeAimRadius = std::max(
-                        0.1F, aimSection.radius - tunrun::kCraftCollisionRadius - 0.08F);
+                        0.1F, minimumAimRadius - tunrun::kCraftCollisionRadius - 0.08F);
                     (void)clampMouseTargetToRadius(
                         app.mouseAimX, app.mouseAimY, safeAimRadius);
                 }

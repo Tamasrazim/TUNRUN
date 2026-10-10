@@ -41,7 +41,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 Gameplay-specific mouse checks:
 - Entering a run captures relative mouse input only when mouse flight is enabled; on Windows the cursor is hidden and clipped to the current client area without recentering warps; the clipping rectangle refreshes after window movement or resizing.
 - Relative movement steers in the intended direction; the logarithmic sensitivity slider, bounded keyboard/controller adjustments, and enable/disable toggle work.
-- The in-world mouse aim reticle follows the active target and is absent when mouse flight is disabled or keyboard/gamepad movement has taken over. Radial target clamping must keep the requested aim point inside the current tunnel radius minus craft clearance, including when the tunnel narrows.
+- The in-world mouse aim reticle is visible when mouse flight is active and is absent when mouse flight is disabled or keyboard/gamepad movement has taken over. It follows the upcoming curved tunnel frame. Radial target clamping must use the narrower of the current and reticle-plane tunnel openings, minus craft clearance.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.
 - Focus loss pauses and releases capture immediately.

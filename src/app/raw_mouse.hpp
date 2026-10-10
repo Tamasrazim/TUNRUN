@@ -9,6 +9,7 @@ inline constexpr float kMouseSensitivityDefault = 0.004F;
 inline constexpr float kMouseSensitivityMin = 0.0001F;
 inline constexpr float kMouseSensitivityMax = 0.05F;
 inline constexpr float kMouseSensitivityStep = 0.0005F;
+inline constexpr float kMouseAimReticleDepth = 1.9F;
 
 [[nodiscard]] inline float adjustMouseSensitivity(float current,
                                                   int direction) noexcept {
