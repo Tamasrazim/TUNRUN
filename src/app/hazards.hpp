@@ -117,7 +117,9 @@ enum class HazardVisualFamily : std::uint8_t {
     Orbital,
     Prism,
     Rotor,
-    Cross
+    Cross,
+    HaloArray,
+    ShardCluster
 };
 
 // Stable cosmetic archetypes are seeded separately from hazard physics.
@@ -126,10 +128,12 @@ enum class HazardVisualFamily : std::uint8_t {
     std::uint64_t seed, std::uint32_t index) noexcept {
     const float roll = courseUnit(
         seed, static_cast<std::int64_t>(index), 910U);
-    if (roll < 0.25F) return HazardVisualFamily::Orbital;
-    if (roll < 0.50F) return HazardVisualFamily::Prism;
-    if (roll < 0.75F) return HazardVisualFamily::Rotor;
-    return HazardVisualFamily::Cross;
+    if (roll < (1.0F / 6.0F)) return HazardVisualFamily::Orbital;
+    if (roll < (2.0F / 6.0F)) return HazardVisualFamily::Prism;
+    if (roll < (3.0F / 6.0F)) return HazardVisualFamily::Rotor;
+    if (roll < (4.0F / 6.0F)) return HazardVisualFamily::Cross;
+    if (roll < (5.0F / 6.0F)) return HazardVisualFamily::HaloArray;
+    return HazardVisualFamily::ShardCluster;
 }
 
 [[nodiscard]] inline const char* hazardVisualFamilyName(
@@ -139,8 +143,24 @@ enum class HazardVisualFamily : std::uint8_t {
     case HazardVisualFamily::Prism: return "PRISM MINE";
     case HazardVisualFamily::Rotor: return "ROTOR MINE";
     case HazardVisualFamily::Cross: return "CROSS MINE";
+    case HazardVisualFamily::HaloArray: return "HALO ARRAY MINE";
+    case HazardVisualFamily::ShardCluster: return "SHARD CLUSTER MINE";
     }
     return "UNKNOWN HAZARD";
+}
+
+[[nodiscard]] inline bool validHazardVisualFamily(
+    HazardVisualFamily family) noexcept {
+    switch (family) {
+    case HazardVisualFamily::Orbital:
+    case HazardVisualFamily::Prism:
+    case HazardVisualFamily::Rotor:
+    case HazardVisualFamily::Cross:
+    case HazardVisualFamily::HaloArray:
+    case HazardVisualFamily::ShardCluster:
+        return true;
+    }
+    return false;
 }
 
 struct HazardValidation {
