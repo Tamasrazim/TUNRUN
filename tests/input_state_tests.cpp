@@ -865,11 +865,15 @@ int main() {
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
-    assert(tunrun::kHazardGeneratorVersion == 2U);
+    assert(tunrun::kHazardGeneratorVersion == 3U);
     assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
            tunrun::hazardVisualFamilyAt(seed, 0U));
+    assert(tunrun::hazardMotionFamilyAt(seed, 0U) ==
+           tunrun::hazardMotionFamilyAt(seed, 0U));
     bool seenOrbitalMine = false, seenPrismMine = false;
     bool seenRotorMine = false, seenCrossMine = false;
+    bool seenLateralSweep = false, seenVerticalSweep = false;
+    bool seenEllipticOrbit = false, seenFigureEight = false;
     for (std::uint32_t index = 0U; index < 512U; ++index) {
         switch (tunrun::hazardVisualFamilyAt(seed, index)) {
         case tunrun::HazardVisualFamily::Orbital: seenOrbitalMine = true; break;
@@ -877,8 +881,29 @@ int main() {
         case tunrun::HazardVisualFamily::Rotor: seenRotorMine = true; break;
         case tunrun::HazardVisualFamily::Cross: seenCrossMine = true; break;
         }
+        const auto generatedHazard = tunrun::hazardAt(seed, index);
+        assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
+        switch (generatedHazard.motionFamily) {
+        case tunrun::HazardMotionFamily::LateralSweep: seenLateralSweep = true; break;
+        case tunrun::HazardMotionFamily::VerticalSweep: seenVerticalSweep = true; break;
+        case tunrun::HazardMotionFamily::EllipticOrbit: seenEllipticOrbit = true; break;
+        case tunrun::HazardMotionFamily::FigureEight: seenFigureEight = true; break;
+        }
+        for (const double time : {0.0, 0.25, 1.25, 3.75}) {
+            const auto center = tunrun::hazardCenterAt(generatedHazard, time);
+            assert(std::isfinite(center.x) && std::isfinite(center.y));
+            assert(std::abs(center.x - generatedHazard.baseX) <=
+                   generatedHazard.amplitudeX + 0.0001F);
+            assert(std::abs(center.y - generatedHazard.baseY) <=
+                   generatedHazard.amplitudeY + 0.0001F);
+        }
     }
     assert(seenOrbitalMine && seenPrismMine && seenRotorMine && seenCrossMine);
+    assert(seenLateralSweep && seenVerticalSweep && seenEllipticOrbit && seenFigureEight);
+    assert(std::string_view(tunrun::hazardVisualFamilyName(
+        tunrun::hazardVisualFamilyAt(seed, 0U))).size() > 0U);
+    assert(std::string_view(tunrun::hazardMotionFamilyName(
+        tunrun::hazardMotionFamilyAt(seed, 0U))).size() > 0U);
     assert(std::string_view(tunrun::hazardVisualFamilyName(
         tunrun::hazardVisualFamilyAt(seed, 0U))).size() > 0U);
     const auto hazardCenter = tunrun::hazardCenterAt(hazard, 1.25);

@@ -43,3 +43,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 ## Update rule
 
 After each meaningful implementation chunk, update this snapshot, the root README's progress section, `docs/ROADMAP.md`, and the main-site project page if user-visible capability or status changes. Never mark a milestone complete merely because its UI or documentation exists.
+
+
+### Moving hazard motion profiles
+
+Generator version 3 now assigns every mine one of four reproducible trajectories: lateral sweep, vertical sweep, elliptic orbit, or figure-eight. This motion channel is seeded independently from the four cosmetic shell silhouettes. The HUD shows both layers, motion profiles are included in the canonical hazard hash, and tests cover deterministic family selection and movement bounds. Collision still uses the shared spherical proxy; richer multi-part hazard choreography remains future work.

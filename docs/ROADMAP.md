@@ -76,7 +76,7 @@ Still required before M1 can pass:
 ## Latest implementation update — 2026-10-10
 
 - Camera targeting follows mouse-look yaw/pitch independently from the craft's heading. The FPP camera position is clamped within its own tunnel cross-section; the TPP camera base stays behind the course tangent and is clamped to rear-section clearance. Manual runtime camera/occlusion acceptance remains separate from automated tests.
-- Four deterministic cosmetic mine families (Orbital, Prism, Rotor, Cross) have distinct silhouette/color treatments and named HUD cues. Cosmetics use a separate seed channel and do not mutate hazard movement or the collision/hash definition.
+- Four deterministic cosmetic mine families (Orbital, Prism, Rotor, Cross) have distinct silhouette/color treatments. An independent motion channel selects lateral-sweep, vertical-sweep, elliptic-orbit, or figure-eight trajectories. HUD cues display both layers; motion changes are included in hazard generator version 3 and its canonical hash. All profiles still use the same spherical collision proxy.
 - Automated tests cover look-target direction/clamping, invalid numeric inputs, deterministic mine family selection and coverage across 512 generated hazards.
 - The latest verified Windows build/test, repository-integrity, and secret-scan workflows remain available through the live GitHub Actions results. Manual Windows input/camera acceptance is still separate.
 

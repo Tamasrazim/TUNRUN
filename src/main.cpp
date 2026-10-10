@@ -1479,12 +1479,14 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
     if (hazardCue.valid) {
+        const auto upcomingHazard = tunrun::hazardAt(seed, hazardCue.hazardIndex);
         const auto hazardFamily = tunrun::hazardVisualFamilyAt(
             seed, hazardCue.hazardIndex);
         const float timeToHazard = hazardCue.distanceAhead /
             std::max(0.1F, actualForwardSpeed);
-        DrawText(TextFormat("NEXT %s: %.1fU / %.1fS",
+        DrawText(TextFormat("NEXT %s / %s: %.1fU / %.1fS",
                  tunrun::hazardVisualFamilyName(hazardFamily),
+                 tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
                  hazardCue.distanceAhead, timeToHazard),
                  35, 157, 10, Color{255, 153, 125, 255});
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F

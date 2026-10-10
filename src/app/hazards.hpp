@@ -9,13 +9,53 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kHazardGeneratorVersion = 2U;
+inline constexpr std::uint32_t kHazardGeneratorVersion = 3U;
 inline constexpr double kHazardBaseDistance = 88.0;
 inline constexpr double kHazardSpacing = 84.0;
 inline constexpr double kHazardMinimumGateSeparation = 8.0;
 inline constexpr float kHazardMinimumRadius = 0.48F;
 inline constexpr float kHazardMaximumRadius = 0.66F;
 inline constexpr float kHazardCraftCollisionRadius = 0.42F;
+
+enum class HazardMotionFamily : std::uint8_t {
+    LateralSweep,
+    VerticalSweep,
+    EllipticOrbit,
+    FigureEight
+};
+
+// A separate seeded channel controls trajectories, not visual mine shells.
+[[nodiscard]] inline HazardMotionFamily hazardMotionFamilyAt(
+    std::uint64_t seed, std::uint32_t index) noexcept {
+    const float roll = courseUnit(seed, static_cast<std::int64_t>(index), 911U);
+    if (roll < 0.25F) return HazardMotionFamily::LateralSweep;
+    if (roll < 0.50F) return HazardMotionFamily::VerticalSweep;
+    if (roll < 0.75F) return HazardMotionFamily::EllipticOrbit;
+    return HazardMotionFamily::FigureEight;
+}
+
+[[nodiscard]] inline const char* hazardMotionFamilyName(
+    HazardMotionFamily family) noexcept {
+    switch (family) {
+    case HazardMotionFamily::LateralSweep: return "LATERAL SWEEP";
+    case HazardMotionFamily::VerticalSweep: return "VERTICAL SWEEP";
+    case HazardMotionFamily::EllipticOrbit: return "ELLIPTIC ORBIT";
+    case HazardMotionFamily::FigureEight: return "FIGURE EIGHT";
+    }
+    return "UNKNOWN MOTION";
+}
+
+[[nodiscard]] inline bool validHazardMotionFamily(
+    HazardMotionFamily family) noexcept {
+    switch (family) {
+    case HazardMotionFamily::LateralSweep:
+    case HazardMotionFamily::VerticalSweep:
+    case HazardMotionFamily::EllipticOrbit:
+    case HazardMotionFamily::FigureEight:
+        return true;
+    }
+    return false;
+}
 
 struct ProceduralHazard {
     std::uint32_t index = 0U;
@@ -28,6 +68,7 @@ struct ProceduralHazard {
     float phaseX = 0.0F;
     float phaseY = 0.0F;
     float radius = 0.56F;
+    HazardMotionFamily motionFamily = HazardMotionFamily::LateralSweep;
 };
 
 struct HazardCenter {
@@ -90,22 +131,45 @@ inline ProceduralHazard hazardAt(std::uint64_t seed,
         courseUnit(seed, sample, 907U) * 2.0F * 3.14159265358979323846F,
         courseUnit(seed, sample, 908U) * 2.0F * 3.14159265358979323846F,
         kHazardMinimumRadius + courseUnit(seed, sample, 909U) *
-            (kHazardMaximumRadius - kHazardMinimumRadius)
+            (kHazardMaximumRadius - kHazardMinimumRadius),
+        hazardMotionFamilyAt(seed, index)
     };
 }
 
-// The mine's motion is a pure function of the run clock. Given the same seed
-// and elapsed gameplay time, the center is identical on every run.
+// Every motion profile is a pure function of generated parameters and the run
+// clock. Identical hazards and times always reproduce identical centers.
 inline HazardCenter hazardCenterAt(const ProceduralHazard& hazard,
                                    double elapsedSeconds) noexcept {
-    const double xPhase = elapsedSeconds * static_cast<double>(hazard.frequency) +
-                          static_cast<double>(hazard.phaseX);
-    const double yPhase = elapsedSeconds * static_cast<double>(hazard.frequency) * 0.73 +
-                          static_cast<double>(hazard.phaseY);
-    return HazardCenter{
-        hazard.baseX + hazard.amplitudeX * static_cast<float>(std::sin(xPhase)),
-        hazard.baseY + hazard.amplitudeY * static_cast<float>(std::sin(yPhase))
-    };
+    const double primaryPhase =
+        elapsedSeconds * static_cast<double>(hazard.frequency) +
+        static_cast<double>(hazard.phaseX);
+    const double secondaryPhase =
+        elapsedSeconds * static_cast<double>(hazard.frequency) * 0.42 +
+        static_cast<double>(hazard.phaseY);
+    double x = static_cast<double>(hazard.baseX);
+    double y = static_cast<double>(hazard.baseY);
+    switch (hazard.motionFamily) {
+    case HazardMotionFamily::LateralSweep:
+        x += static_cast<double>(hazard.amplitudeX) * std::sin(primaryPhase);
+        y += static_cast<double>(hazard.amplitudeY) * std::sin(secondaryPhase);
+        break;
+    case HazardMotionFamily::VerticalSweep:
+        x += static_cast<double>(hazard.amplitudeX) * std::sin(secondaryPhase);
+        y += static_cast<double>(hazard.amplitudeY) * std::sin(primaryPhase);
+        break;
+    case HazardMotionFamily::EllipticOrbit:
+        x += static_cast<double>(hazard.amplitudeX) * std::sin(primaryPhase);
+        y += static_cast<double>(hazard.amplitudeY) *
+             std::sin(primaryPhase + 1.57079632679489661923 +
+                      static_cast<double>(hazard.phaseY) * 0.10);
+        break;
+    case HazardMotionFamily::FigureEight:
+        x += static_cast<double>(hazard.amplitudeX) * std::sin(primaryPhase);
+        y += static_cast<double>(hazard.amplitudeY) *
+             std::sin(2.0 * primaryPhase + static_cast<double>(hazard.phaseY));
+        break;
+    }
+    return HazardCenter{static_cast<float>(x), static_cast<float>(y)};
 }
 
 struct HazardHudCue {
@@ -256,6 +320,7 @@ inline std::uint64_t hazardHash(std::uint64_t seed,
     for (std::uint32_t i = 0U; i < hazardCount; ++i) {
         const auto hazard = hazardAt(seed, i);
         absorb(hazard.index);
+        absorb(static_cast<std::uint64_t>(hazard.motionFamily));
         absorb(static_cast<std::uint64_t>(std::llround(hazard.distance * 1000.0)));
         absorb(static_cast<std::uint64_t>(static_cast<std::int64_t>(
             std::llround(hazard.baseX * 10000.0F))));
@@ -292,6 +357,10 @@ inline HazardValidation validateHazardSet(std::uint64_t seed,
             !std::isfinite(hazard.frequency) || !std::isfinite(hazard.phaseX) ||
             !std::isfinite(hazard.phaseY) || !std::isfinite(hazard.radius)) {
             result.failure = "hazard parameters are non-finite";
+            return result;
+        }
+        if (!validHazardMotionFamily(hazard.motionFamily)) {
+            result.failure = "unknown deterministic motion family";
             return result;
         }
         if (hazard.amplitudeX < 0.55F || hazard.amplitudeX > 1.20F ||
