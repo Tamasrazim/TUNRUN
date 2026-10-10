@@ -82,3 +82,6 @@ Still required before M1 can pass:
 
 ## Priority rule
 Fix crashes, input lockups, data loss, impossible generated courses and corrupted progression before adding more obstacle families or cosmetics.
+
+
+- Gate rendering now has five deterministic support silhouettes on an independent visual channel: Radial Cage, Segmented Crown, Chevron Brace, Twin Rails, and Split Clamps. The gate HUD identifies the selected structure alongside the existing difficulty type. The renderer confines all added supports to the bulkhead annulus outside the aperture; gameplay generation and collision data are unchanged.
