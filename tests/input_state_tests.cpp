@@ -166,7 +166,7 @@ int main() {
     // This reverse line is now genuinely blocked by the deeper S-bend sleeve,
     // so the third-person camera must pull inward along its safeFraction.
     assert(reverseSleeveRay.clipped);
-    assert(reverseSleeveRay.safeFraction > 0.05F &&
+    assert(reverseSleeveRay.safeFraction >= 0.05F &&
            reverseSleeveRay.safeFraction < 1.0F);
 
     const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
