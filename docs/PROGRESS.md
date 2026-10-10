@@ -63,3 +63,8 @@ A visual-only gate generator now chooses between Radial Cage, Segmented Crown, C
 ### Mine proximity warning pass
 
 Moving mines now carry a segmented in-world warning ring in their own sampled tunnel frame. The ring starts at 54 course units, pulses faster as the craft closes in, and adds a second ring plus an urgent HUD label at 22 units. The warning uses the same animated center as the mine mesh but remains purely visual; the mine's spherical collision proxy and procedural hash are unchanged. Tests cover threshold edges, pulse bounds and determinism.
+
+
+### Expanded mine silhouette library
+
+Two new procedural mine meshes extend the existing four: Halo Array uses three intersecting hoops around a core, and Shard Cluster uses six faceted crystal fins. Palette and silhouette are chosen on the existing visual-only seed channel; movement and hitbox generation are unchanged. Automated coverage checks all six shells over 512 deterministic hazard indices. In-game readability and frame-time review still need to be performed.
