@@ -447,8 +447,6 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             const int firstAimHazard = std::max(0, static_cast<int>(std::floor(
                 (static_cast<double>(candidate.state.distance) -
                  firstHazardForAim.distance) / kHazardSpacing)));
-            const auto playerSection = sampleCourse(
-                seed, static_cast<double>(candidate.state.distance));
             for (int hazardIndex = firstAimHazard;
                  hazardIndex <= firstAimHazard + 1; ++hazardIndex) {
                 const auto hazard = hazardAt(seed, static_cast<std::uint32_t>(hazardIndex));
@@ -457,6 +455,8 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
                 if (ahead < 0.0 || ahead > kMineAvoidanceLookahead ||
                     hazard.distance >= activeGate.distance) continue;
 
+                const auto playerSection = sampleCourse(
+                    seed, static_cast<double>(candidate.state.distance));
                 const auto hazardSection = sampleCourse(seed, hazard.distance);
                 const double predictedMineTime = candidate.elapsedSeconds +
                     ahead / std::max(0.25F, maximumLateralSpeed);
@@ -547,6 +547,12 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             for (int hazardIndex = firstHazardIndex;
                  hazardIndex <= lastHazardIndex; ++hazardIndex) {
                 const auto hazard = hazardAt(seed, static_cast<std::uint32_t>(hazardIndex));
+                // If the longitudinal span of this step is outside the mine's
+                // largest possible collision envelope, collision is impossible;
+                // skip the expensive curved-course frame and closest-point work.
+                if (hazard.distance + hazardLongitudinalReach < previousDistance ||
+                    hazard.distance - hazardLongitudinalReach >
+                        static_cast<double>(state.distance)) continue;
                 ++result.hazardChecks;
                 if (!sweptCollidesWithHazard(
                         seed, previousX, previousY, previousDistance,
