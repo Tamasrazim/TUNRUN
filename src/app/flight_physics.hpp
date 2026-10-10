@@ -455,7 +455,11 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
     std::size_t passingCount = 0U;
     const FlightState initialState{};
     for (std::size_t i = 0U; i < stateCount; ++i) {
-        const auto& policy = kRouteGraphPolicies[i];
+        // Use the same mode-balanced selection as later gates; otherwise the
+        // mode-major policy table seeds 9 cruise, 9 boost, 9 precision, and
+        // only 5 dash candidates in the first beam.
+        const auto& policy = kRouteGraphPolicies[
+            routeGraphPolicyIndexForSlot(i, activeGate.index)];
         states[i].state = initialState;
         states[i].aimBiasX = policy.aimBiasX;
         states[i].aimBiasY = policy.aimBiasY;

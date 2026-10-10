@@ -766,7 +766,8 @@ int main() {
         assert(graph.hazardChecks > 0U);
         assert(graph.hazardCollisionStates <= graph.discardedStates);
         sawGraphBeamPruning = sawGraphBeamPruning || graph.beamPrunedStates > 0U;
-        assert(graph.peakStateCount >= 9U && graph.peakStateCount <= 32U);
+        assert(graph.candidateStatesGenerated >= 32U);
+        assert(graph.peakStateCount == 32U);
         assert(graph.maximumPassingStatesAtGate > 0U);
         assert(graph.minimumGateClearance >= 0.0F);
         assert(graph.maximumLateralOffset < tunrun::kFlightLimit);
@@ -807,7 +808,8 @@ int main() {
             assert(graph.gatesChecked <= 8U);
             assert(graph.transitionsChecked <= 7U);
             assert(graph.candidateStatesGenerated >= 9U);
-            assert(graph.peakStateCount >= 9U && graph.peakStateCount <= 32U);
+            assert(graph.candidateStatesGenerated >= 32U);
+            assert(graph.peakStateCount == 32U);
             assert(graph.beamPrunedStates <= graph.candidateStatesGenerated);
             assert(graph.hazardCollisionStates <= graph.discardedStates);
             assert(graph.failure != nullptr);
