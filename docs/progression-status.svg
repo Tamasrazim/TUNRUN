@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="128" viewBox="0 0 1040 128" role="img" aria-labelledby="title desc">
+  <title id="title">TUNRUN roadmap status</title>
+  <desc id="desc">M0 is complete. M1 to M5 are in progress. M6 to M9 are planned.</desc>
+  <rect width="1040" height="128" rx="9" fill="#080b0e" stroke="#2b3540"/>
+  <text x="22" y="27" fill="#f3f6f8" font-family="ui-monospace,monospace" font-size="12" font-weight="700" letter-spacing="1.6">TUNRUN / ROADMAP STATUS</text>
+  <text x="1018" y="27" text-anchor="end" fill="#87939d" font-family="ui-monospace,monospace" font-size="10">MILESTONES M0–M9</text>
+  <g font-family="ui-monospace,monospace" font-size="10" font-weight="700" text-anchor="middle">
+    <rect x="22" y="43" width="96" height="34" rx="4" fill="#eff6f8"/><text x="70" y="64" fill="#071014">M0 · DONE</text>
+    <rect x="125" y="43" width="96" height="34" rx="4" fill="#163b3a" stroke="#69e6d7"/><text x="173" y="64" fill="#9bfff3">M1 · ACTIVE</text>
+    <rect x="228" y="43" width="96" height="34" rx="4" fill="#163b3a" stroke="#69e6d7"/><text x="276" y="64" fill="#9bfff3">M2 · ACTIVE</text>
+    <rect x="331" y="43" width="96" height="34" rx="4" fill="#163b3a" stroke="#69e6d7"/><text x="379" y="64" fill="#9bfff3">M3 · ACTIVE</text>
+    <rect x="434" y="43" width="96" height="34" rx="4" fill="#163b3a" stroke="#69e6d7"/><text x="482" y="64" fill="#9bfff3">M4 · ACTIVE</text>
+    <rect x="537" y="43" width="96" height="34" rx="4" fill="#163b3a" stroke="#69e6d7"/><text x="585" y="64" fill="#9bfff3">M5 · ACTIVE</text>
+    <rect x="640" y="43" width="90" height="34" rx="4" fill="#141a20" stroke="#303b45"/><text x="685" y="64" fill="#83909b">M6 · PLAN</text>
+    <rect x="737" y="43" width="90" height="34" rx="4" fill="#141a20" stroke="#303b45"/><text x="782" y="64" fill="#83909b">M7 · PLAN</text>
+    <rect x="834" y="43" width="90" height="34" rx="4" fill="#141a20" stroke="#303b45"/><text x="879" y="64" fill="#83909b">M8 · PLAN</text>
+    <rect x="931" y="43" width="87" height="34" rx="4" fill="#141a20" stroke="#303b45"/><text x="974" y="64" fill="#83909b">M9 · PLAN</text>
+  </g>
+  <g font-family="ui-monospace,monospace" font-size="10">
+    <circle cx="29" cy="100" r="4" fill="#eff6f8"/><text x="40" y="104" fill="#b8c4cc">1 COMPLETE</text>
+    <circle cx="163" cy="100" r="4" fill="#69e6d7"/><text x="174" y="104" fill="#b8c4cc">5 IN PROGRESS</text>
+    <circle cx="324" cy="100" r="4" fill="#52606b"/><text x="335" y="104" fill="#b8c4cc">4 PLANNED</text>
+    <text x="1018" y="104" text-anchor="end" fill="#73818d">STATUS ≠ RELEASE COMPLETION</text>
+  </g>
+</svg>

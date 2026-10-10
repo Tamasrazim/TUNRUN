@@ -83,6 +83,21 @@ int main() {
     assert(std::isfinite(badFrame.center.x)&&std::isfinite(badFrame.center.y)&&
            std::isfinite(badFrame.center.z));
 
+    const auto straightLook = tunrun::cameraLookOffset(0.0F, 0.0F, 5.75F);
+    assert(std::abs(straightLook.right) < 0.0001F);
+    assert(std::abs(straightLook.up) < 0.0001F);
+    const auto sideLook = tunrun::cameraLookOffset(1.57079632679F, 0.0F, 5.75F);
+    assert(sideLook.right > 3.0F && std::abs(sideLook.up) < 0.0001F);
+    assert(std::hypot(sideLook.right, sideLook.up) <= 3.2001F);
+    const auto upperLook = tunrun::cameraLookOffset(0.0F, 0.8F, 5.75F);
+    assert(upperLook.up > 0.0F && std::abs(upperLook.right) < 0.0001F);
+    assert(std::hypot(upperLook.right, upperLook.up) <= 3.2001F);
+    const auto invalidLook = tunrun::cameraLookOffset(
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN());
+    assert(std::isfinite(invalidLook.right) && std::isfinite(invalidLook.up));
+
     const auto safeChasePose = tunrun::thirdPersonCameraPose(
         0.5F, -0.3F, 0.0F, 0.0F, -1.0F, 1.0F, -0.5F, 5.0F);
     assert(!safeChasePose.clampedToTunnel);

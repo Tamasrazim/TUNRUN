@@ -761,14 +761,21 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     const auto reticleFrame = tunrun::sampleTunnelFrame(
         seed, distance, static_cast<double>(distance) + kMouseAimReticleDepth);
     const auto rearFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 6.0);
-    // A short route look-ahead follows bends instead of aiming along a long chord
-    // that can appear to cut through the outside wall on a tight curve.
-    const auto forwardFrame = tunrun::sampleTunnelFrame(
-        seed, distance, static_cast<double>(distance) + 8.0);
+
     const auto cameraFrame = tunrun::sampleTunnelFrame(seed, distance, static_cast<double>(distance) - 1.25);
     const float forwardX = std::sin(yaw) * std::cos(pitch);
     const float forwardY = std::sin(pitch);
     const float forwardZ = -std::cos(yaw) * std::cos(pitch);
+    // Move the look point with yaw/pitch; the signed course offset permits a
+    // controlled look-back without letting the cross-section target leave
+    // the tunnel. This affects presentation only, never flight physics.
+    constexpr double cameraLookDistance = 8.0;
+    const double lookCourseOffset = cameraLookDistance *
+        static_cast<double>(std::cos(yaw) * std::cos(pitch));
+    const auto forwardFrame = tunrun::sampleTunnelFrame(
+        seed, distance, static_cast<double>(distance) + lookCourseOffset);
+    const auto lookOffset = tunrun::cameraLookOffset(
+        yaw, pitch, forwardFrame.radius, static_cast<float>(cameraLookDistance));
     Camera3D camera{};
     if (tpp) {
         const float rearCenterX = rearSection.centerX - playerSection.centerX;
@@ -778,7 +785,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             rearCenterX, rearCenterY, rearSection.radius);
         camera.position = rayVector(tunrun::tunnelFramePoint(
             rearFrame, chasePose.x - rearCenterX, chasePose.y - rearCenterY));
-        camera.target = rayVector(forwardFrame.center);
+        camera.target = rayVector(tunrun::tunnelFramePoint(
+            forwardFrame, lookOffset.right, lookOffset.up));
     } else {
         camera.position = rayVector(tunrun::tunnelFramePoint(cameraFrame, shipX, shipY));
         camera.target = rayVector(forwardFrame.center);

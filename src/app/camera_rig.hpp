@@ -5,6 +5,36 @@
 
 namespace tunrun {
 
+struct CameraLookOffset {
+    float right = 0.0F;
+    float up = 0.0F;
+};
+
+// Convert yaw/pitch into a target offset on the tunnel cross-section. The
+// target is clamped away from the wall so looking while turning cannot point
+// at a target outside the tube.
+[[nodiscard]] inline CameraLookOffset cameraLookOffset(
+    float yaw, float pitch, float tunnelRadius,
+    float lookDistance = 8.0F) noexcept {
+    if (!std::isfinite(yaw)) yaw = 0.0F;
+    if (!std::isfinite(pitch)) pitch = 0.0F;
+    if (!std::isfinite(tunnelRadius) || tunnelRadius <= 0.0F) tunnelRadius = 5.0F;
+    if (!std::isfinite(lookDistance) || lookDistance <= 0.0F) lookDistance = 8.0F;
+    yaw = std::remainder(yaw, 6.28318530717958647692F);
+    pitch = std::clamp(pitch, -1.05F, 1.05F);
+    float right = std::sin(yaw) * std::cos(pitch) * lookDistance;
+    float up = std::sin(pitch) * lookDistance;
+    const float radial = std::hypot(right, up);
+    const float maximumOffset = std::clamp(tunnelRadius - 1.1F, 0.25F, 3.2F);
+    if (!std::isfinite(radial)) return {};
+    if (radial > maximumOffset && radial > 1.0e-5F) {
+        const float scale = maximumOffset / radial;
+        right *= scale;
+        up *= scale;
+    }
+    return {right, up};
+}
+
 struct ThirdPersonCameraPose {
     float x = 0.0F;
     float y = 0.25F;

@@ -1,6 +1,14 @@
 # TUNRUN
 ### A seed-driven procedural 3D tunnel runner
 
+[![Windows build and tests](https://github.com/Tamasrazim/TUNRUN/actions/workflows/windows-build.yml/badge.svg)](https://github.com/Tamasrazim/TUNRUN/actions/workflows/windows-build.yml)
+[![Repository integrity](https://github.com/Tamasrazim/TUNRUN/actions/workflows/repo-checks.yml/badge.svg)](https://github.com/Tamasrazim/TUNRUN/actions/workflows/repo-checks.yml)
+[![Secret scan](https://github.com/Tamasrazim/TUNRUN/actions/workflows/secrets-scan.yml/badge.svg)](https://github.com/Tamasrazim/TUNRUN/actions/workflows/secrets-scan.yml)
+
+![TUNRUN roadmap status — M0 complete; M1–M5 in progress; M6–M9 planned](docs/progression-status.svg)
+
+**Progress snapshot:** [Milestone status and acceptance gaps](docs/PROGRESS.md) · [Full roadmap](docs/ROADMAP.md)
+
 TUNRUN is a native Windows 3D flight game project built around **unpredictably generated tunnels and obstacles**. The intended full game flies through curved, twisted, compressed, and expanding environments.
 
 The repository has moved into native implementation. **M5 persistence and ship economy are in progress**: schema v3 stores career-best score/combo records, retains the accidental-corruption checksum, and tests v1/v2 upgrade paths; settings and progression save locally with backup recovery; the hangar uses Aether Shards and Singularity Cores to unlock and equip ships; and each ship has distinct speed, acceleration, boost-drain and energy-recovery parameters. Seeded tunnel generation, four deterministic aperture-gate families, moving procedural mines, and collectible Aether Shards/Singularity Cores now form the gameplay prototype. Gate validation includes both an all-ship pairwise kinematic screen and a fixed-step route probe that propagates a concrete position/velocity trajectory through consecutive gates using gameplay physics. The probe is a witness trajectory, not an exhaustive proof of every reachable state. Seed Lab displays course, gate, mine, and reward hashes with validation summaries and caches validation by seed/active ship rather than recomputing every frame; pickup contact is evaluated in the same course-relative frame as its rendered position. Gate and mine crash screens report the procedural obstacle index and deterministic distance for easier seed-based reproduction. The Windows CI build and unit tests are the source of truth; this is not a finished game.
@@ -9,7 +17,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 
 - **Real procedural generation:** seeded randomness, coherent noise, generated geometry, and compositional obstacle construction—not a fixed sequence of preset obstacles.
 - **Seeded rewards:** Aether Shards render as cyan faceted gems and rarer Singularity Cores as larger warm-metallic 3D pickups; swept crossing checks award their run payout.
-- **Obstacle readability:** standard, precision, offset and wide gates have different support structures without changing their collision apertures. Mines use four distinct wireframe silhouettes and the faster generator-v2 oscillation profile.
+- **Obstacle readability:** standard, precision, offset and wide gates have different support structures without changing their collision apertures. Four seed-selected mine families now use distinct Orbital, Prism, Rotor and Cross silhouettes/palettes; the HUD names the next family. This is a cosmetic family layer over the existing mine physics, not four separate collision models.
 - **Skill scoring and records:** clean gate passes earn accuracy bonuses, gate families have different base scores, and consecutive passes raise the in-run combo multiplier. Career-best score and combo persist in profile v3, the Records / Statistics screen displays them, and the crash/results screen distinguishes new personal records from failed saves.
 - **Input and pause safety:** mouse flight can be enabled or disabled in Settings. During an active run, Windows Raw Input deltas steer toward a persistent in-tunnel aim point without cursor warping. A tunnel-aligned 3D reticle shows the target, which is clamped to the available opening as the tunnel narrows; the system cursor remains available for menus and pause. WASD and the gamepad left stick move laterally; arrow keys and the right stick control yaw/pitch, and Q/E roll the ship. Mouse sensitivity is adjustable and saved locally. Crash and Seed Lab seeds can be copied in exact round-trippable hexadecimal form. Destructive pause actions and settings reset ask for confirmation.
 - **Refresh-aware frame pacing:** the renderer follows the monitor refresh rate up to 240 FPS, falls back to 144 FPS when the monitor query is invalid, and keeps flight physics on its separate fixed timestep.

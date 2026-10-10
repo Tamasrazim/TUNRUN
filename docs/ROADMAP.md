@@ -73,5 +73,12 @@ Still required before M1 can pass:
 - Full acceptance matrix passes.
 - Release binaries and checksums match the published release.
 
+## Latest implementation update — 2026-10-10
+
+- Camera targeting follows the ship's yaw/pitch through a clamped point inside the sampled tunnel frame. Its longitudinal look point follows the current heading instead of always staring down the course's forward axis.
+- Four deterministic cosmetic mine families (Orbital, Prism, Rotor, Cross) have distinct silhouette/color treatments and named HUD cues. Cosmetics use a separate seed channel and do not mutate hazard movement or the collision/hash definition.
+- Automated tests cover look-target direction/clamping, invalid numeric inputs, deterministic mine family selection and coverage across 512 generated hazards.
+- The latest verified Windows build/test, repository-integrity, and secret-scan workflows remain available through the live GitHub Actions results. Manual Windows input/camera acceptance is still separate.
+
 ## Priority rule
 Fix crashes, input lockups, data loss, impossible generated courses and corrupted progression before adding more obstacle families or cosmetics.
