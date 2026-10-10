@@ -11,7 +11,7 @@
 #include "app/raw_mouse.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
-#include "app/save_profile.hpp
+#include "app/save_profile.hpp"
 #include "raylib.h"
 
 #include <algorithm>

@@ -2,7 +2,7 @@
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
-#include "app/flight_physics.hpp
+#include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
 #include "app/hazards.hpp"
 #include "app/scoring.hpp"
