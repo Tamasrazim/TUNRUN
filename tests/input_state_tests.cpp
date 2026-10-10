@@ -459,6 +459,25 @@ int main() {
         throatCenter.centerX, throatCenter.centerY, throatGate.distance - 1.0,
         throatCenter.centerX, throatCenter.centerY, throatGate.distance + 1.0));
 
+    // The live cue tracks the current throat after crossing its plane and
+    // changes to the next gate only after leaving the old sleeve.
+    const auto throatGuideStart = tunrun::gateThroatGuidanceForFlight(
+        frameSeed, 0.0, 0.0F, 0.0F, 11.0F);
+    assert(throatGuideStart.valid && throatGuideStart.gateIndex == 0U);
+    assert(throatGuideStart.distanceAhead > 0.0F && throatGuideStart.distanceAhead < 26.0F);
+    assert(std::isfinite(throatGuideStart.lateralError) &&
+           std::isfinite(throatGuideStart.verticalError));
+    const auto throatGuideAfterPlane = tunrun::gateThroatGuidanceForFlight(
+        frameSeed, throatGate.distance + 6.0, 0.0F, 0.0F, 11.0F);
+    assert(throatGuideAfterPlane.valid && throatGuideAfterPlane.gateIndex == throatGate.index);
+    const auto throatGuideAfterExit = tunrun::gateThroatGuidanceForFlight(
+        frameSeed, throatGate.distance + tunrun::kGateThroatHalfLength + 0.5,
+        0.0F, 0.0F, 11.0F);
+    assert(throatGuideAfterExit.valid && throatGuideAfterExit.gateIndex == throatGate.index + 1U);
+    const auto invalidThroatGuide = tunrun::gateThroatGuidanceForFlight(
+        frameSeed, 0.0, std::numeric_limits<float>::quiet_NaN(), 0.0F, 11.0F);
+    assert(!invalidThroatGuide.valid);
+
     assert(!tunrun::isModeImplemented(tunrun::GameModeChoice::Campaign));
     assert(tunrun::isModeImplemented(tunrun::GameModeChoice::Endless));
     assert(tunrun::modeUnavailableMessage(tunrun::GameModeChoice::Endless)[0] == '\0');

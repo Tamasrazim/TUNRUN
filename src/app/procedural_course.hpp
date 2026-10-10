@@ -271,6 +271,61 @@ struct GateThroatSection {
                              sampleCourse(seed, distance).radius, 0.0F};
 }
 
+// Give the player a deterministic steering cue into the next narrow sleeve.
+// While still inside a gate's trailing throat half, keep guiding toward that
+// throat rather than jumping immediately to the next gate after its plane.
+struct GateThroatGuidance {
+    bool valid = false;
+    std::uint32_t gateIndex = 0U;
+    float targetX = 0.0F;
+    float targetY = 0.0F;
+    float lateralError = 0.0F;
+    float verticalError = 0.0F;
+    float distanceAhead = 0.0F;
+    float targetRadius = 0.0F;
+};
+
+[[nodiscard]] inline GateThroatGuidance gateThroatGuidanceForFlight(
+    std::uint64_t seed, double playerDistance, float playerX, float playerY,
+    float actualForwardSpeed) noexcept {
+    if (!std::isfinite(playerDistance) || !std::isfinite(playerX) ||
+        !std::isfinite(playerY)) return {};
+    playerDistance = std::clamp(playerDistance, -18000000.0, 18000000.0);
+    if (!std::isfinite(actualForwardSpeed)) actualForwardSpeed = 11.0F;
+    const double lookAhead = static_cast<double>(
+        std::clamp(actualForwardSpeed * 0.82F, 3.0F, 13.0F));
+    const auto firstGate = gateAt(seed, 0U);
+    const double relativeGateSlot =
+        (playerDistance - firstGate.distance) / kGateSpacing;
+    const auto slot = static_cast<std::int64_t>(std::floor(relativeGateSlot));
+    const std::uint32_t boundedSlot = slot <= 0 ? 0U
+        : static_cast<std::uint32_t>(std::min<std::int64_t>(slot, 1000000));
+    auto gate = gateAt(seed, boundedSlot);
+    if (playerDistance > gate.distance &&
+        !gateThroatSectionAtDistance(seed, gate, playerDistance).active) {
+        gate = gateAt(seed, boundedSlot + 1U);
+    }
+
+    const double approachStart = gate.distance - 12.0;
+    const double desiredDistance = std::max(playerDistance + lookAhead, approachStart);
+    const double guideDistance = std::clamp(
+        desiredDistance, approachStart,
+        gate.distance + static_cast<double>(kGateThroatHalfLength) - 0.5);
+    const auto throat = gateThroatSectionAtDistance(seed, gate, guideDistance);
+    if (!throat.active) return {};
+    const auto currentCourse = sampleCourse(seed, playerDistance);
+    const auto guideCourse = sampleCourse(seed, guideDistance);
+    const float targetX = throat.centerX +
+        (guideCourse.centerX - currentCourse.centerX);
+    const float targetY = throat.centerY +
+        (guideCourse.centerY - currentCourse.centerY);
+    return GateThroatGuidance{
+        true, gate.index, targetX, targetY, targetX - playerX, targetY - playerY,
+        static_cast<float>(std::max(0.0, guideDistance - playerDistance)),
+        throat.radius
+    };
+}
+
 [[nodiscard]] inline bool collidesWithGateThroatAtDistance(
     float x, float y, std::uint64_t seed, const ProceduralGate& gate,
     double distance, float craftRadius = kCraftCollisionRadius) noexcept {

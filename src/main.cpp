@@ -1355,8 +1355,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         }
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 220, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 220, kEdge);
+    DrawRectangle(22, 18, 344, 260, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 260, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(TextFormat("%s / %s / %4.1f U/S",
@@ -1368,6 +1368,19 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
     DrawText(TextFormat("NEXT GATE: %s", tunrun::gateKindName(nextGate.kind)), 35, 98, 12, kAccent);
     DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
+    const auto throatGuidance = tunrun::gateThroatGuidanceForFlight(
+        seed, static_cast<double>(distance), shipX, shipY, actualForwardSpeed);
+    if (throatGuidance.valid) {
+        const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
+            ? "CENTRE" : throatGuidance.lateralError < 0.0F ? "LEFT" : "RIGHT";
+        const char* verticalCue = std::abs(throatGuidance.verticalError) < 0.22F
+            ? "LEVEL" : throatGuidance.verticalError < 0.0F ? "DOWN" : "UP";
+        DrawText(TextFormat("THROAT AIM: %s / %s  +%.1fU",
+                 lateralCue, verticalCue, throatGuidance.distanceAhead),
+                 35, 137, 10, kAccent);
+    } else {
+        DrawText("THROAT AIM: UNAVAILABLE", 35, 137, 10, kMuted);
+    }
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
     if (hazardCue.valid) {
@@ -1378,7 +1391,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("NEXT %s: %.1fU / %.1fS",
                  tunrun::hazardVisualFamilyName(hazardFamily),
                  hazardCue.distanceAhead, timeToHazard),
-                 35, 137, 10, Color{255, 153, 125, 255});
+                 35, 157, 10, Color{255, 153, 125, 255});
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
@@ -1386,27 +1399,27 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("MINE BEARING: %s %.1f / %s %.1f",
                  horizontalDirection, std::abs(hazardCue.offsetX),
                  verticalDirection, std::abs(hazardCue.offsetY)),
-                 35, 157, 10, Color{255, 153, 125, 255});
+                 35, 177, 10, Color{255, 153, 125, 255});
     } else {
-        DrawText("HAZARD CUE UNAVAILABLE", 35, 137, 10, kMuted);
+        DrawText("HAZARD CUE UNAVAILABLE", 35, 157, 10, kMuted);
     }
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 177, 10, kMuted);
+             static_cast<unsigned long long>(coresPickedUp)), 35, 197, 10, kMuted);
     DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
-             static_cast<unsigned long long>(score.cleanPasses)), 35, 197, 10, kAccent);
+             static_cast<unsigned long long>(score.cleanPasses)), 35, 217, 10, kAccent);
     if (dashRemaining > 0.0F) {
-        DrawText("DASH ACTIVE", 35, 217, 10, kAccent);
+        DrawText("DASH ACTIVE", 35, 237, 10, kAccent);
     } else if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
-                 35, 217, 10, kMuted);
+                 35, 237, 10, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
-        DrawText("DASH READY: SPACE / PAD A", 35, 217, 10, kAccent);
+        DrawText("DASH READY: SPACE / PAD A", 35, 237, 10, kAccent);
     } else {
         DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
-                 35, 217, 10, kMuted);
+                 35, 237, 10, kMuted);
     }
     DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
                   Color{10, 14, 21, 220});
