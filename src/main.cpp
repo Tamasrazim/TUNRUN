@@ -1069,9 +1069,14 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         camera.position.x, camera.position.y, camera.position.z};
     const tunrun::FrameVector3 cameraTargetPosition{
         camera.target.x, camera.target.y, camera.target.z};
+    const float eyeWallClearance = tpp ? 0.80F : 0.55F;
+    // A ship centre may approach the surface more closely than the camera eye:
+    // the collision hull already reserves its own radius around that point.
+    const float focusWallClearance = tpp ? 0.35F : 0.55F;
     const auto cameraRayLimit = tunrun::limitCameraRayInsideTunnel(
         seed, distance, cameraOriginDistance, originalCameraPosition,
-        cameraTargetDistance, cameraTargetPosition, 0.55F, 64U);
+        cameraTargetDistance, cameraTargetPosition,
+        eyeWallClearance, 64U, focusWallClearance);
     if (cameraRayLimit.clipped && tpp) {
         // If a curved wall or sleeve blocks the direct view, scan from the
         // intended focus back toward the eye and pull the eye to the last clear
@@ -1079,7 +1084,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         // the wall that hid it.
         const auto reverseRayLimit = tunrun::limitCameraRayInsideTunnel(
             seed, distance, cameraTargetDistance, cameraTargetPosition,
-            cameraOriginDistance, originalCameraPosition, 0.55F, 64U);
+            cameraOriginDistance, originalCameraPosition,
+            focusWallClearance, 64U, eyeWallClearance);
         if (reverseRayLimit.clipped) {
             const float t = std::clamp(reverseRayLimit.safeFraction, 0.05F, 0.95F);
             camera.position = Vector3{

@@ -251,7 +251,8 @@ struct CameraRayLimit {
     std::uint64_t seed, double referenceDistance,
     double cameraDistance, FrameVector3 cameraPosition,
     double targetDistance, FrameVector3 targetPosition,
-    float wallClearance = 0.55F, unsigned int samples = 48U) noexcept {
+    float wallClearance = 0.55F, unsigned int samples = 48U,
+    float targetWallClearance = -1.0F) noexcept {
     if (!std::isfinite(referenceDistance)) referenceDistance = 0.0;
     if (!std::isfinite(cameraDistance)) cameraDistance = referenceDistance;
     if (!std::isfinite(targetDistance)) targetDistance = cameraDistance;
@@ -261,6 +262,9 @@ struct CameraRayLimit {
         return CameraRayLimit{0.05F, 0.0F, true};
     }
     if (!std::isfinite(wallClearance) || wallClearance < 0.0F) wallClearance = 0.55F;
+    if (!std::isfinite(targetWallClearance) || targetWallClearance < 0.0F) {
+        targetWallClearance = wallClearance;
+    }
     samples = std::clamp(samples, 8U, 256U);
 
     const float dx = targetPosition.x - cameraPosition.x;
@@ -297,7 +301,9 @@ struct CameraRayLimit {
         const float crossSectionRadius = throat.active ? throat.radius : frame.radius;
         const float radial = std::hypot(
             right - crossSectionCenterX, up - crossSectionCenterY);
-        const float safeRadius = std::max(0.25F, crossSectionRadius - wallClearance);
+        const float requiredClearance = wallClearance +
+            (targetWallClearance - wallClearance) * fraction;
+        const float safeRadius = std::max(0.25F, crossSectionRadius - requiredClearance);
         const float clearance = safeRadius - radial;
         minimumClearance = std::min(minimumClearance, clearance);
         if (!std::isfinite(radial) || radial > safeRadius) {

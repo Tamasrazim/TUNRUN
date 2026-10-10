@@ -149,7 +149,7 @@ int main() {
         throatCameraDistance,
         tunrun::tunnelFramePoint(throatCameraFrame,
             throatCameraSection.centerX, throatCameraSection.centerY),
-        0.55F, 64U);
+        0.15F, 64U, 0.55F);
     assert(reverseSleeveRay.clipped);
     assert(reverseSleeveRay.safeFraction > 0.05F && reverseSleeveRay.safeFraction < 1.0F);
 

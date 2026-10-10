@@ -80,7 +80,7 @@ On a collision:
 - Mouse-look yaw/pitch orbit the camera eye around the spacecraft instead of rotating the view from a fixed eye point; TPP keeps the craft itself centred while the eye moves.
 - Smooth all three camera-offset components so moving between rear, side and front views does not abruptly jump the longitudinal camera sample.
 - Look ahead toward the upcoming flight path, not only directly at the craft.
-- Test the view ray against outer tunnel walls and narrow aperture throats. If the direct ray is blocked, move the TPP eye toward the ship along the last clear segment; in FPP, clip the look target rather than moving the pilot camera.
+- Test the view ray against outer tunnel walls and narrow aperture throats. In TPP, taper the allowed clearance from the eye's camera margin to the ship's collision-hull margin; if blocked, move the eye toward the ship along the last clear segment. In FPP, clip the look target rather than moving the pilot camera.
 - Clamp the camera to safe tunnel/camera volumes near tight curves.
 - Never modify craft physics to compensate for camera movement.
 
