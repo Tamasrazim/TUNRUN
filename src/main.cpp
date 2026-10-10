@@ -1075,8 +1075,12 @@ int main() {
         const bool mouseCaptureWanted =
             app.screens.current() == tunrun::Screen::Preview &&
             app.profile.mouseSteering && IsWindowFocused();
-        if (rawMouse.installed() && rawMouse.active() != mouseCaptureWanted) {
-            rawMouse.setActive(mouseCaptureWanted);
+        if (rawMouse.installed()) {
+            if (rawMouse.active() != mouseCaptureWanted) {
+                rawMouse.setActive(mouseCaptureWanted);
+            } else if (mouseCaptureWanted) {
+                rawMouse.refreshClip();
+            }
         }
         const float dt = std::min(GetFrameTime(), 0.05F);
         if (tunrun::shouldAdvanceRunClock(app.screens)) app.elapsed += dt;

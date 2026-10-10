@@ -39,7 +39,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Keyboard and gamepad can operate the same screen.
 
 Gameplay-specific mouse checks:
-- Entering a run captures relative mouse input only when mouse flight is enabled; on Windows the cursor is hidden and clipped to the client area without recentering warps.
+- Entering a run captures relative mouse input only when mouse flight is enabled; on Windows the cursor is hidden and clipped to the current client area without recentering warps; the clipping rectangle refreshes after window movement or resizing.
 - Relative movement steers in the intended direction; the logarithmic sensitivity slider, bounded keyboard/controller adjustments, and enable/disable toggle work.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.

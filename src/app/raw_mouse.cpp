@@ -78,25 +78,51 @@ bool RawMouse::install(void* nativeWindow) noexcept {
 
 void RawMouse::setActive(bool wanted) noexcept {
     if (!installed_) return;
-    active_ = wanted && GetForegroundWindow() == g_window;
-    if (active_) {
-        RECT client{};
-        POINT topLeft{0, 0};
-        POINT bottomRight{};
-        if (GetClientRect(g_window, &client)) {
-            bottomRight.x = client.right;
-            bottomRight.y = client.bottom;
-            ClientToScreen(g_window, &topLeft);
-            ClientToScreen(g_window, &bottomRight);
-            const RECT bounds{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
-            ClipCursor(&bounds);
-        }
-        SetCursor(nullptr);
-    } else {
+    const bool nextActive = wanted && GetForegroundWindow() == g_window;
+    if (!nextActive) {
+        active_ = false;
+        clipBoundsValid_ = false;
         ClipCursor(nullptr);
         SetCursor(LoadCursorW(nullptr, MAKEINTRESOURCEW(32512)));
         clear();
+        return;
     }
+    active_ = true;
+    refreshClip();
+    SetCursor(nullptr);
+}
+
+void RawMouse::refreshClip() noexcept {
+    if (!installed_ || !active_) return;
+    if (GetForegroundWindow() != g_window) {
+        setActive(false);
+        return;
+    }
+
+    RECT client{};
+    POINT topLeft{0, 0};
+    POINT bottomRight{};
+    if (!GetClientRect(g_window, &client)) return;
+    bottomRight.x = client.right;
+    bottomRight.y = client.bottom;
+    if (!ClientToScreen(g_window, &topLeft) ||
+        !ClientToScreen(g_window, &bottomRight)) return;
+    const RECT bounds{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
+    if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) return;
+
+    const bool changed = !clipBoundsValid_ ||
+        clipLeft_ != static_cast<std::int32_t>(bounds.left) ||
+        clipTop_ != static_cast<std::int32_t>(bounds.top) ||
+        clipRight_ != static_cast<std::int32_t>(bounds.right) ||
+        clipBottom_ != static_cast<std::int32_t>(bounds.bottom);
+    if (changed && ClipCursor(&bounds)) {
+        clipLeft_ = static_cast<std::int32_t>(bounds.left);
+        clipTop_ = static_cast<std::int32_t>(bounds.top);
+        clipRight_ = static_cast<std::int32_t>(bounds.right);
+        clipBottom_ = static_cast<std::int32_t>(bounds.bottom);
+        clipBoundsValid_ = true;
+    }
+    SetCursor(nullptr);
 }
 
 RelativeMouseDelta RawMouse::consume() noexcept {
@@ -141,6 +167,7 @@ void RawMouse::uninstall() noexcept {
     g_window = nullptr;
     installed_ = false;
     active_ = false;
+    clipBoundsValid_ = false;
     clear();
 }
 
@@ -151,6 +178,7 @@ RawMouse::~RawMouse() {
 }
 bool RawMouse::install(void*) noexcept { return false; }
 void RawMouse::setActive(bool) noexcept {}
+void RawMouse::refreshClip() noexcept {}
 RelativeMouseDelta RawMouse::consume() noexcept { return {}; }
 void RawMouse::clear() noexcept {
     deltaX_.store(0, std::memory_order_relaxed);

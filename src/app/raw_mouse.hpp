@@ -85,6 +85,8 @@ public:
     bool install(void* nativeWindow) noexcept;
     [[nodiscard]] bool installed() const noexcept { return installed_; }
     void setActive(bool wanted) noexcept;
+    // Refreshes client clipping after resize/move or display-mode changes.
+    void refreshClip() noexcept;
     [[nodiscard]] RelativeMouseDelta consume() noexcept;
     void clear() noexcept;
     void uninstall() noexcept;
@@ -98,4 +100,9 @@ private:
     std::atomic<long long> deltaY_{0};
     bool installed_ = false;
     bool active_ = false;
+    bool clipBoundsValid_ = false;
+    std::int32_t clipLeft_ = 0;
+    std::int32_t clipTop_ = 0;
+    std::int32_t clipRight_ = 0;
+    std::int32_t clipBottom_ = 0;
 };
