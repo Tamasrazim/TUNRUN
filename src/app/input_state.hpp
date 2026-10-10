@@ -44,7 +44,7 @@ inline constexpr int kMaximumTargetFps = 240;
     return refreshRate > kMaximumTargetFps ? kMaximumTargetFps : refreshRate;
 }
 
-enum class Screen { MainMenu, Hangar, Records, Controls, Modes, Settings, SettingsResetConfirm, Credits, Preview, Pause, RunConfirm, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
+enum class Screen { MainMenu, Hangar, HangarPurchaseConfirm, Records, Controls, Modes, Settings, SettingsResetConfirm, Credits, Preview, Pause, RunConfirm, ExitConfirm, Crash, SeedLab, SeedEntry, SaveRecovery };
 
 // Converts a held state into one activation on the down edge.
 class ButtonEdge {
