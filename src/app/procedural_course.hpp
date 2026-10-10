@@ -216,7 +216,7 @@ struct GateThroatSection {
     // Keep the narrow core for the first third of the sleeve, then flare
     // smoothly into the main tunnel. The older profile opened too quickly,
     // making a small aperture behave like a thin ring visually and physically.
-    constexpr float narrowCoreFraction = 0.32F;
+    constexpr float narrowCoreFraction = 0.02F;
     const float normalizedDistance = static_cast<float>(
         absoluteOffset / static_cast<double>(kGateThroatHalfLength));
     const float taperProgress = std::clamp(
@@ -239,8 +239,8 @@ struct GateThroatSection {
     const std::uint64_t turnBits = mixCourseBits(
         seed ^ (static_cast<std::uint64_t>(gate.index) * 0x9E3779B97F4A7C15ULL));
     const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
-    const float bendX = turnSign * 1.10F * wave;
-    const float bendY = 0.34F * verticalWave;
+    const float bendX = turnSign * 0.40F * wave;
+    const float bendY = 0.14F * verticalWave;
     return GateThroatSection{
         true, gate.index, gate.offsetX * pinch + bendX,
         gate.offsetY * pinch + bendY,
