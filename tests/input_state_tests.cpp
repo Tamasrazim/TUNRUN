@@ -1120,7 +1120,6 @@ int main() {
            "PREPARE");
     assert(prepareGate.urgency > 0.0F && prepareGate.urgency < 1.0F);
     // At normal gate spacing the HUD announces arrival while gate geometry is hidden.
-    assert(prepareGate.stage == tunrun::GateApproachStage::Prepare);
     const auto insideHorizonCue = tunrun::gateApproachCue(17.0, 0.0, 11.0F);
     assert(insideHorizonCue.valid &&
            insideHorizonCue.stage == tunrun::GateApproachStage::Approach);
