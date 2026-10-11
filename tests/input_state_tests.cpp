@@ -1050,10 +1050,18 @@ int main() {
     assert(!tunrun::hazardInterceptCueAt(
         hazard, std::numeric_limits<double>::infinity(), 1.0, 0.0F, 0.0F).valid);
 
-    const auto nextCue = tunrun::hazardHudCueAt(
+    // The warning must not jump to mine #1 at the exact centre plane: mine #0
+    // remains collidable for the rear half of its collision envelope.
+    const auto justPastCue = tunrun::hazardHudCueAt(
         seed, hazard.distance + 0.01, 1.25, 0.0F, 0.0F);
+    assert(justPastCue.valid && justPastCue.hazardIndex == 0U);
+    assert(justPastCue.planePassed && justPastCue.distanceAhead == 0.0);
+    assert(justPastCue.signedDistanceToPlane < 0.0);
+    const auto nextCue = tunrun::hazardHudCueAt(
+        seed, hazard.distance + tunrun::kHazardWarningRearGrace + 0.01,
+        1.25, 0.0F, 0.0F);
     assert(nextCue.valid && nextCue.hazardIndex == 1U);
-    assert(nextCue.distanceAhead > 0.0);
+    assert(!nextCue.planePassed && nextCue.distanceAhead > 0.0);
 
     // Proximity beacon timing is a pure visual cue: it is repeatable, bounded,
     // and becomes more urgent without changing the mine trajectory or hitbox.

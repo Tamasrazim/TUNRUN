@@ -247,6 +247,8 @@ struct HazardHudCue {
     bool valid = false;
     std::uint32_t hazardIndex = 0U;
     double distanceAhead = 0.0;
+    double signedDistanceToPlane = 0.0;
+    bool planePassed = false;
     // Lateral offset in the same player-relative render frame used by the
     // projected mine. X < 0 means left; Y > 0 means up.
     float offsetX = 0.0F;
@@ -306,8 +308,12 @@ inline HazardHudCue hazardHudCueAt(std::uint64_t seed, double playerDistance,
         !std::isfinite(playerX) || !std::isfinite(playerY)) return result;
 
     const auto firstHazard = hazardAt(seed, 0U);
+    // Keep the just-passed mine selected through its complete collision
+    // envelope. Otherwise the monitor jumps to the next mine at the exact
+    // centre plane while the previous mine can still collide from behind.
     const double indexEstimate = std::ceil(
-        (playerDistance - firstHazard.distance) / kHazardSpacing);
+        (playerDistance - firstHazard.distance - kHazardWarningRearGrace) /
+        kHazardSpacing);
     if (!std::isfinite(indexEstimate)) return result;
     const double boundedIndex = std::clamp(
         indexEstimate, 0.0,
@@ -318,13 +324,16 @@ inline HazardHudCue hazardHudCueAt(std::uint64_t seed, double playerDistance,
     const auto hazardSection = sampleCourse(seed, hazard.distance);
     const auto movingCenter = hazardCenterAt(hazard, elapsedSeconds);
 
-    result.distanceAhead = std::max(0.0, hazard.distance - playerDistance);
+    result.signedDistanceToPlane = hazard.distance - playerDistance;
+    result.distanceAhead = std::max(0.0, result.signedDistanceToPlane);
+    result.planePassed = result.signedDistanceToPlane < 0.0;
     result.offsetX = hazardSection.centerX - playerSection.centerX +
                      movingCenter.x - playerX;
     result.offsetY = hazardSection.centerY - playerSection.centerY +
                      movingCenter.y - playerY;
     result.hazardIndex = hazardIndex;
     result.valid = std::isfinite(result.distanceAhead) &&
+                   std::isfinite(result.signedDistanceToPlane) &&
                    std::isfinite(result.offsetX) &&
                    std::isfinite(result.offsetY);
     return result;

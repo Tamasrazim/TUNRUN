@@ -2124,19 +2124,31 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const float timeToHazard = hazardCue.distanceAhead /
             std::max(0.1F, actualForwardSpeed);
         const auto warning = tunrun::hazardWarningProfileAt(
-            hazardCue.distanceAhead, elapsedSeconds);
-        const char* warningLabel = warning.urgent ? "IMPACT RISK"
+            hazardCue.signedDistanceToPlane, elapsedSeconds);
+        const char* warningLabel = hazardCue.planePassed ? "REAR CLEARANCE"
+            : warning.urgent ? "IMPACT RISK"
             : warning.visible ? "THREAT DETECTED" : "TRACKING";
-        const Color warningText = warning.urgent ? Color{255, 91, 84, 255}
+        const Color warningText = hazardCue.planePassed
+            ? Color{255, 174, 139, 255}
+            : warning.urgent ? Color{255, 91, 84, 255}
             : warning.visible ? Color{255, 184, 101, 255}
                               : Color{255, 153, 125, 255};
         DrawText(TextFormat("%s / %s",
             warningLabel, tunrun::hazardVisualFamilyName(hazardFamily)),
             950, 203, 10, warningText);
-        DrawText(TextFormat("%s / %.1f U / %.1f S",
-            tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
-            hazardCue.distanceAhead, timeToHazard), 950, 221, 9, kText);
-        if (warning.urgent) {
+        if (hazardCue.planePassed) {
+            DrawText(TextFormat("%s / %.2f U PAST",
+                tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
+                -hazardCue.signedDistanceToPlane), 950, 221, 9, kText);
+        } else {
+            DrawText(TextFormat("%s / %.1f U / %.1f S",
+                tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
+                hazardCue.distanceAhead, timeToHazard), 950, 221, 9, kText);
+        }
+        if (warning.urgent && hazardCue.planePassed) {
+            DrawText("REAR CLEARANCE / MINE STILL NEARBY",
+                     950, 239, 8, Color{255, 174, 139, 255});
+        } else if (warning.urgent) {
             const auto intercept = tunrun::hazardInterceptCueAt(
                 upcomingHazard, elapsedSeconds, timeToHazard, shipX, shipY);
             if (intercept.valid) {
