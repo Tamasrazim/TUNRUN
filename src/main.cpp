@@ -665,6 +665,31 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
     DrawLine(50, 143, kCanvasWidth - 50, 143, kEdge);
 }
 
+void drawPerformancePanel() {
+    const Rectangle bounds{936.0F, 548.0F, 320.0F, 110.0F};
+    drawMaterialSurface(bounds,
+        Color{95, 126, 151, 118}, Color{4, 10, 17, 208});
+    DrawRectangleLinesEx(bounds, 1.0F, Color{48, 69, 87, 235});
+    DrawText("PERFORMANCE", 950, 560, 10, kAccent);
+
+    const int framesPerSecond = std::max(0, GetFPS());
+    DrawText(TextFormat("%d FPS", framesPerSecond), 950, 578, 21, kText);
+    DrawText(TextFormat("FRAME TIME / %.1f MS", GetFrameTime() * 1000.0F),
+             1064, 585, 9, kMuted);
+
+    const float targetFill = std::clamp(
+        static_cast<float>(framesPerSecond) / 60.0F, 0.0F, 1.0F);
+    const Color performanceColor = framesPerSecond < 30
+        ? kDanger : framesPerSecond < 54
+            ? Color{245, 190, 118, 255} : kAccent;
+    DrawRectangle(950, 610, 292, 5, Color{35, 47, 60, 255});
+    DrawRectangle(950, 610, static_cast<int>(292.0F * targetFill),
+                  5, performanceColor);
+    DrawText("TARGET / 60 FPS", 950, 628, 9, kMuted);
+    DrawText(TextFormat("WINDOW / %d x %d", GetScreenWidth(), GetScreenHeight()),
+             1064, 628, 9, kMuted);
+}
+
 Vector3 rayVector(tunrun::FrameVector3 p) { return Vector3{p.x,p.y,p.z}; }
 
 Vector3 tunnelPoint(const tunrun::TunnelFrame& frame,int side) {
@@ -2478,7 +2503,7 @@ int main() {
             if (drawButton(pauseBounds, "PAUSE", false)) {
                 app.screens.push(tunrun::Screen::Pause);
             }
-            if (app.showFps) DrawFPS(kCanvasWidth - 92, 72);
+            if (app.showFps) drawPerformancePanel();
             presentCanvas(sceneCanvas);
             continue;
         }
@@ -3353,7 +3378,13 @@ case tunrun::Screen::SaveRecovery: {
             DrawText("SAVE WARNING - SOME CHANGES MAY NOT BE PERSISTED",
                      22, kCanvasHeight - 48, 13, kDanger);
         }
-        if (app.showFps) DrawFPS(kCanvasWidth - 92, 16);
+        if (app.showFps) {
+            if (app.screens.contains(tunrun::Screen::Pause)) {
+                drawPerformancePanel();
+            } else {
+                DrawFPS(kCanvasWidth - 92, 16);
+            }
+        }
         DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, kCanvasHeight - 25, 12, kMuted);
         presentCanvas(sceneCanvas);
     }
