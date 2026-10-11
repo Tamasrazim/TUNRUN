@@ -2,6 +2,7 @@
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
+#include "app/gate_guidance.hpp"
 #include "app/gate_visuals.hpp"
 #include "app/flight_physics.hpp"
 #include "app/rewards.hpp"
@@ -1100,6 +1101,40 @@ int main() {
     assert(beaconAt22 > beaconAt54);
     assert(tunrun::warningBeaconVisibilityAtDistance(74.0F) == 0.0F);
     assert(tunrun::warningBeaconVisibilityAtDistance(90.0F) == 0.0F);
+
+    // Gate approach timing must follow live speed, not just fixed course units.
+    const auto prepareGate = tunrun::gateApproachCue(42.0, 0.0, 11.0F);
+    assert(prepareGate.valid);
+    assert(std::abs(prepareGate.distanceAhead - 42.0F) < 0.001F);
+    assert(std::abs(prepareGate.timeAheadSeconds - (42.0F / 11.0F)) < 0.001F);
+    assert(prepareGate.stage == tunrun::GateApproachStage::Prepare);
+    assert(prepareGate.urgency > 0.0F && prepareGate.urgency < 1.0F);
+
+    const auto fasterApproach = tunrun::gateApproachCue(42.0, 0.0, 24.0F);
+    assert(fasterApproach.valid);
+    assert(fasterApproach.stage == tunrun::GateApproachStage::Approach);
+    assert(fasterApproach.timeAheadSeconds < prepareGate.timeAheadSeconds);
+    assert(fasterApproach.urgency > prepareGate.urgency);
+
+    const auto imminentGate = tunrun::gateApproachCue(8.0, 0.0, 11.0F);
+    assert(imminentGate.valid);
+    assert(imminentGate.stage == tunrun::GateApproachStage::Imminent);
+    assert(imminentGate.urgency == 1.0F);
+    assert(std::string_view(tunrun::gateApproachStageName(imminentGate.stage)) ==
+           "IMMINENT");
+
+    const auto alreadyCrossed = tunrun::gateApproachCue(10.0, 12.0, 11.0F);
+    assert(alreadyCrossed.valid && alreadyCrossed.distanceAhead == 0.0F);
+    assert(alreadyCrossed.stage == tunrun::GateApproachStage::Imminent);
+
+    const auto distantGate = tunrun::gateApproachCue(55.0, 0.0, 11.0F);
+    assert(distantGate.valid && distantGate.stage == tunrun::GateApproachStage::Clear);
+    assert(distantGate.urgency == 0.0F);
+    assert(!tunrun::gateApproachCue(
+        std::numeric_limits<double>::quiet_NaN(), 0.0, 11.0F).valid);
+    assert(!tunrun::gateApproachCue(
+        10.0, std::numeric_limits<double>::infinity(), 11.0F).valid);
+    assert(!tunrun::gateApproachCue(10.0, 0.0F, -1.0F).valid);
     bool seenRibbed = false, seenPlasma = false, seenFractured = false;
     bool seenSpiral = false, seenLattice = false;
     for (std::int64_t section = 0; section < 512; ++section) {
