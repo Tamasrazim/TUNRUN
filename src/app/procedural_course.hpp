@@ -189,7 +189,7 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
             firstDistance + static_cast<double>(index) * kGateSpacing,
             courseSigned(seed, sample, 121U) * 0.40F,
             courseSigned(seed, sample, 122U) * 0.25F,
-            2.00F + courseUnit(seed, sample, 123U) * 0.15F,
+            2.00F + courseUnit(seed, sample, 123U) * 0.05F,
             GateKind::Standard
         };
     }
