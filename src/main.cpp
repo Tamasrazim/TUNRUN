@@ -1009,149 +1009,149 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     const Vector3 center=p(cx,cy);
     const auto warning = tunrun::hazardWarningProfileAt(ahead, elapsedSeconds);
     if (ahead <= tunrun::kTunnelVisualHorizon) {
-    Color color{}, blade{}, shell{}, facetLight{}, facetDark{};
-    const auto family = tunrun::hazardVisualFamilyAt(seed, hazard.index);
-    switch (family) {
-    case tunrun::HazardVisualFamily::Orbital:
-        color={255,103,91,255}; blade={255,190,145,240}; shell={112,35,38,255};
-        facetLight={220,91,70,255}; facetDark={79,27,36,255}; break;
-    case tunrun::HazardVisualFamily::Prism:
-        color={207,119,255,255}; blade={246,185,255,245}; shell={64,27,88,255};
-        facetLight={223,151,255,255}; facetDark={62,29,91,255}; break;
-    case tunrun::HazardVisualFamily::Rotor:
-        color={77,220,255,255}; blade={181,249,255,245}; shell={17,62,86,255};
-        facetLight={123,239,255,255}; facetDark={21,83,110,255}; break;
-    case tunrun::HazardVisualFamily::Cross:
-        color={255,211,91,255}; blade={255,244,174,245}; shell={98,62,20,255};
-        facetLight={255,226,122,255}; facetDark={112,65,17,255}; break;
-    case tunrun::HazardVisualFamily::HaloArray:
-        color={92,245,205,255}; blade={196,255,239,245}; shell={13,73,62,255};
-        facetLight={109,255,218,255}; facetDark={17,86,78,255}; break;
-    case tunrun::HazardVisualFamily::ShardCluster:
-        color={255,151,91,255}; blade={255,221,172,245}; shell={91,39,19,255};
-        facetLight={255,190,120,255}; facetDark={122,52,27,255}; break;
-    }
-    color=tunnelDepthFog(color,ahead);
-    blade=tunnelDepthFog(blade,ahead);
-    shell=tunnelDepthFog(shell,ahead);
-    facetLight=tunnelDepthFog(facetLight,ahead);
-    facetDark=tunnelDepthFog(facetDark,ahead);
-    const float phase=elapsedSeconds*(1.1F+hazard.frequency*0.4F)+
-                      static_cast<float>(hazard.index)*0.73F;
-    switch (family) {
-    case tunrun::HazardVisualFamily::Orbital:
-        DrawSphere(center,hazard.radius*0.72F,shell);
-        DrawSphereWires(center,hazard.radius,8,12,color);
-        DrawLine3D(p(cx-hazard.radius,cy),p(cx+hazard.radius,cy),blade);
-        DrawLine3D(p(cx,cy-hazard.radius),p(cx,cy+hazard.radius),blade);
-        break;
-    case tunrun::HazardVisualFamily::Prism: {
-        const Vector3 top=p(cx,cy+hazard.radius),right=p(cx+hazard.radius*0.78F,cy);
-        const Vector3 bottom=p(cx,cy-hazard.radius),left=p(cx-hazard.radius*0.78F,cy);
-        const Vector3 front=p(cx,cy,hazard.radius*0.55F),back=p(cx,cy,-hazard.radius*0.55F);
-        
-        DrawTriangle3D(top,right,front,facetLight);DrawTriangle3D(right,bottom,front,color);
-        DrawTriangle3D(bottom,left,front,facetDark);DrawTriangle3D(left,top,front,facetLight);
-        DrawTriangle3D(top,back,right,facetDark);DrawTriangle3D(right,back,bottom,facetLight);
-        DrawTriangle3D(bottom,back,left,color);DrawTriangle3D(left,back,top,facetDark);
-        DrawLine3D(top,right,color);DrawLine3D(right,bottom,color);
-        DrawLine3D(bottom,left,color);DrawLine3D(left,top,color);
-        DrawLine3D(top,bottom,blade);DrawLine3D(left,right,blade);
-        DrawSphereWires(center,hazard.radius*0.34F,6,8,color);
-        break;
-    }
-    case tunrun::HazardVisualFamily::Rotor: {
-        for(int i=0;i<3;++i) {
-            const float a=phase+static_cast<float>(i)*2.0F*PI/3.0F;
-            const float tx=cx+std::cos(a)*hazard.radius,ty=cy+std::sin(a)*hazard.radius;
-            const Vector3 tip=p(tx,ty);
-            const Vector3 shoulder=p(cx-std::cos(a)*hazard.radius*0.55F,
-                cy-std::sin(a)*hazard.radius*0.55F,std::sin(phase)*hazard.radius*0.28F);
-            const Vector3 back=p(tx,ty,-hazard.radius*0.22F);
-            DrawTriangle3D(center,tip,shoulder,blade);
-            DrawTriangle3D(center,shoulder,back,facetDark);
-            DrawLine3D(center,tip,color);DrawLine3D(tip,shoulder,blade);DrawLine3D(shoulder,center,color);
+        Color color{}, blade{}, shell{}, facetLight{}, facetDark{};
+        const auto family = tunrun::hazardVisualFamilyAt(seed, hazard.index);
+        switch (family) {
+        case tunrun::HazardVisualFamily::Orbital:
+            color={255,103,91,255}; blade={255,190,145,240}; shell={112,35,38,255};
+            facetLight={220,91,70,255}; facetDark={79,27,36,255}; break;
+        case tunrun::HazardVisualFamily::Prism:
+            color={207,119,255,255}; blade={246,185,255,245}; shell={64,27,88,255};
+            facetLight={223,151,255,255}; facetDark={62,29,91,255}; break;
+        case tunrun::HazardVisualFamily::Rotor:
+            color={77,220,255,255}; blade={181,249,255,245}; shell={17,62,86,255};
+            facetLight={123,239,255,255}; facetDark={21,83,110,255}; break;
+        case tunrun::HazardVisualFamily::Cross:
+            color={255,211,91,255}; blade={255,244,174,245}; shell={98,62,20,255};
+            facetLight={255,226,122,255}; facetDark={112,65,17,255}; break;
+        case tunrun::HazardVisualFamily::HaloArray:
+            color={92,245,205,255}; blade={196,255,239,245}; shell={13,73,62,255};
+            facetLight={109,255,218,255}; facetDark={17,86,78,255}; break;
+        case tunrun::HazardVisualFamily::ShardCluster:
+            color={255,151,91,255}; blade={255,221,172,245}; shell={91,39,19,255};
+            facetLight={255,190,120,255}; facetDark={122,52,27,255}; break;
         }
-        DrawSphereWires(center,hazard.radius*0.24F,6,8,blade);
-        break;
-    }
-    case tunrun::HazardVisualFamily::Cross: {
-        const float cs=std::cos(phase),sn=std::sin(phase);
-        const Vector3 a=p(cx+cs*hazard.radius,cy+sn*hazard.radius);
-        const Vector3 b=p(cx-cs*hazard.radius,cy-sn*hazard.radius);
-        const Vector3 c=p(cx-sn*hazard.radius,cy+cs*hazard.radius);
-        const Vector3 d=p(cx+sn*hazard.radius,cy-cs*hazard.radius);
-        const Vector3 front=p(cx,cy,hazard.radius*0.30F),back=p(cx,cy,-hazard.radius*0.30F);
-        DrawTriangle3D(a,front,c,color);DrawTriangle3D(c,back,b,blade);
-        DrawTriangle3D(b,front,d,facetDark);DrawTriangle3D(d,back,a,color);
-        DrawSphere(center,hazard.radius*0.22F,shell);
-        DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
-        DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
-        break;
-    }
-    case tunrun::HazardVisualFamily::HaloArray: {
-        // Three intersecting, phase-driven hoops give this mine a mechanical
-        // gyroscope silhouette rather than another solid sphere or blade set.
-        constexpr int ringSegments=32;
-        const float ringRadius=hazard.radius*0.88F;
-        const auto drawLoop=[&](int axis,float phaseOffset) {
-            Vector3 previous{};
-            for(int segment=0;segment<=ringSegments;++segment) {
-                const float angle=phase+phaseOffset+
-                    static_cast<float>(segment)*2.0F*PI/ringSegments;
-                const float cs=std::cos(angle),sn=std::sin(angle);
-                Vector3 point{};
-                if(axis==0) point=p(cx+cs*ringRadius,cy+sn*ringRadius,
-                                    std::sin(angle*2.0F+phase)*ringRadius*0.10F);
-                else if(axis==1) point=p(cx+cs*ringRadius,
-                    cy+sn*ringRadius*0.18F,sn*ringRadius);
-                else point=p(cx+sn*ringRadius*0.18F,
-                    cy+cs*ringRadius,sn*ringRadius);
-                if(segment>0) DrawLine3D(previous,point,
-                    (segment%4==0)?blade:color);
-                previous=point;
+        color=tunnelDepthFog(color,ahead);
+        blade=tunnelDepthFog(blade,ahead);
+        shell=tunnelDepthFog(shell,ahead);
+        facetLight=tunnelDepthFog(facetLight,ahead);
+        facetDark=tunnelDepthFog(facetDark,ahead);
+        const float phase=elapsedSeconds*(1.1F+hazard.frequency*0.4F)+
+                          static_cast<float>(hazard.index)*0.73F;
+        switch (family) {
+        case tunrun::HazardVisualFamily::Orbital:
+            DrawSphere(center,hazard.radius*0.72F,shell);
+            DrawSphereWires(center,hazard.radius,8,12,color);
+            DrawLine3D(p(cx-hazard.radius,cy),p(cx+hazard.radius,cy),blade);
+            DrawLine3D(p(cx,cy-hazard.radius),p(cx,cy+hazard.radius),blade);
+            break;
+        case tunrun::HazardVisualFamily::Prism: {
+            const Vector3 top=p(cx,cy+hazard.radius),right=p(cx+hazard.radius*0.78F,cy);
+            const Vector3 bottom=p(cx,cy-hazard.radius),left=p(cx-hazard.radius*0.78F,cy);
+            const Vector3 front=p(cx,cy,hazard.radius*0.55F),back=p(cx,cy,-hazard.radius*0.55F);
+            
+            DrawTriangle3D(top,right,front,facetLight);DrawTriangle3D(right,bottom,front,color);
+            DrawTriangle3D(bottom,left,front,facetDark);DrawTriangle3D(left,top,front,facetLight);
+            DrawTriangle3D(top,back,right,facetDark);DrawTriangle3D(right,back,bottom,facetLight);
+            DrawTriangle3D(bottom,back,left,color);DrawTriangle3D(left,back,top,facetDark);
+            DrawLine3D(top,right,color);DrawLine3D(right,bottom,color);
+            DrawLine3D(bottom,left,color);DrawLine3D(left,top,color);
+            DrawLine3D(top,bottom,blade);DrawLine3D(left,right,blade);
+            DrawSphereWires(center,hazard.radius*0.34F,6,8,color);
+            break;
+        }
+        case tunrun::HazardVisualFamily::Rotor: {
+            for(int i=0;i<3;++i) {
+                const float a=phase+static_cast<float>(i)*2.0F*PI/3.0F;
+                const float tx=cx+std::cos(a)*hazard.radius,ty=cy+std::sin(a)*hazard.radius;
+                const Vector3 tip=p(tx,ty);
+                const Vector3 shoulder=p(cx-std::cos(a)*hazard.radius*0.55F,
+                    cy-std::sin(a)*hazard.radius*0.55F,std::sin(phase)*hazard.radius*0.28F);
+                const Vector3 back=p(tx,ty,-hazard.radius*0.22F);
+                DrawTriangle3D(center,tip,shoulder,blade);
+                DrawTriangle3D(center,shoulder,back,facetDark);
+                DrawLine3D(center,tip,color);DrawLine3D(tip,shoulder,blade);DrawLine3D(shoulder,center,color);
             }
-        };
-        drawLoop(0,0.0F);
-        drawLoop(1,0.92F);
-        drawLoop(2,2.04F);
-        DrawSphere(center,hazard.radius*0.20F,shell);
-        DrawSphereWires(center,hazard.radius*0.28F,6,8,facetLight);
-        break;
-    }
-    case tunrun::HazardVisualFamily::ShardCluster: {
-        // Six individual crystal fins orbit a small core. Their triangular
-        // faces form a faceted cluster instead of a cross-shaped silhouette.
-        DrawSphere(center,hazard.radius*0.18F,shell);
-        constexpr int shardCount=6;
-        for(int i=0;i<shardCount;++i) {
-            const float a=phase*0.52F+static_cast<float>(i)*2.0F*PI/shardCount;
-            const float cs=std::cos(a),sn=std::sin(a);
-            const float midX=cx+cs*hazard.radius*0.34F;
-            const float midY=cy+sn*hazard.radius*0.34F;
-            const float baseZ=std::sin(a*2.0F+phase)*hazard.radius*0.18F;
-            const Vector3 root=p(midX,midY,baseZ);
-            const Vector3 tip=p(cx+cs*hazard.radius*0.91F,
-                                cy+sn*hazard.radius*0.91F,
-                                baseZ+std::cos(a+phase)*hazard.radius*0.21F);
-            const Vector3 edgeA=p(midX-sn*hazard.radius*0.15F,
-                                  midY+cs*hazard.radius*0.15F,
-                                  baseZ+hazard.radius*0.19F);
-            const Vector3 edgeB=p(midX+sn*hazard.radius*0.15F,
-                                  midY-cs*hazard.radius*0.15F,
-                                  baseZ-hazard.radius*0.19F);
-            const Color shardFace=(i%3==0)?facetLight:(i%3==1)?color:facetDark;
-            DrawTriangle3D(root,tip,edgeA,shardFace);
-            DrawTriangle3D(root,edgeA,edgeB,blade);
-            DrawTriangle3D(root,edgeB,tip,facetDark);
-            DrawLine3D(root,tip,blade);
-            DrawLine3D(tip,edgeA,shardFace);
-            DrawLine3D(tip,edgeB,color);
+            DrawSphereWires(center,hazard.radius*0.24F,6,8,blade);
+            break;
         }
-        DrawSphereWires(center,hazard.radius*0.44F,6,8,color);
-        break;
-    }
-    }
+        case tunrun::HazardVisualFamily::Cross: {
+            const float cs=std::cos(phase),sn=std::sin(phase);
+            const Vector3 a=p(cx+cs*hazard.radius,cy+sn*hazard.radius);
+            const Vector3 b=p(cx-cs*hazard.radius,cy-sn*hazard.radius);
+            const Vector3 c=p(cx-sn*hazard.radius,cy+cs*hazard.radius);
+            const Vector3 d=p(cx+sn*hazard.radius,cy-cs*hazard.radius);
+            const Vector3 front=p(cx,cy,hazard.radius*0.30F),back=p(cx,cy,-hazard.radius*0.30F);
+            DrawTriangle3D(a,front,c,color);DrawTriangle3D(c,back,b,blade);
+            DrawTriangle3D(b,front,d,facetDark);DrawTriangle3D(d,back,a,color);
+            DrawSphere(center,hazard.radius*0.22F,shell);
+            DrawLine3D(a,c,color);DrawLine3D(c,b,blade);DrawLine3D(b,d,color);DrawLine3D(d,a,color);
+            DrawSphereWires(center,hazard.radius*0.42F,6,8,color);
+            break;
+        }
+        case tunrun::HazardVisualFamily::HaloArray: {
+            // Three intersecting, phase-driven hoops give this mine a mechanical
+            // gyroscope silhouette rather than another solid sphere or blade set.
+            constexpr int ringSegments=32;
+            const float ringRadius=hazard.radius*0.88F;
+            const auto drawLoop=[&](int axis,float phaseOffset) {
+                Vector3 previous{};
+                for(int segment=0;segment<=ringSegments;++segment) {
+                    const float angle=phase+phaseOffset+
+                        static_cast<float>(segment)*2.0F*PI/ringSegments;
+                    const float cs=std::cos(angle),sn=std::sin(angle);
+                    Vector3 point{};
+                    if(axis==0) point=p(cx+cs*ringRadius,cy+sn*ringRadius,
+                                        std::sin(angle*2.0F+phase)*ringRadius*0.10F);
+                    else if(axis==1) point=p(cx+cs*ringRadius,
+                        cy+sn*ringRadius*0.18F,sn*ringRadius);
+                    else point=p(cx+sn*ringRadius*0.18F,
+                        cy+cs*ringRadius,sn*ringRadius);
+                    if(segment>0) DrawLine3D(previous,point,
+                        (segment%4==0)?blade:color);
+                    previous=point;
+                }
+            };
+            drawLoop(0,0.0F);
+            drawLoop(1,0.92F);
+            drawLoop(2,2.04F);
+            DrawSphere(center,hazard.radius*0.20F,shell);
+            DrawSphereWires(center,hazard.radius*0.28F,6,8,facetLight);
+            break;
+        }
+        case tunrun::HazardVisualFamily::ShardCluster: {
+            // Six individual crystal fins orbit a small core. Their triangular
+            // faces form a faceted cluster instead of a cross-shaped silhouette.
+            DrawSphere(center,hazard.radius*0.18F,shell);
+            constexpr int shardCount=6;
+            for(int i=0;i<shardCount;++i) {
+                const float a=phase*0.52F+static_cast<float>(i)*2.0F*PI/shardCount;
+                const float cs=std::cos(a),sn=std::sin(a);
+                const float midX=cx+cs*hazard.radius*0.34F;
+                const float midY=cy+sn*hazard.radius*0.34F;
+                const float baseZ=std::sin(a*2.0F+phase)*hazard.radius*0.18F;
+                const Vector3 root=p(midX,midY,baseZ);
+                const Vector3 tip=p(cx+cs*hazard.radius*0.91F,
+                                    cy+sn*hazard.radius*0.91F,
+                                    baseZ+std::cos(a+phase)*hazard.radius*0.21F);
+                const Vector3 edgeA=p(midX-sn*hazard.radius*0.15F,
+                                      midY+cs*hazard.radius*0.15F,
+                                      baseZ+hazard.radius*0.19F);
+                const Vector3 edgeB=p(midX+sn*hazard.radius*0.15F,
+                                      midY-cs*hazard.radius*0.15F,
+                                      baseZ-hazard.radius*0.19F);
+                const Color shardFace=(i%3==0)?facetLight:(i%3==1)?color:facetDark;
+                DrawTriangle3D(root,tip,edgeA,shardFace);
+                DrawTriangle3D(root,edgeA,edgeB,blade);
+                DrawTriangle3D(root,edgeB,tip,facetDark);
+                DrawLine3D(root,tip,blade);
+                DrawLine3D(tip,edgeA,shardFace);
+                DrawLine3D(tip,edgeB,color);
+            }
+            DrawSphereWires(center,hazard.radius*0.44F,6,8,color);
+            break;
+        }
+        }
     }
 
     // An in-world segmented beacon follows the same course frame and moving
@@ -1441,9 +1441,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     camera.projection = CAMERA_PERSPECTIVE;
     ClearBackground(kBackground);
     BeginMode3D(camera);
-    constexpr int firstRing = -5;
+    constexpr int firstRing = -10;
     constexpr int sideCount = 20;
-    constexpr float ringSpacing = 3.0F;
+    constexpr float ringSpacing = 1.5F;
     constexpr int lastRing = static_cast<int>(
         tunrun::kTunnelVisualHorizon / ringSpacing) + 2;
     std::array<tunrun::TunnelFrame, lastRing - firstRing> tunnelFrames{};
@@ -1461,7 +1461,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const float panelAhead = std::max(
             0.0F, (static_cast<float>(ring) + 0.5F) * ringSpacing);
         const bool strongRib = (ring % (visual.family == tunrun::TunnelVisualFamily::RibbedMetal
-            ? 2 : visual.family == tunrun::TunnelVisualFamily::Lattice ? 3 : 4)) == 0;
+            ? 4 : visual.family == tunrun::TunnelVisualFamily::Lattice ? 6 : 8)) == 0;
         const float intensity = visual.intensity;
         const auto& palette = visual.palette;
         const Color ringAccent{
@@ -1483,20 +1483,22 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 bool panelRidge = false;
                 switch (visual.family) {
                 case tunrun::TunnelVisualFamily::RibbedMetal:
-                    panelRidge = (side % 4 == 0) || (ring % 2 == 0);
+                    panelRidge = (side % 4 == 0) || (ring % 4 == 0);
                     break;
                 case tunrun::TunnelVisualFamily::PlasmaRails:
-                    panelRidge = (side % 5 == 0) || (ring % 8 == 0);
+                    panelRidge = (side % 5 == 0) || (ring % 16 == 0);
                     break;
                 case tunrun::TunnelVisualFamily::FracturedPanels:
-                    panelRidge = ((side * 3 + ring + static_cast<int>(sectionIndex % 7)) % 7) < 2;
+                    panelRidge = ((side * 3 + static_cast<int>(std::floor(
+                        static_cast<float>(ring) * 0.5F)) +
+                        static_cast<int>(sectionIndex % 7)) % 7) < 2;
                     break;
                 case tunrun::TunnelVisualFamily::SpiralConduits:
                     panelRidge = (side % 6 == 0) || (side % 6 == 1);
                     break;
                 case tunrun::TunnelVisualFamily::Lattice:
-                    panelRidge = ((side % 2 == 0) && (ring % 2 == 0)) ||
-                                 (ring % 6 == 0);
+                    panelRidge = ((side % 2 == 0) && (ring % 4 == 0)) ||
+                                 (ring % 12 == 0);
                     break;
                 }
                 const Color panel = tunnelDepthFog(panelRidge
@@ -1510,7 +1512,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                     static_cast<unsigned char>(palette.red * 0.30F * intensity),
                     static_cast<unsigned char>(palette.green * 0.30F * intensity),
                     static_cast<unsigned char>(palette.blue * 0.30F * intensity),
-                    static_cast<unsigned char>(panelRidge ? 118 : 64)}, ringAhead);
+                    static_cast<unsigned char>(panelRidge ? 118 : 64)}, panelAhead);
                 // Cosmetic motifs never alter the continuous wall or collision.
                 DrawTriangle3D(a, b, c, panel);
                 DrawTriangle3D(a, c, d, panel);
@@ -1538,7 +1540,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             const auto visual = tunrun::tunnelVisualProfileAt(
                 seed, tunrun::tunnelVisualSectionIndex(midpointDistance));
             if (!tunrun::tunnelVisualRailEnabled(visual, ribbon)) continue;
-            const float angleA = phase + static_cast<float>(ring - firstRing) * 0.19F;
+            const float angleA = phase + static_cast<float>(ring - firstRing) * 0.095F;
             const float angleB = phase + static_cast<float>(ring + 1 - firstRing) * 0.19F;
             const float radiusA = std::max(0.25F, frameA.radius - 0.16F);
             const float radiusB = std::max(0.25F, frameB.radius - 0.16F);
