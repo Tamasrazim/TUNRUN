@@ -22,7 +22,8 @@ Mappings are defaults and must be remappable later.
 | Roll | Q/E | Not bound in the current prototype | Not bound in the current prototype |
 | Boost | Left Shift | Not bound in the current prototype | Right trigger (analog threshold) |
 | Energy dash | Space | Not bound in the current prototype | A / Cross |
-| Brake / precision mode | Left Ctrl | Not bound in the current prototype | Left trigger (analog threshold) |
+| Brake | S | Not bound in the current prototype | Not bound in the current prototype |
+| Precision mode | Left Ctrl | Not bound in the current prototype | Left trigger (analog threshold) |
 | Switch FPP / TPP | V | Not bound in the current prototype | Y / Triangle |
 | Pause | Esc | UI pause button; capture ends | Menu / Start |
 | Confirm / interact | Enter / E | Left click | A / Cross |
