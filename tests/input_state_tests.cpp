@@ -1079,6 +1079,27 @@ int main() {
     assert(tunrun::tunnelVisualSectionIndex(-0.01) == -1);
     assert(tunrun::tunnelVisualSectionIndex(
         std::numeric_limits<double>::quiet_NaN()) == 0);
+
+    // The near-field haze must hide later tunnel geometry at the horizon,
+    // while the longer beacon fade still leaves an approaching mine readable.
+    assert(tunrun::tunnelVisibilityAtDistance(0.0F) == 1.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(3.0F) == 1.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(17.0F) == 0.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(40.0F) == 0.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(
+        std::numeric_limits<float>::quiet_NaN()) == 1.0F);
+    const float nearVisibility = tunrun::tunnelVisibilityAtDistance(6.0F);
+    const float midVisibility = tunrun::tunnelVisibilityAtDistance(10.0F);
+    const float horizonVisibility = tunrun::tunnelVisibilityAtDistance(16.0F);
+    assert(nearVisibility > midVisibility);
+    assert(midVisibility > horizonVisibility && horizonVisibility > 0.0F);
+    const float beaconAt22 = tunrun::warningBeaconVisibilityAtDistance(22.0F);
+    const float beaconAt54 = tunrun::warningBeaconVisibilityAtDistance(54.0F);
+    assert(beaconAt22 > 0.85F);
+    assert(beaconAt54 > 0.20F && beaconAt54 < 0.25F);
+    assert(beaconAt22 > beaconAt54);
+    assert(tunrun::warningBeaconVisibilityAtDistance(74.0F) == 0.0F);
+    assert(tunrun::warningBeaconVisibilityAtDistance(90.0F) == 0.0F);
     bool seenRibbed = false, seenPlasma = false, seenFractured = false;
     bool seenSpiral = false, seenLattice = false;
     for (std::int64_t section = 0; section < 512; ++section) {
