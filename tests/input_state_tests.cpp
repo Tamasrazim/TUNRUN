@@ -1089,6 +1089,14 @@ int main() {
     assert(tunrun::tunnelVisibilityAtDistance(40.0F) == 0.0F);
     assert(tunrun::kTunnelVisualHorizon == 17.0F);
     assert(tunrun::tunnelVisibilityAtDistance(42.0F) == 0.0F);
+    // Keep the gate silhouette visible well before the tunnel itself reveals its far section.
+    assert(tunrun::gateVisibilityAtDistance(26.0F) > 0.85F);
+    const float gateAt42 = tunrun::gateVisibilityAtDistance(42.0F);
+    assert(gateAt42 > 0.40F && gateAt42 < 0.50F);
+    assert(gateAt42 > tunrun::gateVisibilityAtDistance(54.0F));
+    assert(tunrun::gateVisibilityAtDistance(64.0F) == 0.0F);
+    assert(tunrun::gateVisibilityAtDistance(
+        std::numeric_limits<float>::infinity()) == 0.0F);
     assert(tunrun::tunnelVisibilityAtDistance(
         std::numeric_limits<float>::quiet_NaN()) == 1.0F);
     assert(tunrun::tunnelVisibilityAtDistance(
