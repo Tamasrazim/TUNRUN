@@ -1956,38 +1956,61 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         }
     }
     EndMode3D();
-    drawMaterialSurface(Rectangle{22.0F, 18.0F, 344.0F, 284.0F},
-        Color{98, 124, 150, 125}, Color{5, 10, 17, 178});
-    DrawRectangleLinesEx(Rectangle{22.0F, 18.0F, 344.0F, 284.0F}, 1.0F, kEdge);
-    DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
-             35, 30, 15, kAccent);
-    DrawText(TextFormat("%s / %s / %4.1f U/S",
-             modeName ? modeName : "FLIGHT",
-             cameraModeBlend > 0.5F ? "TPP" : "FPP", actualForwardSpeed),
-             35, 52, 12, kText);
-    DrawText(TextFormat("BOOST: %3.0f%%", boostEnergy), 35, 74, 13, kText);
-    DrawRectangle(175, 78, 155, 8, Color{42, 51, 64, 255});
-    DrawRectangle(175, 78, static_cast<int>(155.0F * boostEnergy / 100.0F), 8, kAccent);
-    DrawText(TextFormat("GATE: %s / %s", tunrun::gateKindName(nextGate.kind),
-             tunrun::gateStructureFamilyName(
-                 tunrun::gateStructureFamilyAt(seed, nextGate.index))),
-             35, 98, 12, kAccent);
-    DrawText(TextFormat("SEED %016llX", static_cast<unsigned long long>(seed)), 35, 117, 11, kMuted);
-    DrawText(TextFormat("PASSAGE: %s",
-             tunrun::gateThroatShapeFamilyName(
-                 tunrun::gateThroatShapeFamilyAt(seed, nextGate.index))),
-             35, 133, 10, kMuted);
+
+    // Instrument panels share one layout in flight and in the launch preview.
+    // The tunnel stays unobstructed in the middle while actionable telemetry
+    // is separated into navigation, passage warning, hazard, and run-records.
+    const auto drawHudPanel = [](Rectangle bounds) {
+        drawMaterialSurface(bounds,
+            Color{95, 126, 151, 118}, Color{4, 10, 17, 208});
+        DrawRectangleLinesEx(bounds, 1.0F, Color{48, 69, 87, 235});
+    };
+
+    const Rectangle flightPanel{24.0F, 18.0F, 316.0F, 154.0F};
+    drawHudPanel(flightPanel);
+    DrawText("TUNRUN / FLIGHT DATA", 38, 30, 13, kAccent);
+    DrawText(TextFormat("%s  /  %s",
+        tunrun::shipDefinition(shipId).name,
+        cameraModeBlend > 0.5F ? "TPP" : "FPP"), 38, 52, 11, kText);
+    DrawLine(38, 71, 326, 71, Color{47, 68, 85, 230});
+    DrawText("SPEED", 38, 81, 9, kMuted);
+    DrawText(TextFormat("%.1f", std::max(0.0F, actualForwardSpeed)),
+             38, 96, 23, kText);
+    DrawText("UNITS / SEC", 40, 123, 8, kMuted);
+    DrawText("BOOST", 170, 81, 9, kMuted);
+    DrawText(TextFormat("%3.0f%%", std::clamp(boostEnergy, 0.0F, 100.0F)),
+             170, 96, 18, kText);
+    DrawRectangle(170, 123, 148, 7, Color{35, 47, 60, 255});
+    DrawRectangle(170, 123, static_cast<int>(
+        148.0F * std::clamp(boostEnergy, 0.0F, 100.0F) / 100.0F), 7, kAccent);
+    DrawText("DISTANCE", 38, 145, 9, kMuted);
+    DrawText(TextFormat("%.1f U", std::max(0.0F, distance)),
+             111, 145, 10, kText);
+
+    const Rectangle passagePanel{936.0F, 18.0F, 320.0F, 142.0F};
+    drawHudPanel(passagePanel);
+    DrawText("FLIGHT COMPUTER / PASSAGE", 950, 30, 11, kAccent);
+    DrawText(TextFormat("%s / %s",
+        tunrun::gateKindName(nextGate.kind),
+        tunrun::gateStructureFamilyName(
+            tunrun::gateStructureFamilyAt(seed, nextGate.index))),
+        950, 51, 11, kText);
+    DrawText(TextFormat("PROFILE: %s",
+        tunrun::gateThroatShapeFamilyName(
+            tunrun::gateThroatShapeFamilyAt(seed, nextGate.index))),
+        950, 68, 9, kMuted);
+
     if (throatGuidance.valid) {
         const char* lateralCue = std::abs(throatGuidance.lateralError) < 0.22F
             ? "CENTRE" : throatGuidance.lateralError < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalCue = std::abs(throatGuidance.verticalError) < 0.22F
             ? "LEVEL" : throatGuidance.verticalError < 0.0F ? "PITCH DOWN" : "PITCH UP";
-        DrawText(TextFormat("THROAT AIM: %s / %s  +%.1fU",
-                 lateralCue, verticalCue, throatGuidance.distanceAhead),
-                 35, 149, 10, kAccent);
+        DrawText(TextFormat("AIM / %s / %s",
+            lateralCue, verticalCue), 950, 84, 9, kAccent);
     } else {
-        DrawText("THROAT AIM: UNAVAILABLE", 35, 149, 10, kMuted);
+        DrawText("AIM / WAITING FOR PASSAGE", 950, 84, 9, kMuted);
     }
+
     Color gateCueColor = kMuted;
     switch (gateCue.stage) {
     case tunrun::GateApproachStage::Clear:
@@ -2004,16 +2027,20 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         break;
     }
     if (gateCue.valid) {
-        DrawText(TextFormat("GATE IN: %s / %.1fU / %.1fS",
-                 tunrun::gateApproachStageName(gateCue.stage),
-                 gateCue.distanceAhead, gateCue.timeAheadSeconds),
-                 35, 159, 10, gateCueColor);
-        DrawRectangle(260, 162, 92, 4, Color{42, 51, 64, 255});
-        DrawRectangle(260, 162,
-                      static_cast<int>(92.0F * gateCue.urgency), 4, gateCueColor);
+        DrawText(TextFormat("%s  /  %.1f U  /  %.1f S",
+            tunrun::gateApproachStageName(gateCue.stage),
+            gateCue.distanceAhead, gateCue.timeAheadSeconds),
+            950, 103, 10, gateCueColor);
+        DrawRectangle(950, 126, 292, 5, Color{35, 47, 60, 255});
+        DrawRectangle(950, 126, static_cast<int>(
+            292.0F * std::clamp(gateCue.urgency, 0.0F, 1.0F)), 5, gateCueColor);
     } else {
-        DrawText("GATE APPROACH: UNAVAILABLE", 35, 159, 10, kMuted);
+        DrawText("PASSAGE TRACKING / OFFLINE", 950, 105, 9, kMuted);
     }
+
+    const Rectangle hazardPanel{936.0F, 170.0F, 320.0F, 112.0F};
+    drawHudPanel(hazardPanel);
+    DrawText("THREAT MONITOR", 950, 181, 11, kAccent);
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
     if (hazardCue.valid) {
@@ -2024,48 +2051,67 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
             std::max(0.1F, actualForwardSpeed);
         const auto warning = tunrun::hazardWarningProfileAt(
             hazardCue.distanceAhead, elapsedSeconds);
-        const char* warningLabel = warning.urgent ? "IMMINENT"
-            : warning.visible ? "WARNING" : "TRACKING";
+        const char* warningLabel = warning.urgent ? "IMPACT RISK"
+            : warning.visible ? "THREAT DETECTED" : "TRACKING";
         const Color warningText = warning.urgent ? Color{255, 91, 84, 255}
             : warning.visible ? Color{255, 184, 101, 255}
                               : Color{255, 153, 125, 255};
-        DrawText(TextFormat("%s %s / %s: %.1fU / %.1fS", warningLabel,
-                 tunrun::hazardVisualFamilyName(hazardFamily),
-                 tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
-                 hazardCue.distanceAhead, timeToHazard),
-                 35, 179, 10, warningText);
+        DrawText(TextFormat("%s / %s",
+            warningLabel, tunrun::hazardVisualFamilyName(hazardFamily)),
+            950, 203, 10, warningText);
+        DrawText(TextFormat("%s / %.1f U / %.1f S",
+            tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
+            hazardCue.distanceAhead, timeToHazard), 950, 221, 9, kText);
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
-            ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
+            ? "CENTRE" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
             ? "LEVEL" : hazardCue.offsetY > 0.0F ? "UP" : "DOWN";
-        DrawText(TextFormat("MINE BEARING: %s %.1f / %s %.1f",
-                 horizontalDirection, std::abs(hazardCue.offsetX),
-                 verticalDirection, std::abs(hazardCue.offsetY)),
-                 35, 199, 10, Color{255, 153, 125, 255});
+        DrawText(TextFormat("BEARING / %s %.1f / %s %.1f",
+            horizontalDirection, std::abs(hazardCue.offsetX),
+            verticalDirection, std::abs(hazardCue.offsetY)),
+            950, 239, 9, Color{255, 174, 139, 255});
+        DrawRectangle(950, 259, 292, 4, Color{48, 39, 38, 255});
+        DrawRectangle(950, 259, static_cast<int>(
+            292.0F * std::clamp(1.0F - hazardCue.distanceAhead /
+                std::max(1.0F, tunrun::kHazardVisualHorizon), 0.0F, 1.0F)),
+            4, warningText);
     } else {
-        DrawText("HAZARD CUE UNAVAILABLE", 35, 179, 10, kMuted);
+        DrawText("NO THREAT IN SENSOR RANGE", 950, 207, 10, kMuted);
+        DrawText("KEEP THE PASSAGE CENTRED", 950, 229, 9, kMuted);
     }
-    DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
-             static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 219, 10, kMuted);
-    DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
-             static_cast<unsigned long long>(score.total),
-             1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
-             static_cast<unsigned long long>(score.cleanPasses)), 35, 239, 10, kAccent);
+
+    const Rectangle runPanel{24.0F, 548.0F, 360.0F, 110.0F};
+    drawHudPanel(runPanel);
+    DrawText("RUN RECORD", 38, 560, 10, kAccent);
+    DrawText(TextFormat("%llu",
+        static_cast<unsigned long long>(score.total)), 38, 578, 21, kText);
+    DrawText("SCORE", 40, 603, 8, kMuted);
+    DrawText(TextFormat("COMBO  x%.1f",
+        1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0),
+        166, 582, 10, kText);
+    DrawText(TextFormat("CLEAN PASSES  %llu",
+        static_cast<unsigned long long>(score.cleanPasses)), 166, 601, 9, kMuted);
+    DrawText(TextFormat("PICKUPS  /  %llu AETHER  /  %llu CORES",
+        static_cast<unsigned long long>(aetherPickedUp),
+        static_cast<unsigned long long>(coresPickedUp)),
+        38, 620, 9, kMuted);
     if (dashRemaining > 0.0F) {
-        DrawText("DASH ACTIVE", 35, 259, 10, kAccent);
+        DrawText("DASH / ACTIVE", 38, 639, 9, kAccent);
     } else if (dashCooldownRemaining > 0.0F) {
-        DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
-                 35, 259, 10, kMuted);
+        DrawText(TextFormat("DASH / RECHARGE %.1f S", dashCooldownRemaining),
+                 38, 639, 9, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
-        DrawText("DASH READY: SPACE / PAD A", 35, 249, 10, kAccent);
+        DrawText("DASH / READY", 38, 639, 9, kAccent);
     } else {
-        DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
-                 35, 249, 10, kMuted);
+        DrawText(TextFormat("DASH / NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
+                 38, 639, 9, kMuted);
     }
-    drawMaterialSurface(Rectangle{22.0F, static_cast<float>(kCanvasHeight - 48),
-        static_cast<float>(kCanvasWidth - 44), 26.0F},
-        Color{92, 118, 143, 110}, Color{4, 9, 15, 190});
+    DrawText(TextFormat("SEED  %016llX",
+        static_cast<unsigned long long>(seed)), 190, 639, 9, kMuted);
+
+    const Rectangle controlsPanel{22.0F, static_cast<float>(kCanvasHeight - 48),
+        static_cast<float>(kCanvasWidth - 44), 26.0F};
+    drawHudPanel(controlsPanel);
     DrawText("W GO   S BRAKE   A/B STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
              36, kCanvasHeight - 42, 10, kMuted);
 }
