@@ -430,7 +430,7 @@ Vector3 tunnelPoint(const tunrun::TunnelFrame& frame,int side) {
 void drawProceduralGate(std::uint64_t seed,float playerDistance,
                          const tunrun::ProceduralGate& gate) {
     const float ahead=static_cast<float>(gate.distance-static_cast<double>(playerDistance));
-    if(ahead < -1.0F || ahead > 108.0F) return;
+    if (ahead < -1.0F || ahead > tunrun::kTunnelVisualHorizon) return;
     const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,gate.distance);
     const float outerRadius=frame.radius-0.24F;
     constexpr int segments=24;
@@ -570,7 +570,8 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
     constexpr float halfLength = tunrun::kGateThroatHalfLength;
     const float ahead = static_cast<float>(
         gate.distance - static_cast<double>(playerDistance));
-    if (ahead < -halfLength - 3.0F || ahead > halfLength + 24.0F) return;
+    if (ahead < -halfLength - 3.0F ||
+        ahead > halfLength + tunrun::kTunnelVisualHorizon) return;
 
     // A tapered opaque sleeve creates a deep passage through each aperture.
     // Its minimum radius and center match gate physics, so the visible opening
@@ -634,12 +635,18 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
             const float wallAhead = std::max(0.0F, static_cast<float>(
                 gate.distance + static_cast<double>(offsets[ring]) -
                 static_cast<double>(playerDistance)));
+            const float nextWallAhead = std::max(0.0F, static_cast<float>(
+                gate.distance + static_cast<double>(offsets[ring + 1U]) -
+                static_cast<double>(playerDistance)));
+            if (wallAhead >= tunrun::kTunnelVisualHorizon &&
+                nextWallAhead >= tunrun::kTunnelVisualHorizon) continue;
+            const float wallFadeDistance = (wallAhead + nextWallAhead) * 0.5F;
             const Color wall = tunnelDepthFog(
                 ((side % 4) == 0 || (ring % 2U) == 0) ? wallLight : wallDark,
-                wallAhead);
+                wallFadeDistance);
             DrawTriangle3D(a, b, c, wall);
             DrawTriangle3D(a, c, d, wall);
-            if (ring % 2U == 1U) DrawLine3D(a, b, tunnelDepthFog(edge, wallAhead));
+            if (ring % 2U == 1U) DrawLine3D(a, b, tunnelDepthFog(edge, wallFadeDistance));
         }
     }
 }
@@ -647,7 +654,7 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
 void drawProceduralReward(std::uint64_t seed,float playerDistance,
                           const tunrun::ProceduralReward& reward) {
     const float ahead=static_cast<float>(reward.distance-static_cast<double>(playerDistance));
-    if(ahead<0.0F||ahead>108.0F) return;
+    if (ahead < 0.0F || ahead > tunrun::kTunnelVisualHorizon) return;
     const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,reward.distance);
     const auto p=[&](float x,float y,float z=0.0F) {
         return rayVector(tunrun::tunnelFramePoint(frame,x,y,z));
@@ -992,7 +999,7 @@ void drawHangarShipPreview3D(std::uint32_t shipId, int centerX, int centerY,
 void drawProceduralHazard(std::uint64_t seed,float playerDistance,
                            float elapsedSeconds,const tunrun::ProceduralHazard& hazard) {
     const float ahead=static_cast<float>(hazard.distance-static_cast<double>(playerDistance));
-    if(ahead < -1.5F || ahead > 108.0F) return;
+    if (ahead < -1.5F || ahead > tunrun::kHazardWarningStartDistance) return;
     const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,hazard.distance);
     const auto moving=tunrun::hazardCenterAt(hazard,elapsedSeconds);
     const auto p=[&](float x,float y,float z=0.0F) {
@@ -1001,6 +1008,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     const float cx=moving.x,cy=moving.y;
     const Vector3 center=p(cx,cy);
     const auto warning = tunrun::hazardWarningProfileAt(ahead, elapsedSeconds);
+    if (ahead <= tunrun::kTunnelVisualHorizon) {
     Color color{}, blade{}, shell{}, facetLight{}, facetDark{};
     const auto family = tunrun::hazardVisualFamilyAt(seed, hazard.index);
     switch (family) {
@@ -1142,6 +1150,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
         }
         DrawSphereWires(center,hazard.radius*0.44F,6,8,color);
         break;
+    }
     }
     }
 
@@ -1433,9 +1442,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     ClearBackground(kBackground);
     BeginMode3D(camera);
     constexpr int firstRing = -5;
-    constexpr int lastRing = 37;
     constexpr int sideCount = 20;
     constexpr float ringSpacing = 3.0F;
+    constexpr int lastRing = static_cast<int>(
+        tunrun::kTunnelVisualHorizon / ringSpacing) + 2;
     std::array<tunrun::TunnelFrame, lastRing - firstRing> tunnelFrames{};
     for (int ring = firstRing; ring < lastRing; ++ring) {
         tunnelFrames[static_cast<std::size_t>(ring - firstRing)] =
@@ -1448,6 +1458,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         const auto visual = tunrun::tunnelVisualProfileAt(
             seed, tunrun::tunnelVisualSectionIndex(ringWorldDistance));
         const float ringAhead = std::max(0.0F, static_cast<float>(ring) * ringSpacing);
+        const float panelAhead = std::max(
+            0.0F, (static_cast<float>(ring) + 0.5F) * ringSpacing);
         const bool strongRib = (ring % (visual.family == tunrun::TunnelVisualFamily::RibbedMetal
             ? 2 : visual.family == tunrun::TunnelVisualFamily::Lattice ? 3 : 4)) == 0;
         const float intensity = visual.intensity;
@@ -1493,7 +1505,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                             static_cast<unsigned char>(18 + palette.blue / 5), 255}
                     : Color{static_cast<unsigned char>(8 + palette.red / 18),
                             static_cast<unsigned char>(10 + palette.green / 18),
-                            static_cast<unsigned char>(15 + palette.blue / 18), 255}, ringAhead);
+                            static_cast<unsigned char>(15 + palette.blue / 18), 255}, panelAhead);
                 const Color seam = tunnelDepthFog(Color{
                     static_cast<unsigned char>(palette.red * 0.30F * intensity),
                     static_cast<unsigned char>(palette.green * 0.30F * intensity),
@@ -1540,7 +1552,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 static_cast<unsigned char>(palette.green * visual.intensity),
                 static_cast<unsigned char>(palette.blue * visual.intensity), 190};
             DrawLine3D(a, b, tunnelDepthFog(
-                rail, std::max(0.0F, static_cast<float>(ring + 1) * ringSpacing)));
+                rail, std::max(0.0F, (static_cast<float>(ring) + 0.5F) * ringSpacing)));
         }
     }
     if (tunrun::shouldDrawDashStreaks(reduceMotion, dashRemaining)) {
