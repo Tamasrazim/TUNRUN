@@ -181,6 +181,22 @@ int main() {
             assert(std::abs(tunrun::frameDot(frame.tangent, frame.up)) < 0.001F);
             assert(std::abs(tunrun::frameDot(frame.right, frame.up)) < 0.001F);
         }
+
+        // Dense neighboring samples must not flip the tunnel's handed basis.
+        tunrun::TunnelFrame previousFrame{};
+        bool hasPreviousFrame = false;
+        for (int station = 0; station <= 256; ++station) {
+            const double distance = static_cast<double>(station) * 0.75;
+            const auto frame = tunrun::sampleTunnelFrame(
+                generatedFrameSeed, distance, distance + 3.375);
+            if (hasPreviousFrame) {
+                assert(tunrun::frameDot(previousFrame.tangent, frame.tangent) > 0.5F);
+                assert(tunrun::frameDot(previousFrame.right, frame.right) > 0.5F);
+                assert(tunrun::frameDot(previousFrame.up, frame.up) > 0.5F);
+            }
+            previousFrame = frame;
+            hasPreviousFrame = true;
+        }
     }
 
     const auto rim=tunrun::tunnelFramePoint(curvedFrame,curvedFrame.radius,0.0F);
@@ -1111,6 +1127,9 @@ int main() {
         hazard, std::numeric_limits<double>::quiet_NaN());
     assert(std::isfinite(invalidClockCenter.x) && std::isfinite(invalidClockCenter.y));
     assert(invalidClockCenter.x == hazard.baseX && invalidClockCenter.y == hazard.baseY);
+    const auto extremeClockCenter = tunrun::hazardCenterAt(
+        hazard, std::numeric_limits<double>::max());
+    assert(std::isfinite(extremeClockCenter.x) && std::isfinite(extremeClockCenter.y));
     auto invalidAmplitudeHazard = hazard;
     invalidAmplitudeHazard.amplitudeX = std::numeric_limits<float>::infinity();
     const auto invalidAmplitudeCenter = tunrun::hazardCenterAt(
