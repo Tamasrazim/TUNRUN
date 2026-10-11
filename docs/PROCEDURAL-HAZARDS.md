@@ -4,7 +4,8 @@ TUNRUN now generates a deterministic sequence of moving mine hazards alongside t
 
 ## Runtime rules
 
-- Each mine is scheduled halfway between an odd-indexed gate and the following even-indexed gate. The first mine appears 21 units after gate 1; following mines are spaced 84 units apart and remain 21 units from the neighboring gate planes. This keeps the full mine/craft collision envelope outside each gate's 18-unit throat.
+- Gate indices in the generator are zero-based. Mines are placed halfway between gate-index pairs (1,2), (3,4), etc. The first mine is 21 units after the second generated gate (index 1) and 21 units before the third (index 2); it is not 21 units after the first gate. Subsequent mines are spaced 84 units apart and stay 21 units from their neighboring gate planes.
+- The validator allows no less than 20 units between a mine plane and either neighboring gate plane. At that minimum, subtracting the 18-unit throat half-length and the maximum mine-plus-craft collision radii still leaves 0.92 course units of clearance. The current deterministic 21-unit spacing leaves at least 1.92 units. A compile-time guard and regression assertions prevent those values from drifting into an overlapping collision envelope.
 - Each mine has a seed-derived baseline, horizontal and vertical amplitudes, speed, phase, collision radius, and one of four independent motion profiles: lateral sweep, vertical sweep, elliptic orbit, or figure-eight.
 - Motion is a pure function of the generated parameters and per-run elapsed clock. The new motion-family choice uses its own deterministic seed channel, separate from the cosmetic shell family; identical seeds and times reproduce identical centers.
 - The visible shell may be Orbital, Prism, Rotor, or Cross, while its trajectory type is selected independently. The HUD names both layers so the movement pattern is readable before arrival.

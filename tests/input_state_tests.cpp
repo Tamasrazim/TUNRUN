@@ -930,12 +930,22 @@ int main() {
         }
         const auto generatedHazard = tunrun::hazardAt(seed, index);
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
+        // Gate indices are zero-based. Each mine belongs between gate indices
+        // (1,2), (3,4), etc.; verify both exact spacing and collision-envelope clearance.
         const auto precedingGate = tunrun::gateAt(seed, index * 2U + 1U);
         const auto followingGate = tunrun::gateAt(seed, index * 2U + 2U);
         assert(std::abs(generatedHazard.distance - precedingGate.distance -
                         tunrun::kHazardInterGateOffset) < 0.0001);
         assert(std::abs(followingGate.distance - generatedHazard.distance -
                         tunrun::kHazardInterGateOffset) < 0.0001);
+        const double collisionExtent = static_cast<double>(generatedHazard.radius) +
+            tunrun::kHazardCraftCollisionRadius;
+        const double precedingThroatGap = generatedHazard.distance -
+            precedingGate.distance - tunrun::kGateThroatHalfLength - collisionExtent;
+        const double followingThroatGap = followingGate.distance -
+            generatedHazard.distance - tunrun::kGateThroatHalfLength - collisionExtent;
+        assert(precedingThroatGap >= tunrun::kHazardMinimumThroatClearance - 0.0001);
+        assert(followingThroatGap >= tunrun::kHazardMinimumThroatClearance - 0.0001);
         switch (generatedHazard.motionFamily) {
         case tunrun::HazardMotionFamily::LateralSweep: seenLateralSweep = true; break;
         case tunrun::HazardMotionFamily::VerticalSweep: seenVerticalSweep = true; break;

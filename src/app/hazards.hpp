@@ -16,6 +16,17 @@ inline constexpr double kHazardMinimumGateSeparation = 20.0;
 inline constexpr float kHazardMinimumRadius = 0.48F;
 inline constexpr float kHazardMaximumRadius = 0.66F;
 inline constexpr float kHazardCraftCollisionRadius = 0.42F;
+// Remaining gap after subtracting the longest throat half-length and maximum
+// mine/craft collision radii at the validator's minimum plane separation.
+inline constexpr double kHazardMinimumThroatClearance =
+    kHazardMinimumGateSeparation -
+    static_cast<double>(kGateThroatHalfLength) -
+    static_cast<double>(kHazardMaximumRadius) -
+    static_cast<double>(kHazardCraftCollisionRadius);
+static_assert(kHazardMinimumThroatClearance > 0.0,
+              "Mine collision envelope must stay outside the gate throat.");
+static_assert(kHazardInterGateOffset >= kHazardMinimumGateSeparation,
+              "Scheduled mine spacing must satisfy the validated minimum.");
 // Proximity warnings are view-only; these distances never enter collision rules.
 inline constexpr double kHazardWarningStartDistance = 54.0;
 inline constexpr double kHazardWarningUrgentDistance = 22.0;
@@ -175,9 +186,9 @@ struct HazardValidation {
 inline ProceduralHazard hazardAt(std::uint64_t seed,
                                  std::uint32_t index) noexcept {
     const auto sample = static_cast<std::int64_t>(index);
-    // Place mines halfway between gate 1/2, 3/4, etc. A 20-unit minimum
-    // keeps their collision spheres outside the 18-unit gate throats instead
-    // of allowing a mine to sit in the narrow core immediately after a gate.
+    // Gate indices are zero-based: mines sit halfway between pairs (1,2), (3,4), etc.
+    // The compile-time clearance guard below keeps the full collision envelope
+    // beyond the 18-unit sleeve even at the minimum permitted plane separation.
     const double firstDistance =
         gateAt(seed, 1U).distance + kHazardInterGateOffset;
     return ProceduralHazard{
