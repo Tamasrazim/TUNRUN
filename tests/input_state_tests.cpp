@@ -1207,7 +1207,11 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 12U);
+    assert(tunrun::kObstacleGeneratorVersion == 13U);
+    const auto firstGateRunway = tunrun::gateAt(seed, 0U);
+    assert(firstGateRunway.distance >= tunrun::kGateBaseDistance);
+    assert(firstGateRunway.distance < tunrun::kGateBaseDistance + 4.0);
+    assert(firstGateRunway.distance - tunrun::kGateThroatHalfLength >= 16.0);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
