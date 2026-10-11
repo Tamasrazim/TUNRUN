@@ -9,7 +9,7 @@ Test on Windows at normal DPI and scaled DPI, windowed, borderless, fullscreen, 
 For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select, Seed Entry, Settings, Pause, Results, confirmation dialogs):
 - Every button is mouse-clickable at its visible position.
 - Records / Statistics opens from the Main Menu and displays persisted best distance, score, combo, run/crash totals, wallet balances, unlocked ship count and active ship; Back returns to the main menu with keyboard, pointer and gamepad while preserving the main-menu selection.
-- Campaign and Endless mode selections clearly state that they are not available in this build and do not start a run; Custom Seed Run and Practice Preview still perform their documented actions. Back exits the Mode Select screen exactly once.
+- Campaign is clearly marked as in development and cannot accidentally launch a run; Endless Survival starts the available procedural survival loop, while Custom Seed Run and Practice Preview perform their documented actions. Back exits the Mode Select screen exactly once.
 - Crash/results view shows final distance, active seed, elapsed in-run time, course hash, score, rewards and the applicable gate/mine contact index without overlapping the action menu.
 - Standard, Precision, Offset and Wide gate families have distinct ring/support details while preserving the same circular collision aperture used by physics.
 - Copy Seed in Crash and Seed Lab writes the exact lowercase fixed-width `0x`-prefixed 64-bit seed to the OS clipboard; pasting it into Seed Entry starts the exact same course, including leading zeroes. Generating another Seed Lab seed clears the previous copied notice. Retry Same Seed remains the first/default crash action.
@@ -27,8 +27,8 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Unlocking a ship does not equip it. Equipping is a separate saved action, and a failed save rolls back the corresponding wallet/unlock or active-ship change.
 - Hover, click, release, pressed, disabled, and focus states render correctly.
 - Sliders support click and drag and save the chosen value.
-- Relative mouse input moves a persistent aim target inside the tunnel and engages a damped steering controller; keyboard/gamepad input takes over and synchronises the target. Keyboard and gamepad also control yaw/pitch rotation and roll; angular state remains finite under sustained input.
-- The tunnel has filled interior panels plus wireframe ribs; ships, reward pickups, and all four mine variants use shaded low-poly 3D faces rather than relying on line-only silhouettes. Mine collision remains the documented sphere, independent of cosmetic blade details.
+- During a focused gameplay run with mouse-look enabled, relative mouse input rotates the camera only and never steers or moves the spacecraft. Mouse capture releases on focus loss, pause, or leaving gameplay. A/B/D and the gamepad left stick steer, W/S control forward speed, and keyboard arrows or the gamepad right stick control yaw/pitch rotation; Q/E roll remains finite under sustained input.
+- The tunnel has filled interior panels plus wireframe ribs; ships and reward pickups use shaded low-poly 3D geometry, and all six mine visual families have distinct 3D silhouettes. Mine collision remains the documented shared spherical proxy, independent of cosmetic shell details.
 - Settings navigation remains fully visible at the minimum window size; all seven rows, including Back, remain clickable after resize/fullscreen changes.
 - Entering or retrying a run while Space or gamepad A is held does not trigger dash until the player releases and presses it again.
 - Reset Options first asks for confirmation. Cancel leaves settings untouched; confirming restores fullscreen, FPS, and reduced-motion defaults without changing wallet balances, ship unlocks, or run history.
@@ -126,6 +126,8 @@ Gameplay-specific mouse checks:
 - Dash activation requires a press edge, deducts energy once, ends after the configured duration, respects cooldown, and cannot auto-repeat while held.
 - Camera switching changes presentation only; it does not alter craft position, collision rules, seed, or obstacle phase. TPP's camera stays within the tunnel on the rear centerline; the rear tube geometry must enclose it at all times.
 - TPP camera placement is measured from the rear section's centerline, clamps to the tunnel radius with wall clearance, and stays finite for invalid inputs.
+- The gate HUD shows CLEAR/PREPARE/APPROACH/IMMINENT based on the next gate's remaining distance and actual forward speed. Tests cover the 4.0 s, 2.5 s, and 1.0 s thresholds, acceleration/dash timing differences, and invalid values.
+- Ordinary scenery and the world-space throat marker fade to the exact background by 17 course units; positive-infinite look-ahead distances must not reveal geometry. Mine warning beacons keep their separate long-range fade at 54 and 22 units. Verify the actual game visually for sudden marker pops, hidden imminent gates, and mine-warning readability.
 - FPP/TPP both show the upcoming route clearly enough for fair reaction.
 - Pausing freezes run simulation and moving hazards according to the chosen pause rule.
 - Restarting a seed run reproduces the same underlying course.
