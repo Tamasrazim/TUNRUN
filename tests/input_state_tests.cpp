@@ -909,7 +909,7 @@ int main() {
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
-    assert(tunrun::kHazardGeneratorVersion == 3U);
+    assert(tunrun::kHazardGeneratorVersion == 4U);
     assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
            tunrun::hazardVisualFamilyAt(seed, 0U));
     assert(tunrun::hazardMotionFamilyAt(seed, 0U) ==
@@ -930,6 +930,12 @@ int main() {
         }
         const auto generatedHazard = tunrun::hazardAt(seed, index);
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
+        const auto precedingGate = tunrun::gateAt(seed, index * 2U + 1U);
+        const auto followingGate = tunrun::gateAt(seed, index * 2U + 2U);
+        assert(std::abs(generatedHazard.distance - precedingGate.distance -
+                        tunrun::kHazardInterGateOffset) < 0.0001);
+        assert(std::abs(followingGate.distance - generatedHazard.distance -
+                        tunrun::kHazardInterGateOffset) < 0.0001);
         switch (generatedHazard.motionFamily) {
         case tunrun::HazardMotionFamily::LateralSweep: seenLateralSweep = true; break;
         case tunrun::HazardMotionFamily::VerticalSweep: seenVerticalSweep = true; break;
