@@ -67,6 +67,11 @@ Color warningBeaconFog(Color color, float distanceAhead) {
         color, tunrun::warningBeaconVisibilityAtDistance(distanceAhead));
 }
 
+Color gateDepthFog(Color color, float distanceAhead) {
+    return blendWithTunnelBackground(
+        color, tunrun::gateVisibilityAtDistance(distanceAhead));
+}
+
 enum class CrashCause { Wall, Gate, Hazard };
 enum class PendingRunAction { None, RestartSameSeed, ReturnToMainMenu };
 
@@ -430,7 +435,7 @@ Vector3 tunnelPoint(const tunrun::TunnelFrame& frame,int side) {
 void drawProceduralGate(std::uint64_t seed,float playerDistance,
                          const tunrun::ProceduralGate& gate) {
     const float ahead=static_cast<float>(gate.distance-static_cast<double>(playerDistance));
-    if (ahead < -1.0F || ahead > tunrun::kTunnelVisualHorizon) return;
+    if (ahead < -1.0F || ahead > tunrun::kGateVisualHorizon) return;
     const auto frame=tunrun::sampleTunnelFrame(seed,playerDistance,gate.distance);
     const float outerRadius=frame.radius-0.24F;
     constexpr int segments=24;
@@ -445,8 +450,8 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
     case tunrun::GateKind::Offset: outer={108,92,154,225}; inner={194,172,255,255}; break;
     case tunrun::GateKind::Wide: outer={70,133,120,220}; inner={150,245,213,255}; break;
     }
-    outer = tunnelDepthFog(outer, std::max(0.0F, ahead));
-    inner = tunnelDepthFog(inner, std::max(0.0F, ahead));
+    outer = gateDepthFog(outer, std::max(0.0F, ahead));
+    inner = gateDepthFog(inner, std::max(0.0F, ahead));
     for(int i=0;i<segments;++i) {
         const float a0=static_cast<float>(i)*2.0F*PI/segments;
         const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
@@ -455,17 +460,17 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         const Vector3 i1=p(a1,gate.apertureRadius,gate.offsetX,gate.offsetY);
         // Opaque bulkhead panels close the space outside the true aperture.
         // The old ring-only gate let the whole next section show through.
-        const Color bulkhead = tunnelDepthFog((i % 4 == 0)
+        const Color bulkhead = gateDepthFog((i % 4 == 0)
             ? Color{26, 38, 54, 255} : Color{13, 20, 31, 255},
             std::max(0.0F, ahead));
         DrawTriangle3D(o0, o1, i1, bulkhead);
         DrawTriangle3D(o0, i1, i0, bulkhead);
         DrawLine3D(o0,o1,outer); DrawLine3D(i0,i1,inner);
-        if(i%2==0) DrawLine3D(o0,i0,tunnelDepthFog(
+        if(i%2==0) DrawLine3D(o0,i0,gateDepthFog(
             Color{76,99,125,205}, std::max(0.0F, ahead)));
     }
     const auto halo=[&](float radius,Color c) {
-        c = tunnelDepthFog(c, std::max(0.0F, ahead));
+        c = gateDepthFog(c, std::max(0.0F, ahead));
         for(int i=0;i<segments;++i) {
             const float a0=static_cast<float>(i)*2.0F*PI/segments;
             const float a1=static_cast<float>(i+1)*2.0F*PI/segments;
@@ -475,7 +480,7 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
     };
     if(gate.kind==tunrun::GateKind::Precision) {
         const Color raw{255,171,131,180};
-        const Color c=tunnelDepthFog(raw,std::max(0.0F,ahead));
+        const Color c=gateDepthFog(raw,std::max(0.0F,ahead));
         halo(gate.apertureRadius+0.22F,raw);
         for(int i=0;i<segments;i+=3) {
             const float a=static_cast<float>(i)*2.0F*PI/segments;
@@ -484,7 +489,7 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
         }
     } else if(gate.kind==tunrun::GateKind::Wide) {
         const Color raw{150,245,213,180};
-        const Color c=tunnelDepthFog(raw,std::max(0.0F,ahead));
+        const Color c=gateDepthFog(raw,std::max(0.0F,ahead));
         halo(gate.apertureRadius+0.34F,raw);
         for(int i=0;i<segments;i+=6) {
             const float a=static_cast<float>(i)*2.0F*PI/segments;
@@ -492,7 +497,7 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
                        p(a,gate.apertureRadius+0.34F,gate.offsetX,gate.offsetY),c);
         }
     } else if(gate.kind==tunrun::GateKind::Offset) {
-        const Color c=tunnelDepthFog(Color{194,172,255,235},
+        const Color c=gateDepthFog(Color{194,172,255,235},
                                      std::max(0.0F,ahead));
         for(int i=0;i<4;++i) {
             const float a=static_cast<float>(i)*PI*0.5F;
@@ -508,8 +513,8 @@ void drawProceduralGate(std::uint64_t seed,float playerDistance,
     // A second seeded channel changes the gate's physical-looking support
     // silhouette, but all details stay outside the true collision aperture.
     const auto structure = tunrun::gateStructureFamilyAt(seed, gate.index);
-    const Color structureBright = tunnelDepthFog(inner, std::max(0.0F, ahead));
-    const Color structureDim = tunnelDepthFog(outer, std::max(0.0F, ahead));
+    const Color structureBright = gateDepthFog(inner, std::max(0.0F, ahead));
+    const Color structureDim = gateDepthFog(outer, std::max(0.0F, ahead));
     const auto annulusPoint = [&](float angle, float offset) {
         return p(angle, gate.apertureRadius + offset, gate.offsetX, gate.offsetY);
     };
