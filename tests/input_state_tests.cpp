@@ -161,6 +161,28 @@ int main() {
     assert(std::abs(tunrun::frameDot(curvedFrame.tangent,curvedFrame.right))<0.0001F);
     assert(std::abs(tunrun::frameDot(curvedFrame.tangent,curvedFrame.up))<0.0001F);
     assert(std::abs(tunrun::frameDot(curvedFrame.right,curvedFrame.up))<0.0001F);
+
+    // Sweep the frame basis across different seeds and course stations. A single
+    // straight-ish sample can hide normalization or twist errors on later bends.
+    for (std::uint64_t frameSeedIndex = 0U; frameSeedIndex < 12U; ++frameSeedIndex) {
+        const auto generatedFrameSeed = tunrun::deriveCourseSeed(frameSeed, frameSeedIndex);
+        for (int station = 0; station <= 80; ++station) {
+            const double distance = static_cast<double>(station) * 7.25;
+            const auto frame = tunrun::sampleTunnelFrame(
+                generatedFrameSeed, distance, distance + 3.375);
+            assert(std::isfinite(frame.center.x) && std::isfinite(frame.center.y) &&
+                   std::isfinite(frame.center.z));
+            assert(std::isfinite(frame.tangent.x) && std::isfinite(frame.tangent.y) &&
+                   std::isfinite(frame.tangent.z));
+            assert(std::abs(tunrun::frameLength(frame.tangent) - 1.0F) < 0.001F);
+            assert(std::abs(tunrun::frameLength(frame.right) - 1.0F) < 0.001F);
+            assert(std::abs(tunrun::frameLength(frame.up) - 1.0F) < 0.001F);
+            assert(std::abs(tunrun::frameDot(frame.tangent, frame.right)) < 0.001F);
+            assert(std::abs(tunrun::frameDot(frame.tangent, frame.up)) < 0.001F);
+            assert(std::abs(tunrun::frameDot(frame.right, frame.up)) < 0.001F);
+        }
+    }
+
     const auto rim=tunrun::tunnelFramePoint(curvedFrame,curvedFrame.radius,0.0F);
     const tunrun::FrameVector3 rimOffset{rim.x-curvedFrame.center.x,
         rim.y-curvedFrame.center.y,rim.z-curvedFrame.center.z};
