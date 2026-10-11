@@ -12,6 +12,7 @@
 #include "app/raw_mouse.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
+#include "app/presentation_layout.hpp"
 #include "app/gate_visuals.hpp"
 #include "app/save_profile.hpp"
 #include "raylib.h"
@@ -45,27 +46,27 @@ struct LetterboxViewport {
 };
 
 LetterboxViewport letterboxViewport() {
-    const float screenWidth = static_cast<float>(GetScreenWidth());
-    const float screenHeight = static_cast<float>(GetScreenHeight());
-    const float scale = std::max(0.01F, std::min(
-        screenWidth / static_cast<float>(kCanvasWidth),
-        screenHeight / static_cast<float>(kCanvasHeight)));
-    const float width = static_cast<float>(kCanvasWidth) * scale;
-    const float height = static_cast<float>(kCanvasHeight) * scale;
+    const auto layout = tunrun::makeLogicalViewport(
+        static_cast<float>(GetScreenWidth()),
+        static_cast<float>(GetScreenHeight()),
+        static_cast<float>(kCanvasWidth),
+        static_cast<float>(kCanvasHeight));
     return LetterboxViewport{
-        Rectangle{(screenWidth - width) * 0.5F,
-                  (screenHeight - height) * 0.5F, width, height},
-        scale
+        Rectangle{layout.x, layout.y, layout.width, layout.height},
+        layout.scale
     };
 }
 
 Vector2 virtualMousePosition() {
     const auto viewport = letterboxViewport();
     const Vector2 physical = GetMousePosition();
-    return Vector2{
-        (physical.x - viewport.bounds.x) / viewport.scale,
-        (physical.y - viewport.bounds.y) / viewport.scale
-    };
+    const auto logical = tunrun::toLogicalPointer(
+        tunrun::LogicalViewport{
+            viewport.bounds.x, viewport.bounds.y,
+            viewport.bounds.width, viewport.bounds.height, viewport.scale
+        },
+        physical.x, physical.y);
+    return Vector2{logical.x, logical.y};
 }
 
 void presentCanvas(RenderTexture2D canvas) {
