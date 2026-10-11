@@ -2,6 +2,7 @@
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
 #include "app/game_modes.hpp"
+#include "app/gate_guidance.hpp"
 #include "app/camera_rig.hpp"
 #include "app/economy.hpp"
 #include "app/rewards.hpp"
@@ -1576,6 +1577,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         std::ceil((static_cast<double>(distance) - firstGate.distance) /
                   tunrun::kGateSpacing)));
     const auto nextGate = tunrun::gateAt(seed, static_cast<std::uint32_t>(nextGateIndex));
+    const auto gateCue = tunrun::gateApproachCue(
+        nextGate.distance, static_cast<double>(distance), actualForwardSpeed);
     for (int i = firstVisibleIndex; i < firstVisibleIndex + 4; ++i) {
         const auto gate = tunrun::gateAt(seed, static_cast<std::uint32_t>(i));
         drawGateThroat(seed, distance, gate);
@@ -1686,8 +1689,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         }
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 260, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 260, kEdge);
+    DrawRectangle(22, 18, 344, 284, Color{10, 14, 21, 225});
+    DrawRectangleLines(22, 18, 344, 284, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(TextFormat("%s / %s / %4.1f U/S",
@@ -1717,6 +1720,29 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     } else {
         DrawText("THROAT AIM: UNAVAILABLE", 35, 149, 10, kMuted);
     }
+    Color gateCueColor = kMuted;
+    switch (gateCue.stage) {
+    case tunrun::GateApproachStage::Clear:
+        gateCueColor = kMuted;
+        break;
+    case tunrun::GateApproachStage::Prepare:
+        gateCueColor = Color{245, 213, 133, 255};
+        break;
+    case tunrun::GateApproachStage::Approach:
+        gateCueColor = Color{255, 174, 103, 255};
+        break;
+    case tunrun::GateApproachStage::Imminent:
+        gateCueColor = Color{255, 91, 84, 255};
+        break;
+    }
+    if (gateCue.valid) {
+        DrawText(TextFormat("GATE IN: %s / %.1fU / %.1fS",
+                 tunrun::gateApproachStageName(gateCue.stage),
+                 gateCue.distanceAhead, gateCue.timeAheadSeconds),
+                 35, 159, 10, gateCueColor);
+    } else {
+        DrawText("GATE APPROACH: UNAVAILABLE", 35, 159, 10, kMuted);
+    }
     const auto hazardCue = tunrun::hazardHudCueAt(
         seed, static_cast<double>(distance), elapsedSeconds, shipX, shipY);
     if (hazardCue.valid) {
@@ -1736,7 +1762,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                  tunrun::hazardVisualFamilyName(hazardFamily),
                  tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
                  hazardCue.distanceAhead, timeToHazard),
-                 35, 169, 10, warningText);
+                 35, 179, 10, warningText);
         const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
             ? "CENTER" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
         const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
@@ -1744,22 +1770,22 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("MINE BEARING: %s %.1f / %s %.1f",
                  horizontalDirection, std::abs(hazardCue.offsetX),
                  verticalDirection, std::abs(hazardCue.offsetY)),
-                 35, 189, 10, Color{255, 153, 125, 255});
+                 35, 199, 10, Color{255, 153, 125, 255});
     } else {
-        DrawText("HAZARD CUE UNAVAILABLE", 35, 169, 10, kMuted);
+        DrawText("HAZARD CUE UNAVAILABLE", 35, 179, 10, kMuted);
     }
     DrawText(TextFormat("PICKUPS: +%llu AETHER / +%llu CORE",
              static_cast<unsigned long long>(aetherPickedUp),
-             static_cast<unsigned long long>(coresPickedUp)), 35, 209, 10, kMuted);
+             static_cast<unsigned long long>(coresPickedUp)), 35, 219, 10, kMuted);
     DrawText(TextFormat("SCORE %llu   COMBO x%.1f   CLEAN %llu",
              static_cast<unsigned long long>(score.total),
              1.0 + static_cast<double>(std::min<std::uint64_t>(score.combo, 40U)) / 10.0,
-             static_cast<unsigned long long>(score.cleanPasses)), 35, 229, 10, kAccent);
+             static_cast<unsigned long long>(score.cleanPasses)), 35, 239, 10, kAccent);
     if (dashRemaining > 0.0F) {
-        DrawText("DASH ACTIVE", 35, 249, 10, kAccent);
+        DrawText("DASH ACTIVE", 35, 259, 10, kAccent);
     } else if (dashCooldownRemaining > 0.0F) {
         DrawText(TextFormat("DASH RECHARGE: %.1fs", dashCooldownRemaining),
-                 35, 249, 10, kMuted);
+                 35, 259, 10, kMuted);
     } else if (boostEnergy >= tunrun::kDashEnergyCost) {
         DrawText("DASH READY: SPACE / PAD A", 35, 249, 10, kAccent);
     } else {
