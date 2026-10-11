@@ -2,6 +2,7 @@
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
 #include "app/tunnel_visuals.hpp"
+#include "app/presentation_layout.hpp"
 #include "app/gate_guidance.hpp"
 #include "app/gate_visuals.hpp"
 #include "app/flight_physics.hpp"
@@ -68,6 +69,41 @@ int main() {
     assert(defaultProfile.fullscreen);
     assert(defaultProfile.mouseSteering);
     assert(defaultProfile.mouseSensitivity == kMouseSensitivityDefault);
+
+    // The fixed 16:9 canvas must stay undistorted on common and ultrawide screens.
+    const auto viewport16x9 = tunrun::makeLogicalViewport(1920.0F, 1080.0F);
+    assert(std::abs(viewport16x9.x) < 0.001F);
+    assert(std::abs(viewport16x9.y) < 0.001F);
+    assert(std::abs(viewport16x9.width - 1920.0F) < 0.001F);
+    assert(std::abs(viewport16x9.height - 1080.0F) < 0.001F);
+
+    const auto viewport16x10 = tunrun::makeLogicalViewport(1920.0F, 1200.0F);
+    assert(std::abs(viewport16x10.x) < 0.001F);
+    assert(std::abs(viewport16x10.y - 60.0F) < 0.001F);
+    assert(std::abs(viewport16x10.width - 1920.0F) < 0.001F);
+    assert(std::abs(viewport16x10.height - 1080.0F) < 0.001F);
+    const auto mappedCenter = tunrun::toLogicalPointer(
+        viewport16x10, 960.0F, 600.0F);
+    assert(std::abs(mappedCenter.x - 640.0F) < 0.001F);
+    assert(std::abs(mappedCenter.y - 360.0F) < 0.001F);
+    const auto pointerInTopBar = tunrun::toLogicalPointer(
+        viewport16x10, 960.0F, 30.0F);
+    assert(pointerInTopBar.y < 0.0F);
+
+    const auto viewportUltrawide = tunrun::makeLogicalViewport(3440.0F, 1440.0F);
+    assert(std::abs(viewportUltrawide.x - 440.0F) < 0.001F);
+    assert(std::abs(viewportUltrawide.y) < 0.001F);
+    assert(std::abs(viewportUltrawide.width - 2560.0F) < 0.001F);
+    assert(std::abs(viewportUltrawide.height - 1440.0F) < 0.001F);
+    const auto ultrawideCenter = tunrun::toLogicalPointer(
+        viewportUltrawide, 1720.0F, 720.0F);
+    assert(std::abs(ultrawideCenter.x - 640.0F) < 0.001F);
+    assert(std::abs(ultrawideCenter.y - 360.0F) < 0.001F);
+
+    const auto invalidViewport = tunrun::makeLogicalViewport(
+        std::numeric_limits<float>::quiet_NaN(), 1080.0F);
+    assert(invalidViewport.scale == 1.0F);
+    assert(invalidViewport.width == 1280.0F && invalidViewport.height == 720.0F);
 
     const auto goKeys = tunrun::keyboardFlightIntentFromKeys(
         true, false, false, false, false, false, false, false, false, false, false);
