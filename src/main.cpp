@@ -355,7 +355,7 @@ void drawCentred(const char* text, float y, int fontSize, Color color) {
 void drawBackground(float time, bool reducedMotion) {
     ClearBackground(kBackground);
     const float drift = reducedMotion ? 0.0F : std::sin(time * 0.35F) * 10.0F;
-    const int width = GetScreenWidth();
+    const int width = kCanvasWidth;
     const int height = kCanvasHeight;
     for (int i = 0; i < 12; ++i) {
         const float scale = static_cast<float>(i + 1) / 12.0F;
@@ -441,15 +441,15 @@ int drawMenu(const std::vector<std::string>& labels, int& selection,
     }
     const int rowHeight = static_cast<int>(buttonHeight + buttonGap);
     const int top = firstY < 0
-        ? (GetScreenHeight() - static_cast<int>(labels.size()) * rowHeight) / 2
+        ? (kCanvasHeight - static_cast<int>(labels.size()) * rowHeight) / 2
         : firstY;
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         const Rectangle bounds{
-            (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
+            (static_cast<float>(kCanvasWidth) - kPanelWidth) / 2.0F,
             static_cast<float>(top + i * rowHeight),
             kPanelWidth, buttonHeight
         };
-        if (CheckCollisionPointRec(GetMousePosition(), bounds)) selection = i;
+        if (CheckCollisionPointRec(virtualMousePosition(), bounds)) selection = i;
         const bool click = drawButton(bounds, labels[static_cast<std::size_t>(i)].c_str(),
                                       selection == i, i == dangerIndex);
         if (click || (confirmEnabled && selection == i && confirmPressed())) return i;
@@ -461,7 +461,7 @@ void drawHeader(const char* number, const char* title, const char* subtitle) {
     DrawText(number, 48, 35, 15, kAccent);
     DrawText(title, 48, 62, 36, kText);
     DrawText(subtitle, 50, 108, 16, kMuted);
-    DrawLine(50, 143, GetScreenWidth() - 50, 143, kEdge);
+    DrawLine(50, 143, kCanvasWidth - 50, 143, kEdge);
 }
 
 Vector3 rayVector(tunrun::FrameVector3 p) { return Vector3{p.x,p.y,p.z}; }
@@ -1860,10 +1860,10 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
                  35, 249, 10, kMuted);
     }
-    DrawRectangle(22, GetScreenHeight() - 48, GetScreenWidth() - 44, 26,
+    DrawRectangle(22, kCanvasHeight - 48, kCanvasWidth - 44, 26,
                   Color{10, 14, 21, 220});
     DrawText("W GO   S BRAKE   A/B STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
-             36, GetScreenHeight() - 42, 10, kMuted);
+             36, kCanvasHeight - 42, 10, kMuted);
 }
 } // namespace
 
@@ -2220,12 +2220,12 @@ int main() {
                        app.runAetherPickupReward, app.runSingularityCorePickupReward,
                        app.tppCameraFollow, app.cameraModeBlend, dt);
             const Rectangle pauseBounds{
-                static_cast<float>(GetScreenWidth() - 126), 22.0F, 102.0F, 40.0F
+                static_cast<float>(kCanvasWidth - 126), 22.0F, 102.0F, 40.0F
             };
             if (drawButton(pauseBounds, "PAUSE", false)) {
                 app.screens.push(tunrun::Screen::Pause);
             }
-            if (app.showFps) DrawFPS(GetScreenWidth() - 92, 72);
+            if (app.showFps) DrawFPS(kCanvasWidth - 92, 72);
             presentCanvas(sceneCanvas);
             continue;
         }
@@ -2243,7 +2243,7 @@ int main() {
                                 static_cast<unsigned long long>(app.profile.singularityCores)),
                      330, 162, 14, kText);
             // Tighten rows at smaller window heights so every menu item stays visible.
-            const bool compactMenu = GetScreenHeight() < 705;
+            const bool compactMenu = kCanvasHeight < 705;
             const float mainButtonHeight = compactMenu ? 36.0F : kButtonHeight;
             const float mainButtonGap = compactMenu ? 4.0F : kButtonGap;
             const int mainMenuTop = compactMenu ? 180 : 185;
@@ -2294,7 +2294,7 @@ int main() {
             DrawText(TextFormat("ENERGY RECOVERY %.2fx", definition.energyRegenerationMultiplier),
                      66, 364, 14, kText);
             drawHangarShipPreview3D(static_cast<std::uint32_t>(previewShip),
-                                    GetScreenWidth() - 210, 315, app.elapsed);
+                                    kCanvasWidth - 210, 315, app.elapsed);
 
             std::string actionLabel;
             if (unlocked) {
@@ -2303,7 +2303,7 @@ int main() {
                 actionLabel = "UNLOCK SHIP";
             }
             const float actionWidth = std::clamp(
-                static_cast<float>(GetScreenWidth()) - 450.0F, 150.0F, 385.0F);
+                static_cast<float>(kCanvasWidth) - 450.0F, 150.0F, 385.0F);
             const Rectangle actionBounds{66.0F, 405.0F, actionWidth, 45.0F};
             const bool actionClicked = drawButton(actionBounds, actionLabel.c_str(), hangarFocus == 0);
             const bool actionConfirmed = hangarFocus == 0 && confirmPressed();
@@ -2327,10 +2327,10 @@ int main() {
             }
             DrawText(priceLine.c_str(), 66, 385, 12, unlocked ? kMuted : kAccent);
 
-            const float previewLeft = static_cast<float>(GetScreenWidth()) - 360.0F;
+            const float previewLeft = static_cast<float>(kCanvasWidth) - 360.0F;
             if (drawButton(Rectangle{previewLeft + 10.0F, 390, 34, 34}, "<", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
-            if (drawButton(Rectangle{static_cast<float>(GetScreenWidth()) - 104.0F, 390, 34, 34}, ">", false))
+            if (drawButton(Rectangle{static_cast<float>(kCanvasWidth) - 104.0F, 390, 34, 34}, ">", false))
                 app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
@@ -2359,8 +2359,8 @@ int main() {
                 DrawText(visibleMessage.c_str(), 66, 489, 12, app.saveWarning ? kDanger : kMuted);
             }
             const Rectangle backBounds{
-                (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F,
-                static_cast<float>(GetScreenHeight() - 86), kPanelWidth, 42.0F};
+                (static_cast<float>(kCanvasWidth) - kPanelWidth) / 2.0F,
+                static_cast<float>(kCanvasHeight - 86), kPanelWidth, 42.0F};
             const bool backClicked = drawButton(backBounds, "BACK", hangarFocus == 1);
             const bool backConfirmed = hangarFocus == 1 && confirmPressed();
             if (backClicked || backConfirmed || backPressed()) app.screens.pop();
@@ -2376,17 +2376,17 @@ int main() {
             if (definition.aetherShardCost > 0U) {
                 DrawText(TextFormat("COST: %llu AETHER SHARDS",
                     static_cast<unsigned long long>(definition.aetherShardCost)),
-                    GetScreenWidth() / 2 - 170, 232, 17, kAccent);
+                    kCanvasWidth / 2 - 170, 232, 17, kAccent);
                 DrawText(TextFormat("YOUR BALANCE: %llu",
                     static_cast<unsigned long long>(app.profile.aetherShards)),
-                    GetScreenWidth() / 2 - 170, 260, 14, kMuted);
+                    kCanvasWidth / 2 - 170, 260, 14, kMuted);
             } else {
                 DrawText(TextFormat("COST: %llu SINGULARITY CORES",
                     static_cast<unsigned long long>(definition.singularityCoreCost)),
-                    GetScreenWidth() / 2 - 170, 232, 17, kAccent);
+                    kCanvasWidth / 2 - 170, 232, 17, kAccent);
                 DrawText(TextFormat("YOUR BALANCE: %llu",
                     static_cast<unsigned long long>(app.profile.singularityCores)),
-                    GetScreenWidth() / 2 - 170, 260, 14, kMuted);
+                    kCanvasWidth / 2 - 170, 260, 14, kMuted);
             }
             drawCentred("CANCEL LEAVES YOUR WALLET AND HANGAR UNCHANGED.", 294.0F, 12, kMuted);
             const int picked = drawMenu(hangarPurchaseItems, hangarPurchaseSelection, 330);
@@ -2405,7 +2405,7 @@ int main() {
             DrawText(TextFormat("BEST DISTANCE     %.1f", app.profile.bestDistance), 78, 218, 18, kText);
             DrawText(TextFormat("BEST SCORE        %llu", static_cast<unsigned long long>(app.profile.bestScore)), 78, 251, 18, kText);
             DrawText(TextFormat("BEST GATE COMBO   %llu", static_cast<unsigned long long>(app.profile.bestCombo)), 78, 284, 18, kText);
-            DrawLine(70, 316, GetScreenWidth() - 70, 316, kEdge);
+            DrawLine(70, 316, kCanvasWidth - 70, 316, kEdge);
             DrawText("RUN HISTORY", 70, 334, 15, kAccent);
             DrawText(TextFormat("RUNS RECORDED     %llu", static_cast<unsigned long long>(app.profile.totalRuns)), 78, 367, 17, kText);
             DrawText(TextFormat("CRASHES           %llu", static_cast<unsigned long long>(app.profile.totalCrashes)), 78, 397, 17, kText);
@@ -2415,7 +2415,7 @@ int main() {
             DrawText(TextFormat("SHIPS UNLOCKED    %d / %d", static_cast<int>(unlockedCount), static_cast<int>(tunrun::kProfileShipCount)), 430, 284, 16, kText);
             DrawText(TextFormat("ACTIVE SHIP       %s", tunrun::shipDefinition(static_cast<std::uint32_t>(app.selectedShip)).name), 430, 367, 15, kText);
             if (app.saveWarning) DrawText("SAVE WARNING: CAREER DATA MAY NOT BE PERSISTED", 78, 433, 11, kDanger);
-            if (drawMenu({"BACK"}, recordsSelection, GetScreenHeight() - 86) == 0) app.screens.pop();
+            if (drawMenu({"BACK"}, recordsSelection, kCanvasHeight - 86) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         }
@@ -2441,7 +2441,7 @@ int main() {
             DrawText("ROTATION HAS INERTIA; Q/E BARREL ROLLS", 440, 380, 12, kMuted);
             DrawText(TextFormat("DASH %.2fs  /  COOLDOWN %.2fs",
                      tunrun::kDashDuration, tunrun::kDashCooldown), 440, 408, 12, kMuted);
-            if (drawMenu({"BACK"}, controlsSelection, GetScreenHeight() - 86) == 0) {
+            if (drawMenu({"BACK"}, controlsSelection, kCanvasHeight - 86) == 0) {
                 app.screens.pop();
             }
             if (backPressed()) app.screens.pop();
@@ -2504,13 +2504,13 @@ int main() {
             labels[4] = std::string("MOUSE SENSITIVITY: ") +
                 TextFormat("%.4f", app.profile.mouseSensitivity);
             const int settingsMenuY = std::max(
-                130, std::min(185, GetScreenHeight() - 360));
+                130, std::min(185, kCanvasHeight - 360));
             const float settingsButtonHeight = 40.0F;
             const float settingsButtonGap = 7.0F;
             const int picked = drawMenu(labels, settingsSelection, settingsMenuY,
                 true, -1, true, settingsButtonHeight, settingsButtonGap);
 
-            const float panelX = (static_cast<float>(GetScreenWidth()) - kPanelWidth) / 2.0F;
+            const float panelX = (static_cast<float>(kCanvasWidth) - kPanelWidth) / 2.0F;
             const float sliderX = panelX + 18.0F;
             const float sliderWidth = kPanelWidth - 36.0F;
             const float sliderY = static_cast<float>(settingsMenuY) +
@@ -2532,7 +2532,7 @@ int main() {
                 kPanelWidth, settingsButtonHeight
             };
             const bool pointerOnSensitivityRow =
-                CheckCollisionPointRec(GetMousePosition(), sensitivityRow);
+                CheckCollisionPointRec(virtualMousePosition(), sensitivityRow);
             const bool draggingSensitivity =
                 IsMouseButtonDown(MOUSE_BUTTON_LEFT) && pointerOnSensitivityRow;
             if (draggingSensitivity) {
@@ -2608,7 +2608,7 @@ int main() {
             drawHeader("04 / PROJECT", "CREDITS", "An original project by Tamasrazim.");
             drawCentred("C++20  /  raylib 5.5  /  CMake", 235.0F, 20, kText);
             drawCentred("Third-party notices and license terms are included in the repository.", 275.0F, 15, kMuted);
-            if (drawMenu({"BACK"}, mainSelection, GetScreenHeight() - 96) == 0) app.screens.pop();
+            if (drawMenu({"BACK"}, mainSelection, kCanvasHeight - 96) == 0) app.screens.pop();
             if (backPressed()) app.screens.pop();
             break;
         case tunrun::Screen::Pause: {
@@ -2711,7 +2711,7 @@ int main() {
                                            tunrun::hazardHash(app.courseSeed, 128U))),
                             267.0F, 11, kDanger);
             }
-            const bool compactCrashMenu = GetScreenHeight() < 705;
+            const bool compactCrashMenu = kCanvasHeight < 705;
             const float crashButtonHeight = compactCrashMenu ? 36.0F : kButtonHeight;
             const float crashButtonGap = compactCrashMenu ? 4.0F : kButtonGap;
             const int crashMenuTop = compactCrashMenu ? 334 : 328;
@@ -2788,8 +2788,8 @@ int main() {
                     app.seedEntryMessage.clear(); app.seedEntryHasError=false;
                 }
             }
-            const Rectangle box{static_cast<float>(GetScreenWidth()/2-270),220.0F,540.0F,62.0F};
-            const bool hovered=CheckCollisionPointRec(GetMousePosition(),box);
+            const Rectangle box{static_cast<float>(kCanvasWidth/2-270),220.0F,540.0F,62.0F};
+            const bool hovered=CheckCollisionPointRec(virtualMousePosition(),box);
             DrawText("RUN SEED",static_cast<int>(box.x),193,14,kAccent);
             DrawRectangleRounded(box,0.10F,8,hovered?Color{36,50,68,255}:kPanel);
             DrawRectangleRoundedLinesEx(box,0.10F,8,1.4F,app.seedEntryHasError?kDanger:kAccent);
@@ -2914,8 +2914,8 @@ int main() {
                                        tunrun::rewardHash(app.courseSeed, 32U))),
                         291.0F, 9, hazardValidation.valid ? kAccent : kDanger);
             const int seedLabMenuY = std::max(
-                310, std::min(430, GetScreenHeight() - 250));
-            const bool compactSeedLabMenu = GetScreenHeight() < 760;
+                310, std::min(430, kCanvasHeight - 250));
+            const bool compactSeedLabMenu = kCanvasHeight < 760;
             const float seedLabButtonHeight = compactSeedLabMenu ? 36.0F : kButtonHeight;
             const float seedLabButtonGap = compactSeedLabMenu ? 4.0F : kButtonGap;
             const int picked = drawMenu(seedLabItems, seedLabSelection, seedLabMenuY,
@@ -2988,10 +2988,10 @@ case tunrun::Screen::SaveRecovery: {
         }
         if (app.saveWarning && !app.profileRecoveryRequired) {
             DrawText("SAVE WARNING - SOME CHANGES MAY NOT BE PERSISTED",
-                     22, GetScreenHeight() - 48, 13, kDanger);
+                     22, kCanvasHeight - 48, 13, kDanger);
         }
-        if (app.showFps) DrawFPS(GetScreenWidth() - 92, 16);
-        DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, GetScreenHeight() - 25, 12, kMuted);
+        if (app.showFps) DrawFPS(kCanvasWidth - 92, 16);
+        DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, kCanvasHeight - 25, 12, kMuted);
         presentCanvas(sceneCanvas);
     }
     if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
