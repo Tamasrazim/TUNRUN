@@ -463,13 +463,12 @@ struct GateThroatGuidance {
         !std::isfinite(currentX) || !std::isfinite(currentY) ||
         !std::isfinite(previousDistance) || !std::isfinite(currentDistance)) return true;
     const double distanceSpan = std::abs(currentDistance - previousDistance);
-    const auto previousCourse = sampleCourse(seed, previousDistance);
-    const auto currentCourse = sampleCourse(seed, currentDistance);
-    const double worldX0 = static_cast<double>(previousX) + previousCourse.centerX;
-    const double worldY0 = static_cast<double>(previousY) + previousCourse.centerY;
-    const double worldX1 = static_cast<double>(currentX) + currentCourse.centerX;
-    const double worldY1 = static_cast<double>(currentY) + currentCourse.centerY;
-    const double lateralSpan = std::hypot(worldX1 - worldX0, worldY1 - worldY0);
+    // FlightState X/Y are offsets in the current tunnel cross-section. The
+    // tunnel frame carries the centreline through world space, so folding that
+    // centreline into these offsets again can invent a lateral sweep on curves.
+    const double lateralSpan = std::hypot(
+        static_cast<double>(currentX) - previousX,
+        static_cast<double>(currentY) - previousY);
     const double sampleSpan = std::max(distanceSpan, lateralSpan);
     if (!std::isfinite(sampleSpan) || sampleSpan > 256.0) return true;
     const int samples = std::clamp(
@@ -481,11 +480,12 @@ struct GateThroatGuidance {
         // Gate-plane contact uses shared crossing interpolation below. The
         // sleeve handles finite approach/departure length around that plane.
         if (std::abs(distance - gate.distance) <= kGateDepthHalfThickness) continue;
-        const auto course = sampleCourse(seed, distance);
         const float x = static_cast<float>(
-            worldX0 + (worldX1 - worldX0) * t - course.centerX);
+            static_cast<double>(previousX) +
+            (static_cast<double>(currentX) - previousX) * t);
         const float y = static_cast<float>(
-            worldY0 + (worldY1 - worldY0) * t - course.centerY);
+            static_cast<double>(previousY) +
+            (static_cast<double>(currentY) - previousY) * t);
         if (collidesWithGateThroatAtDistance(x, y, seed, gate, distance, craftRadius)) {
             return true;
         }
@@ -552,7 +552,7 @@ struct GateCrossingPoint {
 };
 
 inline GateCrossingPoint gatePointAtCourseCrossing(
-    std::uint64_t seed, float previousX, float previousY,
+    std::uint64_t /*seed*/, float previousX, float previousY,
     double previousDistance, float currentX, float currentY,
     double currentDistance, const ProceduralGate& gate) noexcept {
     GateCrossingPoint point;
@@ -569,17 +569,12 @@ inline GateCrossingPoint gatePointAtCourseCrossing(
     if (!std::isfinite(travel) || travel <= 1.0e-9) return point;
     const double fraction = std::clamp(
         (gate.distance - previousDistance) / travel, 0.0, 1.0);
-    const auto previousSection = sampleCourse(seed, previousDistance);
-    const auto currentSection = sampleCourse(seed, currentDistance);
-    const auto gateSection = sampleCourse(seed, gate.distance);
-    const double worldX0 = static_cast<double>(previousX) + previousSection.centerX;
-    const double worldY0 = static_cast<double>(previousY) + previousSection.centerY;
-    const double worldX1 = static_cast<double>(currentX) + currentSection.centerX;
-    const double worldY1 = static_cast<double>(currentY) + currentSection.centerY;
-    const double relativeX = worldX0 + (worldX1 - worldX0) * fraction -
-                             gateSection.centerX;
-    const double relativeY = worldY0 + (worldY1 - worldY0) * fraction -
-                             gateSection.centerY;
+    // Interpolate in the same course-local cross-section used by flight and
+    // gate collision. Centerline placement belongs to the render frame.
+    const double relativeX = static_cast<double>(previousX) +
+        (static_cast<double>(currentX) - previousX) * fraction;
+    const double relativeY = static_cast<double>(previousY) +
+        (static_cast<double>(currentY) - previousY) * fraction;
     if (!std::isfinite(relativeX) || !std::isfinite(relativeY)) return point;
     point.x = static_cast<float>(relativeX);
     point.y = static_cast<float>(relativeY);

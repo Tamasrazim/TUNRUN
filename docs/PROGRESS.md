@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Collision frame fix (2026-10-11): gate-throat sweeps, exact gate-plane crossings, mine contact and pickup contact now interpolate FlightState X/Y as cross-section-local offsets. They no longer apply a second centerline shift during collision checks. Seeded layouts, tunnel geometry and the existing ship models are unchanged; regression assertions cover curved-course crossings and near-edge gate contact.
+
 - The flight HUD now labels the next gate CLEAR, PREPARE, APPROACH, or IMMINENT using estimated arrival time from actual forward speed, then shows both distance and seconds. The thresholds automatically respond to braking, acceleration, boost and dash; this gives the player a timing cue while far tunnel geometry is hidden by the visibility horizon. Pure-helper tests cover stage boundaries, speed changes, a gate already crossed, invalid input, and urgency ordering.
 
 - FPP's eye now sits forward and slightly above the ship origin inside the canopy. A centered tunnel-frame reticle returns in stable FPP. Camera roll blends out across the FPP-to-TPP transition, and the spacecraft fades in only after the chase camera clears its hull. If a tight sleeve forces the camera close to the ship, model visibility also fades by actual camera-to-ship distance. The HUD reports actual units/second after throttle, boost, precision and dash, plus estimated time to the next mine based on that same live speed.

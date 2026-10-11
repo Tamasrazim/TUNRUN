@@ -75,6 +75,8 @@ Still required before M1 can pass:
 
 ## Latest implementation update — 2026-10-11
 
+- Corrected the collision coordinate contract: flight X/Y are cross-section-local offsets, so swept throat/gate checks, moving mines and pickups now interpolate those offsets directly and leave centerline placement to the tunnel frame. This targets apparent side impacts on curved courses without changing the seeded layouts or the existing graphics model. Automated regression coverage was updated; runtime playability still needs a Windows build and hands-on run.
+
 - Added a speed-aware gate approach cue to the flight HUD. CLEAR/PREPARE/APPROACH/IMMINENT states show distance and estimated time using live forward speed, so the fogged gate remains trackable without making the far-side tunnel visible. Regression tests cover stage transitions, speed response, passed gates and invalid values; full native build and in-game timing review remain unverified in this editing session.
 
 - Camera targeting follows mouse-look yaw/pitch independently from the craft's heading. The FPP camera position is clamped within its own tunnel cross-section; the TPP camera base stays behind the course tangent and is clamped to rear-section clearance. Manual runtime camera/occlusion acceptance remains separate from automated tests.

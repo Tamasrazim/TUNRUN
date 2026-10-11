@@ -826,17 +826,12 @@ int main() {
     assert(tunrun::collidesWithGate(gate.offsetX + gate.apertureRadius, gate.offsetY, gate));
     assert(tunrun::crossesGatePlane(gate.distance - 0.1, gate.distance + 0.1, gate));
     assert(!tunrun::crossesGatePlane(gate.distance + 0.5, gate.distance + 0.7, gate));
-    const auto gateSection = tunrun::sampleCourse(seed, gate.distance);
-    const auto gateBeforeSection = tunrun::sampleCourse(seed, gate.distance - 0.7);
-    const auto gateAfterSection = tunrun::sampleCourse(seed, gate.distance + 0.7);
-    const float centeredPreviousX = gate.offsetX + gateSection.centerX -
-                                    gateBeforeSection.centerX;
-    const float centeredPreviousY = gate.offsetY + gateSection.centerY -
-                                    gateBeforeSection.centerY;
-    const float centeredCurrentX = gate.offsetX + gateSection.centerX -
-                                   gateAfterSection.centerX;
-    const float centeredCurrentY = gate.offsetY + gateSection.centerY -
-                                   gateAfterSection.centerY;
+    // A centered ship stays centered in the local cross-section even when the
+    // course centerline curves between simulation endpoints.
+    const float centeredPreviousX = gate.offsetX;
+    const float centeredPreviousY = gate.offsetY;
+    const float centeredCurrentX = gate.offsetX;
+    const float centeredCurrentY = gate.offsetY;
     assert(!tunrun::collidesWithGateAtCourseCrossing(
         seed, centeredPreviousX, centeredPreviousY, gate.distance - 0.7,
         centeredCurrentX, centeredCurrentY, gate.distance + 0.7, gate));
@@ -850,6 +845,14 @@ int main() {
     assert(std::abs(scoredCrossing.x - gate.offsetX) < 0.001F);
     assert(std::abs(scoredCrossing.y - gate.offsetY) < 0.001F);
     assert(!tunrun::collidesWithGateAtCrossingPoint(scoredCrossing, gate));
+
+    const float nearEdgeX = gate.offsetX + gate.apertureRadius -
+                            tunrun::kCraftCollisionRadius + 0.01F;
+    const auto nearEdgeCrossing = tunrun::gatePointAtCourseCrossing(
+        seed, nearEdgeX, gate.offsetY, gate.distance - 0.7,
+        nearEdgeX, gate.offsetY, gate.distance + 0.7, gate);
+    assert(nearEdgeCrossing.crossedPlane && nearEdgeCrossing.valid);
+    assert(tunrun::collidesWithGateAtCrossingPoint(nearEdgeCrossing, gate));
 
     auto outsideCrossing = scoredCrossing;
     outsideCrossing.x = gate.offsetX + gate.apertureRadius;
@@ -886,17 +889,10 @@ int main() {
                                        firstReward.distance + 0.2, firstReward));
     assert(!tunrun::collectsReward(std::numeric_limits<float>::quiet_NaN(),
                                    firstReward.offsetY, firstReward));
-    const auto rewardSection = tunrun::sampleCourse(seed, firstReward.distance);
-    const auto rewardBeforeSection = tunrun::sampleCourse(seed, firstReward.distance - 0.7);
-    const auto rewardAfterSection = tunrun::sampleCourse(seed, firstReward.distance + 0.7);
-    const float rewardPreviousX = firstReward.offsetX + rewardSection.centerX -
-                                  rewardBeforeSection.centerX;
-    const float rewardPreviousY = firstReward.offsetY + rewardSection.centerY -
-                                  rewardBeforeSection.centerY;
-    const float rewardCurrentX = firstReward.offsetX + rewardSection.centerX -
-                                 rewardAfterSection.centerX;
-    const float rewardCurrentY = firstReward.offsetY + rewardSection.centerY -
-                                 rewardAfterSection.centerY;
+    const float rewardPreviousX = firstReward.offsetX;
+    const float rewardPreviousY = firstReward.offsetY;
+    const float rewardCurrentX = firstReward.offsetX;
+    const float rewardCurrentY = firstReward.offsetY;
     assert(tunrun::collectsRewardAtCourseCrossing(
         seed, rewardPreviousX, rewardPreviousY, firstReward.distance - 0.7,
         rewardCurrentX, rewardCurrentY, firstReward.distance + 0.7, firstReward));
@@ -1103,20 +1099,14 @@ int main() {
         hazard.distance - 1.0, 1.0,
         0.0F, 0.0F, hazard.distance + 1.0, 1.1, hazard));
 
-    // Curved-centerline regression using the same course frame as the renderer.
-    const auto hazardSection = tunrun::sampleCourse(seed, hazard.distance);
-    const auto hazardBeforeSection = tunrun::sampleCourse(seed, hazard.distance - 0.7);
-    const auto hazardAfterSection = tunrun::sampleCourse(seed, hazard.distance + 0.7);
+    // A moving mine remains collidable in its own course-local cross-section
+    // even if the centerline is curving underneath the swept trajectory.
     const auto hazardBeforeCenter = tunrun::hazardCenterAt(hazard, 2.0);
     const auto hazardAfterCenter = tunrun::hazardCenterAt(hazard, 2.02);
-    const float safeHazardPreviousX = hazardSection.centerX + hazardBeforeCenter.x -
-                                      hazardBeforeSection.centerX;
-    const float safeHazardPreviousY = hazardSection.centerY + hazardBeforeCenter.y -
-                                      hazardBeforeSection.centerY;
-    const float safeHazardCurrentX = hazardSection.centerX + hazardAfterCenter.x -
-                                     hazardAfterSection.centerX;
-    const float safeHazardCurrentY = hazardSection.centerY + hazardAfterCenter.y -
-                                     hazardAfterSection.centerY;
+    const float safeHazardPreviousX = hazardBeforeCenter.x;
+    const float safeHazardPreviousY = hazardBeforeCenter.y;
+    const float safeHazardCurrentX = hazardAfterCenter.x;
+    const float safeHazardCurrentY = hazardAfterCenter.y;
     assert(tunrun::sweptCollidesWithHazard(
         seed, safeHazardPreviousX, safeHazardPreviousY, hazard.distance - 0.7, 2.0,
         safeHazardCurrentX, safeHazardCurrentY, hazard.distance + 0.7, 2.02, hazard));

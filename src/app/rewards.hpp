@@ -72,7 +72,7 @@ inline bool collectsReward(float x, float y, const ProceduralReward& reward,
 // This keeps pickup physics aligned with the centerline displacement shown in
 // the 3D scene on curved courses.
 inline bool collectsRewardAtCourseCrossing(
-    std::uint64_t seed,
+    std::uint64_t /*seed*/,
     float previousX, float previousY, double previousDistance,
     float currentX, float currentY, double currentDistance,
     const ProceduralReward& reward,
@@ -87,18 +87,15 @@ inline bool collectsRewardAtCourseCrossing(
     if (travel <= 1.0e-9) return false;
     const double fraction = std::clamp(
         (reward.distance - previousDistance) / travel, 0.0, 1.0);
-    const auto previousSection = sampleCourse(seed, previousDistance);
-    const auto currentSection = sampleCourse(seed, currentDistance);
-    const auto rewardSection = sampleCourse(seed, reward.distance);
-
-    const double worldX0 = static_cast<double>(previousX) + previousSection.centerX;
-    const double worldY0 = static_cast<double>(previousY) + previousSection.centerY;
-    const double worldX1 = static_cast<double>(currentX) + currentSection.centerX;
-    const double worldY1 = static_cast<double>(currentY) + currentSection.centerY;
+    // Pickup offsets live in the sampled course cross-section, just like the
+    // craft state. Interpolate the local offsets without adding centerline
+    // displacement a second time on a bend.
     const float rewardRelativeX = static_cast<float>(
-        worldX0 + (worldX1 - worldX0) * fraction - rewardSection.centerX);
+        static_cast<double>(previousX) +
+        (static_cast<double>(currentX) - previousX) * fraction);
     const float rewardRelativeY = static_cast<float>(
-        worldY0 + (worldY1 - worldY0) * fraction - rewardSection.centerY);
+        static_cast<double>(previousY) +
+        (static_cast<double>(currentY) - previousY) * fraction);
     return collectsReward(rewardRelativeX, rewardRelativeY, reward, radius);
 }
 

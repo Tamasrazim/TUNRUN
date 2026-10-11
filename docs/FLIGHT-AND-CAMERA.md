@@ -8,6 +8,8 @@ Forward progress is automatic by default. The craft moves along the generated co
 
 Separate the authoritative craft simulation from camera transforms. The local tunnel frame supplies forward, right, and up axes; these axes must be continuous through curves and twists. Never derive authoritative movement from the rendered camera.
 
+FlightState X/Y values are offsets in the current cross-section, not world-space coordinates. Gate-throat sweeps, gate-plane crossings, moving-mine contact, and pickup contact interpolate those offsets in the same local frame. They must not add or subtract sampled centerline shifts a second time: curved placement is already handled by the tunnel frame. This prevents the course bending beneath a stable local flight path from being misread as an unexpected lateral collision.
+
 Simulation should use a fixed timestep or controlled accumulator. Render frames interpolate visual transforms; frame rate must not change movement, boost drain, obstacle phase, or collision outcome.
 
 ### Motion components
