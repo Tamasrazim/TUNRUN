@@ -9,7 +9,7 @@ This file is the current snapshot used by the README progress bar and project-pa
 | M0 — Specification baseline | Complete | Maintain the documentation and governance baseline. |
 | M1 — Application shell and input | In progress | Real Windows hardware checks for mouse capture, DPI/resize hitboxes, focus loss and nested input contexts. |
 | M2 — Flight and camera | In progress | Verify camera/flight behavior on hardware; continue handling and collision/visibility checks. |
-| M3 — Procedural geometry | In progress | Broader centerline/frame continuity, cross-section transitions and fixed expected cross-platform hash fixtures. The same deterministic and persistence tests now run under both Windows/MSVC and Linux/GCC; literal cross-compiler hash fixtures remain the next verification step. |
+| M3 — Procedural geometry | In progress | Fixed expected cross-platform hash fixtures and hardware review of tunnel continuity. The deterministic sample sweep now records and bounds centerline, radius and twist rates to catch abrupt course changes; cross-section/frame continuity and literal cross-compiler fixtures remain open. |
 | M4 — Obstacles and validation | In progress | Multi-state route reachability, more seed regressions, and hardware-verified warning times. |
 | M5 — Save, resources and hangar | In progress | Real Windows migration/write-interruption tests and fuller progression rewards. |
 | M6 — Gameplay and AI | Planned | Hull/damage, rival pilots, drones and compatible replay/ghost pipeline. |
@@ -20,6 +20,8 @@ This file is the current snapshot used by the README progress bar and project-pa
 The segmented bar is intentionally **not** labelled with an overall completion percentage: the five active milestones cover very different amounts of work. A roadmap milestone remains active until its acceptance criteria are explicitly satisfied.
 
 ## Latest implementation slice
+
+- Course continuity gate (2026-10-12): `validateCourse` now measures the per-course-unit rate of centerline, radius and twist changes and rejects samples exceeding generous continuity bounds. The metrics are exposed in `CourseValidation` and covered across the existing deterministic seed regression set. This is a generation-time validation improvement, not a claim that every camera or collision behavior has been manually verified in-game. The viewport tests also now cover portrait-window letterboxing and clicks in ultrawide bars.
 
 - Game UI/content pass (2026-10-11): replaced the static ellipse backdrop with a moving 3D procedural tunnel and seeded gate silhouettes, rebuilt the main menu as a command deck plus live ship hologram/telemetry, added animated angular controls, textured panels and screen-specific materials, and kept the real flight scene visible beneath pause and nested dialogs. The portable pack now generates 12 original 4096 × 2048 RGB material sheets (288 MiB of raw pixels); the UI streams one sheet per screen and unloads it on transitions. The source checkout still works without baked assets. The in-flight interface now separates flight data, gate approach, threat monitoring, run records, and optional FPS/frame-time telemetry; the Controls screen has matching keyboard and gamepad keycaps and clearer input groups. The latest Windows x64 CI package completed build and unit tests at 225.9 MiB compressed; this remains a development artifact, not a public release.
 
