@@ -42,7 +42,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 
 Gameplay-specific mouse checks:
 - Entering a run captures relative mouse input only when mouse-look is enabled; on Windows the cursor is hidden and clipped to the current client area without recentering warps; the clipping rectangle refreshes after window movement or resizing.
-- Relative mouse movement rotates the camera only and never changes craft steering or position. The saved sensitivity responds to bounded left/right adjustments in Settings; the mouse-look enable/disable toggle works.
+- Relative mouse movement rotates the camera only and never changes craft steering or position. The logarithmic sensitivity slider supports pointer click/drag, bounded left/right keyboard/controller adjustments, and the mouse-look enable/disable toggle; pointer interaction must not require gameplay capture.
 - In settled FPP, the reticle is centred on the final camera ray and stays aligned when that ray is shortened by an outer wall or gate throat. It is not a steering target and does not disappear when keyboard/gamepad controls are used. In TPP, mouse-look orbits the camera eye around the ship while keeping the ship as the focus.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.
