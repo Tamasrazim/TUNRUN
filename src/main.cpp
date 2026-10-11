@@ -1658,7 +1658,11 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 seed, distance, guideDistance);
             const float markerRadius = std::clamp(
                 std::min(guideThroat.radius * 0.32F, 0.42F), 0.14F, 0.42F);
-            const Color markerColor{111, 225, 255, 225};
+            // The guidance ring must dissolve with the same horizon as the
+            // tunnel skin; otherwise its full-bright colour pops until the
+            // final frame before the 3D marker is culled.
+            const Color markerColor = tunnelDepthFog(
+                Color{111, 225, 255, 225}, throatGuidance.distanceAhead);
             const auto markerPoint = [&](float x, float y) {
                 return rayVector(tunrun::tunnelFramePoint(
                     guideFrame, guideThroat.centerX + x,
