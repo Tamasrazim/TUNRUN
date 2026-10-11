@@ -2,7 +2,7 @@
 
 ## Current status
 
-TUNRUN is an offline native C++20/raylib prototype, not a finished commercial release. Implemented systems include seeded curved 3D tunnel geometry, four gate families, moving mine hazards (generator v5, interleaved 27 units from neighboring gate planes), Aether Shard/Singularity Core pickups, keyboard/gamepad translation plus independent ship rotation, a UI-only mouse pointer, eight ship profiles, local profile schema v3 with backup/recovery, score/combo records, Seed Lab validation, and automated regression tests.
+TUNRUN is an offline native C++20/raylib prototype, not a finished commercial release. Implemented systems include seeded curved 3D tunnel geometry, four gate families, moving mine hazards (generator v7, first threat after the opening four gates; interleaved 27 units from neighboring gate planes), Aether Shard/Singularity Core pickups, keyboard/gamepad translation plus independent ship rotation, a UI-only mouse pointer, eight ship profiles, local profile schema v3 with backup/recovery, score/combo records, Seed Lab validation, and automated regression tests.
 
 The Windows workflow performs a clean x64 Release build and unit tests. It then creates a portable development ZIP with the executable, license notices, current build metadata, and a SHA-256 file manifest. This is a development distribution—not a signed installer or a promise of release readiness.
 

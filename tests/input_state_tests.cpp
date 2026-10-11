@@ -927,7 +927,7 @@ int main() {
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
-    assert(tunrun::kHazardGeneratorVersion == 6U);
+    assert(tunrun::kHazardGeneratorVersion == 7U);
     assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
            tunrun::hazardVisualFamilyAt(seed, 0U));
     assert(tunrun::hazardMotionFamilyAt(seed, 0U) ==
@@ -948,10 +948,10 @@ int main() {
         }
         const auto generatedHazard = tunrun::hazardAt(seed, index);
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
-        // Gate indices are zero-based. The intro skips the first two gates; mines
-        // start between (2,3), then (4,5), etc. Verify spacing and clearance.
-        const auto precedingGate = tunrun::gateAt(seed, index * 2U + 2U);
-        const auto followingGate = tunrun::gateAt(seed, index * 2U + 3U);
+        // The opening four gates are mine-free; mine zero sits between gates 4/5,
+        // then between 6/7, 8/9, etc. Check exact placement and throat clearance.
+        const auto precedingGate = tunrun::gateAt(seed, index * 2U + 4U);
+        const auto followingGate = tunrun::gateAt(seed, index * 2U + 5U);
         assert(std::abs(generatedHazard.distance - precedingGate.distance -
                         tunrun::kHazardInterGateOffset) < 0.0001);
         assert(std::abs(followingGate.distance - generatedHazard.distance -
