@@ -59,11 +59,11 @@ struct GateApproachCue {
         stage = GateApproachStage::Imminent;
     } else if (timeAhead <= 2.5F) {
         stage = GateApproachStage::Approach;
-    } else if (timeAhead <= 4.0F) {
+    } else if (timeAhead <= 5.0F) {
         stage = GateApproachStage::Prepare;
     }
 
-    const float urgency = std::clamp((4.0F - timeAhead) / 4.0F, 0.0F, 1.0F);
+    const float urgency = std::clamp((5.0F - timeAhead) / 5.0F, 0.0F, 1.0F);
     return GateApproachCue{true, distanceAhead, timeAhead, urgency, stage};
 }
 

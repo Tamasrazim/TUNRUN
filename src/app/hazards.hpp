@@ -9,7 +9,7 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kHazardGeneratorVersion = 4U;
+inline constexpr std::uint32_t kHazardGeneratorVersion = 5U;
 inline constexpr double kHazardInterGateOffset = kGateSpacing * 0.5;
 inline constexpr double kHazardSpacing = kGateSpacing * 2.0;
 inline constexpr double kHazardMinimumGateSeparation = 20.0;

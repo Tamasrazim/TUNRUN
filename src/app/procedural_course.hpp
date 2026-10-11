@@ -16,9 +16,13 @@ inline constexpr float kCourseMaxCenterX = 2.10F;
 inline constexpr float kCourseMaxCenterY = 1.55F;
 inline constexpr float kCourseMaxTwist = 0.58F;
 inline constexpr double kGateBaseDistance = 34.0;
-inline constexpr double kGateSpacing = 42.0;
+inline constexpr double kGateSpacing = 54.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
 inline constexpr float kGateThroatHalfLength = 18.0F;
+inline constexpr double kGateRecoveryGap = kGateSpacing -
+    2.0 * static_cast<double>(kGateThroatHalfLength);
+static_assert(kGateRecoveryGap >= 18.0,
+              "Adjacent gate throats must leave a recoverable gap.");
 inline constexpr float kGateThroatNarrowCoreFraction = 0.50F;
 inline constexpr float kGateThroatBendAmplitudeX = 1.45F;
 inline constexpr float kGateThroatBendAmplitudeY = 0.28F;
@@ -30,7 +34,7 @@ inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 13U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 14U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -413,7 +417,9 @@ struct GateThroatGuidance {
         gate = gateAt(seed, boundedSlot + 1U);
     }
 
-    const double approachStart = gate.distance - 12.0;
+    // Begin aiming just inside the sleeve entry, instead of six units after it.
+    const double approachStart = gate.distance -
+        static_cast<double>(kGateThroatHalfLength) + 0.5;
     const double desiredDistance = std::max(playerDistance + lookAhead, approachStart);
     const double guideDistance = std::clamp(
         desiredDistance, approachStart,

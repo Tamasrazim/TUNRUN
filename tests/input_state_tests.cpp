@@ -514,6 +514,8 @@ int main() {
     assert(throatGuideStart.targetRadius > 0.0F);
     const auto startGuideGate = tunrun::gateAt(frameSeed, throatGuideStart.gateIndex);
     const double startGuideDistance = throatGuideStart.distanceAhead;
+    assert(std::abs(startGuideDistance -
+        (startGuideGate.distance - tunrun::kGateThroatHalfLength + 0.5)) < 0.01);
     const auto startGuideSection = tunrun::gateThroatSectionAtDistance(
         frameSeed, startGuideGate, startGuideDistance);
     const auto startGuideCourse = tunrun::sampleCourse(frameSeed, startGuideDistance);
@@ -909,7 +911,7 @@ int main() {
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
-    assert(tunrun::kHazardGeneratorVersion == 4U);
+    assert(tunrun::kHazardGeneratorVersion == 5U);
     assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
            tunrun::hazardVisualFamilyAt(seed, 0U));
     assert(tunrun::hazardMotionFamilyAt(seed, 0U) ==
@@ -1171,15 +1173,15 @@ int main() {
     assert(tunrun::warningBeaconVisibilityAtDistance(90.0F) == 0.0F);
 
     // Gate approach timing must follow live speed, not just fixed course units.
-    const auto prepareGate = tunrun::gateApproachCue(42.0, 0.0, 11.0F);
+    const auto prepareGate = tunrun::gateApproachCue(54.0, 0.0, 11.0F);
     assert(prepareGate.valid);
-    assert(std::abs(prepareGate.distanceAhead - 42.0F) < 0.001F);
-    assert(std::abs(prepareGate.timeAheadSeconds - (42.0F / 11.0F)) < 0.001F);
+    assert(std::abs(prepareGate.distanceAhead - 54.0F) < 0.001F);
+    assert(std::abs(prepareGate.timeAheadSeconds - (54.0F / 11.0F)) < 0.001F);
     assert(prepareGate.stage == tunrun::GateApproachStage::Prepare);
     assert(std::string_view(tunrun::gateApproachStageName(prepareGate.stage)) ==
            "PREPARE");
     assert(prepareGate.urgency > 0.0F && prepareGate.urgency < 1.0F);
-    // At normal gate spacing the HUD announces arrival while gate geometry is hidden.
+    // At normal spacing the HUD begins preparing before the gate reaches full visibility.
     const auto insideHorizonCue = tunrun::gateApproachCue(17.0, 0.0, 11.0F);
     assert(insideHorizonCue.valid &&
            insideHorizonCue.stage == tunrun::GateApproachStage::Approach);
@@ -1188,7 +1190,7 @@ int main() {
     assert(dashHorizonCue.valid &&
            dashHorizonCue.stage == tunrun::GateApproachStage::Imminent);
 
-    const auto fasterApproach = tunrun::gateApproachCue(42.0, 0.0, 24.0F);
+    const auto fasterApproach = tunrun::gateApproachCue(54.0, 0.0, 24.0F);
     assert(fasterApproach.valid);
     assert(fasterApproach.stage == tunrun::GateApproachStage::Approach);
     assert(std::string_view(tunrun::gateApproachStageName(fasterApproach.stage)) ==
@@ -1207,12 +1209,12 @@ int main() {
     assert(alreadyCrossed.valid && alreadyCrossed.distanceAhead == 0.0F);
     assert(alreadyCrossed.stage == tunrun::GateApproachStage::Imminent);
 
-    const auto distantGate = tunrun::gateApproachCue(55.0, 0.0, 11.0F);
+    const auto distantGate = tunrun::gateApproachCue(56.0, 0.0, 11.0F);
     assert(distantGate.valid && distantGate.stage == tunrun::GateApproachStage::Clear);
     assert(std::string_view(tunrun::gateApproachStageName(distantGate.stage)) ==
            "CLEAR");
     assert(distantGate.urgency == 0.0F);
-    const auto prepareBoundary = tunrun::gateApproachCue(44.0, 0.0, 11.0F);
+    const auto prepareBoundary = tunrun::gateApproachCue(55.0, 0.0, 11.0F);
     assert(prepareBoundary.stage == tunrun::GateApproachStage::Prepare);
     const auto approachBoundary = tunrun::gateApproachCue(27.5, 0.0, 11.0F);
     assert(approachBoundary.stage == tunrun::GateApproachStage::Approach);
@@ -1259,7 +1261,8 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 13U);
+    assert(tunrun::kObstacleGeneratorVersion == 14U);
+    assert(std::abs(tunrun::kGateRecoveryGap - 18.0) < 0.0001);
     const auto firstGateRunway = tunrun::gateAt(seed, 0U);
     assert(firstGateRunway.distance >= tunrun::kGateBaseDistance);
     assert(firstGateRunway.distance < tunrun::kGateBaseDistance + 4.0);
