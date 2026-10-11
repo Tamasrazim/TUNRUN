@@ -554,6 +554,19 @@ void ensureUiMaterial(int materialIndex) {
     }
 }
 
+void drawKeycap(Rectangle bounds, const char* label) {
+    drawMaterialSurface(bounds, Color{102, 130, 154, 128},
+                        Color{7, 14, 22, 225});
+    DrawRectangleLinesEx(bounds, 1.0F, Color{65, 86, 105, 245});
+    const int fontSize = 11;
+    const int textWidth = MeasureText(label, fontSize);
+    const int x = static_cast<int>(bounds.x +
+        (bounds.width - static_cast<float>(textWidth)) * 0.5F);
+    const int y = static_cast<int>(bounds.y +
+        (bounds.height - static_cast<float>(fontSize)) * 0.5F);
+    DrawText(label, x, y, fontSize, kAccent);
+}
+
 bool drawButton(Rectangle bounds, const char* label, bool selected, bool danger = false) {
     const bool hovered = CheckCollisionPointRec(virtualMousePosition(), bounds);
     const bool focused = hovered || selected;
@@ -2803,26 +2816,58 @@ int main() {
         }
         case tunrun::Screen::Controls: {
             drawHeader("SYSTEM / CONTROLS", "CONTROLS",
-                       "W/S manage speed, A/D steer laterally, mouse moves the camera.");
-            DrawText("KEYBOARD", 70, 184, 15, kAccent);
-            DrawText("GO / ACCELERATE  W", 78, 218, 13, kText);
-            DrawText("BRAKE / SLOW  S", 78, 246, 13, kText);
-            DrawText("LEFT A / RIGHT B (D ALSO WORKS)", 78, 274, 12, kText);
-            DrawText("MOUSE LOOK: CAMERA ONLY", 78, 302, 13, kAccent);
-            DrawText("ROTATE  ARROW KEYS", 78, 330, 13, kText);
-            DrawText("BARREL ROLL  Q / E", 78, 358, 13, kText);
-            DrawText("BOOST SHIFT / PRECISION CTRL", 78, 386, 12, kText);
-            DrawText("DASH SPACE / CAMERA V / ESC BACK", 78, 410, 12, kMuted);
-            DrawLine(402, 184, 402, 448, kEdge);
-            DrawText("GAMEPAD", 432, 184, 15, kAccent);
-            DrawText("LEFT STICK  MOVE", 440, 218, 13, kText);
-            DrawText("RIGHT STICK  ROTATE", 440, 246, 13, kText);
-            DrawText("RT  BOOST  /  LT  PRECISION", 440, 274, 13, kText);
-            DrawText("A  DASH  /  Y  CAMERA", 440, 302, 13, kText);
-            DrawText("START / B  PAUSE / BACK", 440, 330, 13, kText);
-            DrawText("ROTATION HAS INERTIA; Q/E BARREL ROLLS", 440, 380, 12, kMuted);
-            DrawText(TextFormat("DASH %.2fs  /  COOLDOWN %.2fs",
-                     tunrun::kDashDuration, tunrun::kDashCooldown), 440, 408, 12, kMuted);
+                       "A quick flight reference for keyboard, mouse and gamepad.");
+
+            const Rectangle keyboardPanel{48.0F, 164.0F, 570.0F, 454.0F};
+            const Rectangle gamepadPanel{638.0F, 164.0F, 594.0F, 454.0F};
+            drawMaterialSurface(keyboardPanel, Color{99, 126, 151, 112},
+                                Color{4, 10, 17, 190});
+            drawMaterialSurface(gamepadPanel, Color{99, 126, 151, 112},
+                                Color{4, 10, 17, 190});
+            DrawRectangleLinesEx(keyboardPanel, 1.0F, Color{52, 77, 96, 235});
+            DrawRectangleLinesEx(gamepadPanel, 1.0F, Color{52, 77, 96, 235});
+
+            DrawText("KEYBOARD + MOUSE", 66, 180, 13, kAccent);
+            DrawText("FLIGHT INPUT", 490, 182, 9, kMuted);
+            DrawLine(66, 202, 600, 202, Color{45, 67, 83, 230});
+            DrawText("GAMEPAD", 656, 180, 13, kAccent);
+            DrawText("STANDARD XINPUT LAYOUT", 982, 182, 9, kMuted);
+            DrawLine(656, 202, 1214, 202, Color{45, 67, 83, 230});
+
+            const auto keyboardRow = [](float y, const char* key,
+                                        const char* description) {
+                drawKeycap(Rectangle{66.0F, y, 112.0F, 30.0F}, key);
+                DrawText(description, 192, static_cast<int>(y + 9.0F), 11, kText);
+            };
+            const auto gamepadRow = [](float y, const char* key,
+                                       const char* description) {
+                drawKeycap(Rectangle{656.0F, y, 150.0F, 30.0F}, key);
+                DrawText(description, 820, static_cast<int>(y + 9.0F), 11, kText);
+            };
+
+            keyboardRow(216.0F, "W", "Accelerate");
+            keyboardRow(260.0F, "S", "Brake / slow down");
+            keyboardRow(304.0F, "A / B or A / D", "Steer left / right");
+            keyboardRow(348.0F, "MOUSE", "Look around; UI cursor only in menus");
+            keyboardRow(392.0F, "ARROW KEYS", "Fine ship rotation");
+            keyboardRow(436.0F, "Q / E", "Barrel roll");
+            keyboardRow(480.0F, "SHIFT / CTRL", "Boost / precision control");
+            keyboardRow(524.0F, "SPACE / V", "Dash / change camera");
+
+            gamepadRow(216.0F, "LEFT STICK", "Move and steer");
+            gamepadRow(260.0F, "RIGHT STICK", "Rotate the ship");
+            gamepadRow(304.0F, "RT", "Boost");
+            gamepadRow(348.0F, "LT", "Precision control");
+            gamepadRow(392.0F, "A", "Dash");
+            gamepadRow(436.0F, "Y", "Change camera");
+            gamepadRow(480.0F, "START / B", "Pause / back");
+            gamepadRow(524.0F, "D-PAD", "Navigate menus");
+
+            DrawText("Mouse camera sensitivity is adjustable in Settings.",
+                     66, 580, 10, kMuted);
+            DrawText("Flight keeps moving only while a run is active.",
+                     656, 580, 10, kMuted);
+
             if (drawMenu({"BACK"}, controlsSelection, kCanvasHeight - 86) == 0) {
                 app.screens.pop();
             }
