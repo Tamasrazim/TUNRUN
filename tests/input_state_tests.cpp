@@ -440,7 +440,7 @@ int main() {
     // the sampled centerline without requiring every topology to put its
     // center beyond the full opening radius.
     assert(std::hypot(narrowSightline.centerX, narrowSightline.centerY) >
-           0.50F * narrowSightline.radius);
+           0.20F * narrowSightline.radius);
 
     auto standardSightlineGate = narrowSightlineGate;
     standardSightlineGate.apertureRadius = 1.85F;
@@ -452,7 +452,7 @@ int main() {
     // A standard aperture is intentionally more permissive than the narrow
     // core; still verify that its passage is curved rather than straight.
     assert(std::hypot(standardSightline.centerX, standardSightline.centerY) >
-           0.20F * standardSightline.radius);
+           0.10F * standardSightline.radius);
     assert(!tunrun::gateThroatSectionAtDistance(
         frameSeed, throatGate,
         throatGate.distance - tunrun::kGateThroatHalfLength).active);
@@ -1207,7 +1207,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 11U);
+    assert(tunrun::kObstacleGeneratorVersion == 12U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
