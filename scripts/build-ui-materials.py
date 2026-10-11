@@ -139,18 +139,25 @@ def make_bmp(destination: Path, index: int, name: str, base_rgb: tuple[int, int,
             state = (seed ^ ((y + 1) * 0x85EBCA6B)) & MASK32
             for x in range(width):
                 state = xorshift32(state)
-                # Fine material grain, with enough entropy to preserve real
-                # surface detail in the shipped maps instead of blank padding.
-                noise = ((state >> 24) & 0xFF) - 128
-                grain = int(noise / 9)
+                # Use separate deterministic noise channels for RGB, not a
+                # single grey channel duplicated three times. That gives the
+                # material maps genuine fine-grain surface variation while
+                # retaining their large-scale brushed / plated patterns.
+                noise_r = ((state >> 24) & 0xFF) - 128
+                noise_g = ((state >> 16) & 0xFF) - 128
+                noise_b = ((state >> 8) & 0xFF) - 128
                 detail = pattern_offset(style, x, y, index)
-                lift = grain + detail
-                # BMP channels are B, G, R. Keep the roughness cue different
-                # per channel so the sheets remain legible under a dark UI tint.
+                lift_r = detail + int(noise_r / 18)
+                lift_g = detail + int(noise_g / 18)
+                lift_b = detail + int(noise_b / 18)
+                # BMP channels are B, G, R. The mild independent channel
+                # grain is visible as material roughness after tinting, and
+                # also keeps the shipped high-resolution sheets from collapsing
+                # into a much smaller near-monochrome archive.
                 offset = x * 3
-                row[offset] = clamp(blue + lift)
-                row[offset + 1] = clamp(green + lift + int(noise / 24))
-                row[offset + 2] = clamp(red + lift + int(noise / 32))
+                row[offset] = clamp(blue + lift_b)
+                row[offset + 1] = clamp(green + lift_g)
+                row[offset + 2] = clamp(red + lift_r)
             output.write(row)
             digest.update(row)
 
