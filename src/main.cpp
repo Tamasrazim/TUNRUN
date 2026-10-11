@@ -1871,7 +1871,7 @@ int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     InitWindow(kCanvasWidth, kCanvasHeight, "TUNRUN | Procedural Tunnel Runner");
     RenderTexture2D sceneCanvas = LoadRenderTexture(kCanvasWidth, kCanvasHeight);
-    if (!IsRenderTextureReady(sceneCanvas)) {
+    if (sceneCanvas.id == 0U) {
         CloseWindow();
         return 1;
     }
