@@ -10,6 +10,10 @@
 namespace tunrun {
 
 inline constexpr double kTunnelVisualSectionLength = 24.0;
+inline constexpr float kTunnelVisualFadeStart = 3.0F;
+inline constexpr float kTunnelVisualHorizon = 17.0F;
+inline constexpr float kWarningBeaconFadeStart = 10.0F;
+inline constexpr float kWarningBeaconHorizon = 74.0F;
 inline constexpr std::uint64_t kTunnelVisualFamilyChannel = 920U;
 inline constexpr std::uint64_t kTunnelVisualIntensityChannel = 921U;
 
@@ -36,12 +40,12 @@ inline constexpr std::uint64_t kTunnelVisualIntensityChannel = 921U;
 
 [[nodiscard]] inline float tunnelVisibilityAtDistance(
     float distanceAhead) noexcept {
-    return smoothFogVisibility(distanceAhead, 3.0F, 17.0F);
+    return smoothFogVisibility(distanceAhead, kTunnelVisualFadeStart, kTunnelVisualHorizon);
 }
 
 [[nodiscard]] inline float warningBeaconVisibilityAtDistance(
     float distanceAhead) noexcept {
-    return smoothFogVisibility(distanceAhead, 10.0F, 74.0F);
+    return smoothFogVisibility(distanceAhead, kWarningBeaconFadeStart, kWarningBeaconHorizon);
 }
 
 enum class TunnelVisualFamily : std::uint8_t {
