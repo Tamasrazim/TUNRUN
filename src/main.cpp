@@ -2136,15 +2136,38 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("%s / %.1f U / %.1f S",
             tunrun::hazardMotionFamilyName(upcomingHazard.motionFamily),
             hazardCue.distanceAhead, timeToHazard), 950, 221, 9, kText);
-        const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
-            ? "CENTRE" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
-        const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
-            ? "LEVEL" : hazardCue.offsetY > 0.0F ? "UP" : "DOWN";
-        DrawText(TextFormat("BEARING / %s %.1f / %s %.1f",
-            horizontalDirection, std::abs(hazardCue.offsetX),
-            verticalDirection, std::abs(hazardCue.offsetY)),
-            950, 239, 9, Color{255, 174, 139, 255});
-        DrawRectangle(950, 259, 292, 4, Color{48, 39, 38, 255});
+        if (warning.urgent) {
+            const auto intercept = tunrun::hazardInterceptCueAt(
+                upcomingHazard, elapsedSeconds, timeToHazard, shipX, shipY);
+            if (intercept.valid) {
+                const char* interceptHorizontal = std::abs(intercept.offsetX) < 0.18F
+                    ? "CENTRE" : intercept.offsetX < 0.0F ? "LEFT" : "RIGHT";
+                const char* interceptVertical = std::abs(intercept.offsetY) < 0.18F
+                    ? "LEVEL" : intercept.offsetY > 0.0F ? "UP" : "DOWN";
+                const Color interceptColor = intercept.overlapsAtPlane
+                    ? Color{255, 91, 84, 255} : Color{145, 220, 255, 255};
+                DrawText(TextFormat("HOLD LANE / %s %.1f / %s %.1f",
+                    interceptHorizontal, std::abs(intercept.offsetX),
+                    interceptVertical, std::abs(intercept.offsetY)),
+                    950, 239, 8, interceptColor);
+                DrawText(TextFormat("%s AT PLANE / SEP %.2f U",
+                    intercept.overlapsAtPlane ? "PREDICTED OVERLAP" : "PREDICTED PASS",
+                    intercept.separation), 950, 249, 8, interceptColor);
+            } else {
+                DrawText("INTERCEPT FORECAST / UNAVAILABLE",
+                         950, 239, 8, kMuted);
+            }
+        } else {
+            const char* horizontalDirection = std::abs(hazardCue.offsetX) < 0.18F
+                ? "CENTRE" : hazardCue.offsetX < 0.0F ? "LEFT" : "RIGHT";
+            const char* verticalDirection = std::abs(hazardCue.offsetY) < 0.18F
+                ? "LEVEL" : hazardCue.offsetY > 0.0F ? "UP" : "DOWN";
+            DrawText(TextFormat("BEARING / %s %.1f / %s %.1f",
+                horizontalDirection, std::abs(hazardCue.offsetX),
+                verticalDirection, std::abs(hazardCue.offsetY)),
+                950, 239, 9, Color{255, 174, 139, 255});
+        }
+        DrawRectangle(950, 265, 292, 4, Color{48, 39, 38, 255});
         const float hazardProximity = static_cast<float>(std::clamp(
             1.0 - static_cast<double>(hazardCue.distanceAhead) /
                 tunrun::kHazardWarningStartDistance, 0.0, 1.0));

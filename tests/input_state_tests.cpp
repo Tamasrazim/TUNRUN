@@ -1028,6 +1028,28 @@ int main() {
     const auto shiftedCue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.5F, -0.25F);
     assert(shiftedCue.valid && std::abs(shiftedCue.offsetX - (cue.offsetX - 0.5F)) < 0.0001F);
     assert(std::abs(shiftedCue.offsetY - (cue.offsetY + 0.25F)) < 0.0001F);
+
+    // The mine monitor predicts the moving centre at the plane-arrival time.
+    // Its overlap flag is explicitly based on holding the player's current lane.
+    const auto interceptCenter = tunrun::hazardCenterAt(hazard, 3.25);
+    const auto interceptCue = tunrun::hazardInterceptCueAt(
+        hazard, 1.25, 2.0, interceptCenter.x, interceptCenter.y);
+    assert(interceptCue.valid);
+    assert(std::abs(interceptCue.centerAtPlane.x - interceptCenter.x) < 0.0001F);
+    assert(std::abs(interceptCue.centerAtPlane.y - interceptCenter.y) < 0.0001F);
+    assert(interceptCue.separation < 0.0001F && interceptCue.overlapsAtPlane);
+    const auto clearIntercept = tunrun::hazardInterceptCueAt(
+        hazard, 1.25, 2.0,
+        interceptCenter.x + hazard.radius + tunrun::kHazardCraftCollisionRadius + 0.2F,
+        interceptCenter.y);
+    assert(clearIntercept.valid && !clearIntercept.overlapsAtPlane);
+    assert(clearIntercept.separation >
+        hazard.radius + tunrun::kHazardCraftCollisionRadius);
+    assert(!tunrun::hazardInterceptCueAt(
+        hazard, 1.25, -0.1, 0.0F, 0.0F).valid);
+    assert(!tunrun::hazardInterceptCueAt(
+        hazard, std::numeric_limits<double>::infinity(), 1.0, 0.0F, 0.0F).valid);
+
     const auto nextCue = tunrun::hazardHudCueAt(
         seed, hazard.distance + 0.01, 1.25, 0.0F, 0.0F);
     assert(nextCue.valid && nextCue.hazardIndex == 1U);

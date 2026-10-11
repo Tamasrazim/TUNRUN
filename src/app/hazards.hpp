@@ -253,6 +253,48 @@ struct HazardHudCue {
     float offsetY = 0.0F;
 };
 
+struct HazardInterceptCue {
+    bool valid = false;
+    HazardCenter centerAtPlane{};
+    float offsetX = 0.0F;
+    float offsetY = 0.0F;
+    float separation = 0.0F;
+    bool overlapsAtPlane = false;
+};
+
+// Forecast the mine centre when the craft reaches the mine's course plane.
+// This is deliberately a hold-lane estimate, not a claim about future player
+// input. It gives the pilot a useful warning about a mine that is moving into
+// the current lane even when its present rendered position looks harmless.
+[[nodiscard]] inline HazardInterceptCue hazardInterceptCueAt(
+    const ProceduralHazard& hazard, double elapsedSeconds,
+    double secondsToPlane, float playerX, float playerY,
+    float craftRadius = kHazardCraftCollisionRadius) noexcept {
+    if (!std::isfinite(elapsedSeconds) || !std::isfinite(secondsToPlane) ||
+        secondsToPlane < 0.0 || !std::isfinite(playerX) ||
+        !std::isfinite(playerY) || !std::isfinite(hazard.radius) ||
+        !std::isfinite(craftRadius)) {
+        return {};
+    }
+    const double interceptTime = elapsedSeconds + secondsToPlane;
+    if (!std::isfinite(interceptTime)) return {};
+
+    const HazardCenter futureCenter = hazardCenterAt(hazard, interceptTime);
+    if (!std::isfinite(futureCenter.x) || !std::isfinite(futureCenter.y)) {
+        return {};
+    }
+    const float offsetX = futureCenter.x - playerX;
+    const float offsetY = futureCenter.y - playerY;
+    const float separation = std::hypot(offsetX, offsetY);
+    if (!std::isfinite(separation)) return {};
+    const float combinedRadius = std::max(0.0F, hazard.radius) +
+                                 std::max(0.0F, craftRadius);
+    return HazardInterceptCue{
+        true, futureCenter, offsetX, offsetY, separation,
+        separation <= combinedRadius
+    };
+}
+
 // Deterministically describe the nearest mine ahead for the in-run HUD.
 // The transform matches drawProceduralHazard so cues describe the rendered
 // position rather than raw generator offsets in a different course frame.
