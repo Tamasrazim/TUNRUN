@@ -1087,6 +1087,8 @@ int main() {
     assert(tunrun::tunnelVisibilityAtDistance(3.0F) == 1.0F);
     assert(tunrun::tunnelVisibilityAtDistance(17.0F) == 0.0F);
     assert(tunrun::tunnelVisibilityAtDistance(40.0F) == 0.0F);
+    assert(tunrun::kTunnelVisualHorizon == 17.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(42.0F) == 0.0F);
     assert(tunrun::tunnelVisibilityAtDistance(
         std::numeric_limits<float>::quiet_NaN()) == 1.0F);
     assert(tunrun::tunnelVisibilityAtDistance(
@@ -1117,6 +1119,15 @@ int main() {
     assert(std::string_view(tunrun::gateApproachStageName(prepareGate.stage)) ==
            "PREPARE");
     assert(prepareGate.urgency > 0.0F && prepareGate.urgency < 1.0F);
+    // At normal gate spacing the HUD announces arrival while gate geometry is hidden.
+    assert(prepareGate.stage == tunrun::GateApproachStage::Prepare);
+    const auto insideHorizonCue = tunrun::gateApproachCue(17.0, 0.0, 11.0F);
+    assert(insideHorizonCue.valid &&
+           insideHorizonCue.stage == tunrun::GateApproachStage::Approach);
+    assert(tunrun::tunnelVisibilityAtDistance(insideHorizonCue.distanceAhead) == 0.0F);
+    const auto dashHorizonCue = tunrun::gateApproachCue(17.0, 0.0, 24.0F);
+    assert(dashHorizonCue.valid &&
+           dashHorizonCue.stage == tunrun::GateApproachStage::Imminent);
 
     const auto fasterApproach = tunrun::gateApproachCue(42.0, 0.0, 24.0F);
     assert(fasterApproach.valid);
