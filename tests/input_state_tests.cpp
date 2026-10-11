@@ -527,7 +527,8 @@ int main() {
     const auto throatGuideStart = tunrun::gateThroatGuidanceForFlight(
         frameSeed, 0.0, 0.0F, 0.0F, 11.0F);
     assert(throatGuideStart.valid && throatGuideStart.gateIndex == 0U);
-    assert(throatGuideStart.distanceAhead > 0.0F && throatGuideStart.distanceAhead < 26.0F);
+    assert(throatGuideStart.distanceAhead > 0.0F &&
+           throatGuideStart.distanceAhead < static_cast<float>(tunrun::kGateBaseDistance));
     assert(std::isfinite(throatGuideStart.lateralError) &&
            std::isfinite(throatGuideStart.verticalError));
     assert(throatGuideStart.targetRadius > 0.0F);
@@ -1289,6 +1290,12 @@ int main() {
         assert(std::abs(introThroat.centerY) <=
                0.35F * tunrun::kGateThroatBendAmplitudeY + 0.001F);
     }
+    // A neutral opening trajectory must clear the entire tutorial sleeve and
+    // its aperture; the player gets time to learn before full-strength gates.
+    assert(!tunrun::collidesWithGate(0.0F, 0.0F, firstGateRunway));
+    assert(!tunrun::collidesWithGateThroatAlongSegment(
+        seed, firstGateRunway, 0.0F, 0.0F, 0.0,
+        0.0F, 0.0F, firstGateRunway.distance));
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
