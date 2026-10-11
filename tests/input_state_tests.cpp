@@ -526,6 +526,45 @@ int main() {
     assert(throatEntry.active && throatEntry.radius > throatGate.apertureRadius);
     assert(std::abs(throatExit.centerX - throatEntry.centerX) > 0.7F);
 
+    // Sweep deterministic seeds and every throat waveform. The sleeve should
+    // taper smoothly toward the normal course radius at both ends, while its
+    // active interior remains finite and at least as wide as the gate opening.
+    std::uint32_t throatFamilyCounts[4] = {};
+    for (std::uint64_t seedIndex = 0U; seedIndex < 64U; ++seedIndex) {
+        const auto candidateSeed = tunrun::deriveCourseSeed(frameSeed, seedIndex);
+        for (std::uint32_t gateIndex = 2U; gateIndex < 34U; ++gateIndex) {
+            const auto candidateGate = tunrun::gateAt(candidateSeed, gateIndex);
+            const auto profile = tunrun::gateThroatBendProfileAt(candidateSeed, gateIndex);
+            const auto familyIndex = static_cast<unsigned int>(profile.family);
+            assert(tunrun::validGateThroatShapeFamily(profile.family));
+            assert(familyIndex < 4U);
+            if (familyIndex < 4U) ++throatFamilyCounts[familyIndex];
+
+            for (int step = -8; step <= 8; ++step) {
+                const double offset = static_cast<double>(step) *
+                    static_cast<double>(tunrun::kGateThroatHalfLength) / 8.0;
+                const double distance = candidateGate.distance + offset;
+                const auto section = tunrun::gateThroatSectionAtDistance(
+                    candidateSeed, candidateGate, distance);
+                const auto course = tunrun::sampleCourse(candidateSeed, distance);
+                assert(std::isfinite(section.centerX));
+                assert(std::isfinite(section.centerY));
+                assert(std::isfinite(section.radius));
+                assert(std::isfinite(section.pinch));
+                if (step == -8 || step == 8) {
+                    assert(!section.active);
+                    assert(std::abs(section.radius - course.radius) < 0.001F);
+                } else {
+                    assert(section.active);
+                    assert(section.pinch >= 0.0F && section.pinch <= 1.0F);
+                    assert(section.radius <= course.radius + 0.001F);
+                    assert(section.radius + 0.001F >= candidateGate.apertureRadius);
+                }
+            }
+        }
+    }
+    for (const auto familyCount : throatFamilyCounts) assert(familyCount > 0U);
+
     // Narrow throats deliberately bend out of the straight sight line before
     // they flare; otherwise far gates remain visible through a tiny aperture.
     auto narrowSightlineGate = throatGate;
