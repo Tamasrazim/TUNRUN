@@ -1826,6 +1826,15 @@ int main() {
     assert(validation.valid && validation.samplesChecked > 4000U);
     assert(validation.minimumRadius >= tunrun::kCourseMinRadius);
     assert(validation.maximumRadius <= tunrun::kCourseMaxRadius);
+    assert(validation.maximumCenterRate > 0.0F);
+    assert(validation.maximumCenterRate <= 0.70F);
+    assert(validation.maximumRadiusRate > 0.0F);
+    assert(validation.maximumRadiusRate <= 0.25F);
+    assert(validation.maximumTwistRate > 0.0F);
+    assert(validation.maximumTwistRate <= 0.22F);
+    const auto invalidCourse = tunrun::validateCourse(seed, 0.0);
+    assert(!invalidCourse.valid);
+    assert(std::string(invalidCourse.failure) == "invalid validation range");
     for (int node = 1; node < 30; ++node) {
         const double seam = static_cast<double>(node) * tunrun::kCourseNodeSpacing;
         const auto before = tunrun::sampleCourse(seed, seam - 0.001);
@@ -1837,7 +1846,11 @@ int main() {
     }
     for (std::uint64_t sampleSeed = 0; sampleSeed < 24U; ++sampleSeed) {
         const auto generatedSeed = tunrun::deriveCourseSeed(seed, sampleSeed);
-        assert(tunrun::validateCourse(generatedSeed, 1800.0).valid);
+        const auto generatedCourse = tunrun::validateCourse(generatedSeed, 1800.0);
+        assert(generatedCourse.valid);
+        assert(generatedCourse.maximumCenterRate <= 0.70F);
+        assert(generatedCourse.maximumRadiusRate <= 0.25F);
+        assert(generatedCourse.maximumTwistRate <= 0.22F);
         assert(tunrun::validateObstacleSet(generatedSeed, 64U).valid);
         for (std::uint32_t shipId = 0U; shipId < tunrun::kShipCatalog.size(); ++shipId) {
             const auto reachability =
