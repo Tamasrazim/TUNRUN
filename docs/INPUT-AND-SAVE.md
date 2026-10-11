@@ -29,9 +29,9 @@ Mappings are defaults and must be remappable later.
 | Confirm / interact | Enter / E | Left click | A / Cross |
 | Back / cancel | Esc / Backspace | Right click only within a UI context | B / Circle |
 | UI navigation | Arrows / Tab | Pointer and click | D-pad / left stick |
-| Mouse sensitivity | Left/right arrows | Not bound during active gameplay; adjust in Settings | D-pad left/right or left stick with rate-limited repeat |
+| Mouse sensitivity | Left/right arrows | Click/drag the visible logarithmic Settings slider; pointer capture is not required | D-pad left/right or left stick with rate-limited repeat |
 
-The table records current prototype bindings, not a claim that every action is remappable. Mouse sensitivity is changed in Settings using left/right keyboard keys or controller navigation and persists to the local profile. Reset Options must not erase ships or progression. Full remapping and conflict detection remain future work. Platform-specific face-button labels should be rendered correctly where supported.
+The table records current prototype bindings, not a claim that every action is remappable. Mouse sensitivity is changed in Settings using the logarithmic slider or bounded left/right keyboard/controller adjustments and persists to the local profile. Reset Options must not erase ships or progression. Full remapping and conflict detection remain future work. Platform-specific face-button labels should be rendered correctly where supported.
 
 ## Mouse implementation requirements
 
@@ -83,7 +83,7 @@ Set the Windows Hidden attribute on the profile directory and profile files wher
 
 ## Runtime profile v3
 
-Current writes use a strict flat JSON object with exactly 18 fields: the prior profile fields plus `bestScore`, `bestCombo`, and `checksum`. It stores display settings, mouse steering and sensitivity, selected/unlocked ships, Aether Shards, Singularity Cores, run/crash counts, best distance, career-best score and combo, root seed, and run serial. The parser rejects duplicate, missing, or unexpected fields; validates types and numeric ranges; rejects non-finite values; checks the FNV-1a checksum; and caps profile input at 64 KiB.
+Current writes use a strict flat JSON object with exactly 18 fields: the prior profile fields plus `bestScore`, `bestCombo`, and `checksum`. It stores display settings, mouse-look enablement and sensitivity, selected/unlocked ships, Aether Shards, Singularity Cores, run/crash counts, best distance, career-best score and combo, root seed, and run serial. The parser rejects duplicate, missing, or unexpected fields; validates types and numeric ranges; rejects non-finite values; checks the FNV-1a checksum; and caps profile input at 64 KiB.
 
 Schema v1 files contain 15 fields without a checksum; schema v2 files contain 16 fields with the checksum. Both are accepted only after version-appropriate parsing (including checksum verification for v2), then migrated to v3. A valid primary is copied to `profile.bak` before migration; if loading from an older backup, that backup is kept intact. Writes use a same-directory temporary file, flush before replacement, and atomically replace the primary. If both copies are invalid, TUNRUN asks for explicit reset and renames damaged files with a `.corrupt-` suffix rather than overwriting them.
 
