@@ -927,7 +927,7 @@ int main() {
     assert(hazard.amplitudeX == hazardAgain.amplitudeX);
     assert(hazard.phaseX == hazardAgain.phaseX);
     assert(hazard.frequency >= 0.95F && hazard.frequency <= 1.80F);
-    assert(tunrun::kHazardGeneratorVersion == 5U);
+    assert(tunrun::kHazardGeneratorVersion == 6U);
     assert(tunrun::hazardVisualFamilyAt(seed, 0U) ==
            tunrun::hazardVisualFamilyAt(seed, 0U));
     assert(tunrun::hazardMotionFamilyAt(seed, 0U) ==
@@ -950,8 +950,8 @@ int main() {
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
         // Gate indices are zero-based. Each mine belongs between gate indices
         // (1,2), (3,4), etc.; verify both exact spacing and collision-envelope clearance.
-        const auto precedingGate = tunrun::gateAt(seed, index * 2U + 1U);
-        const auto followingGate = tunrun::gateAt(seed, index * 2U + 2U);
+        const auto precedingGate = tunrun::gateAt(seed, index * 2U + 2U);
+        const auto followingGate = tunrun::gateAt(seed, index * 2U + 3U);
         assert(std::abs(generatedHazard.distance - precedingGate.distance -
                         tunrun::kHazardInterGateOffset) < 0.0001);
         assert(std::abs(followingGate.distance - generatedHazard.distance -
@@ -1271,7 +1271,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 15U);
+    assert(tunrun::kObstacleGeneratorVersion == 16U);
     assert(std::abs(tunrun::kGateRecoveryGap - 18.0) < 0.0001);
     const auto firstGateRunway = tunrun::gateAt(seed, 0U);
     assert(firstGateRunway.distance >= tunrun::kGateBaseDistance);
@@ -1296,6 +1296,15 @@ int main() {
     assert(!tunrun::collidesWithGateThroatAlongSegment(
         seed, firstGateRunway, 0.0F, 0.0F, 0.0,
         0.0F, 0.0F, firstGateRunway.distance));
+    const auto learningGate = tunrun::gateAt(seed, 1U);
+    assert(learningGate.kind == tunrun::GateKind::Standard);
+    assert(std::abs(learningGate.offsetX) <= 0.40F);
+    assert(std::abs(learningGate.offsetY) <= 0.25F);
+    assert(learningGate.apertureRadius >= 2.00F);
+    assert(!tunrun::collidesWithGate(0.0F, 0.0F, learningGate));
+    assert(!tunrun::collidesWithGateThroatAlongSegment(
+        seed, learningGate, 0.0F, 0.0F, 0.0,
+        0.0F, 0.0F, learningGate.distance));
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.

@@ -9,7 +9,7 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kHazardGeneratorVersion = 5U;
+inline constexpr std::uint32_t kHazardGeneratorVersion = 6U;
 inline constexpr double kHazardInterGateOffset = kGateSpacing * 0.5;
 inline constexpr double kHazardSpacing = kGateSpacing * 2.0;
 inline constexpr double kHazardMinimumGateSeparation = 20.0;
@@ -186,11 +186,11 @@ struct HazardValidation {
 inline ProceduralHazard hazardAt(std::uint64_t seed,
                                  std::uint32_t index) noexcept {
     const auto sample = static_cast<std::int64_t>(index);
-    // Gate indices are zero-based: mines sit halfway between pairs (1,2), (3,4), etc.
-    // The compile-time clearance guard below keeps the full collision envelope
-    // beyond the 18-unit sleeve even at the minimum permitted plane separation.
+    // Gate indices are zero-based. Leave the first two gates and the next approach
+    // clean; start moving mines in the gap between gates 2 and 3, then alternate.
+    // The clearance guard keeps the collision envelope outside every gate sleeve.
     const double firstDistance =
-        gateAt(seed, 1U).distance + kHazardInterGateOffset;
+        gateAt(seed, 2U).distance + kHazardInterGateOffset;
     return ProceduralHazard{
         index,
         firstDistance + static_cast<double>(index) * kHazardSpacing,

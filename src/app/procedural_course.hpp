@@ -34,7 +34,7 @@ inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 15U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 16U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -180,6 +180,18 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
     // Later gates keep their normal seeded type, offset, and aperture variation.
     if (index == 0U) {
         return ProceduralGate{index, firstDistance, 0.0F, 0.0F, 2.40F, GateKind::Wide};
+    }
+    if (index == 1U) {
+        // Let a new pilot learn steering on a standard aperture before the
+        // course restores the full seeded difficulty distribution.
+        return ProceduralGate{
+            index,
+            firstDistance + static_cast<double>(index) * kGateSpacing,
+            courseSigned(seed, sample, 121U) * 0.40F,
+            courseSigned(seed, sample, 122U) * 0.25F,
+            2.00F + courseUnit(seed, sample, 123U) * 0.15F,
+            GateKind::Standard
+        };
     }
 
     const float kindRoll = courseUnit(seed, sample, 124U);
@@ -362,7 +374,8 @@ struct GateThroatSection {
     const auto bend = gateThroatBendOffsetAt(seed, gate.index, offset);
     // A softer first sleeve teaches the player the deep-throat mechanic before
     // later procedural passages introduce their full seeded lateral weave.
-    const float bendScale = gate.index == 0U ? 0.35F : 1.0F;
+    const float bendScale = gate.index == 0U ? 0.35F
+        : gate.index == 1U ? 0.55F : 1.0F;
     const float bendX = bend.x * bendScale;
     const float bendY = bend.y * bendScale;
     return GateThroatSection{
