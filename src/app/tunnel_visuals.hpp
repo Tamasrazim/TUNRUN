@@ -18,7 +18,11 @@ inline constexpr std::uint64_t kTunnelVisualIntensityChannel = 921U;
 // so danger remains legible without lighting the geometry behind it.
 [[nodiscard]] inline float smoothFogVisibility(
     float distanceAhead, float fadeStart, float fadeEnd) noexcept {
-    if (!std::isfinite(distanceAhead)) distanceAhead = 0.0F;
+    if (!std::isfinite(distanceAhead)) {
+        // NaN is treated as the near field, but positive infinity must never
+        // make far geometry visible just because an upstream distance overflowed.
+        return distanceAhead > 0.0F ? 0.0F : 1.0F;
+    }
     if (!std::isfinite(fadeStart) || !std::isfinite(fadeEnd) ||
         fadeEnd <= fadeStart) return 0.0F;
     if (distanceAhead <= fadeStart) return 1.0F;
