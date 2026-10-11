@@ -147,11 +147,11 @@ def make_bmp(destination: Path, index: int, name: str, base_rgb: tuple[int, int,
                 noise_g = ((state >> 16) & 0xFF) - 128
                 noise_b = ((state >> 8) & 0xFF) - 128
                 detail = pattern_offset(style, x, y, index)
-                lift_r = detail + int(noise_r / 18)
-                lift_g = detail + int(noise_g / 18)
-                lift_b = detail + int(noise_b / 18)
-                # BMP channels are B, G, R. The mild independent channel
-                # grain is visible as material roughness after tinting, and
+                lift_r = detail + int(noise_r / 4)
+                lift_g = detail + int(noise_g / 4)
+                lift_b = detail + int(noise_b / 4)
+                # BMP channels are B, G, R. The independently sampled channel
+                # grain supplies real high-resolution surface roughness after tinting, and
                 # also keeps the shipped high-resolution sheets from collapsing
                 # into a much smaller near-monochrome archive.
                 offset = x * 3
