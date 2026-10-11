@@ -2,6 +2,7 @@
 
 #include "app/procedural_course.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -11,6 +12,33 @@ namespace tunrun {
 inline constexpr double kTunnelVisualSectionLength = 24.0;
 inline constexpr std::uint64_t kTunnelVisualFamilyChannel = 920U;
 inline constexpr std::uint64_t kTunnelVisualIntensityChannel = 921U;
+
+// The tunnel itself should dissolve into the void before a player can read the
+// next section through a narrow aperture. Threat beacons use a longer envelope
+// so danger remains legible without lighting the geometry behind it.
+[[nodiscard]] inline float smoothFogVisibility(
+    float distanceAhead, float fadeStart, float fadeEnd) noexcept {
+    if (!std::isfinite(distanceAhead)) distanceAhead = 0.0F;
+    if (!std::isfinite(fadeStart) || !std::isfinite(fadeEnd) ||
+        fadeEnd <= fadeStart) return 0.0F;
+    if (distanceAhead <= fadeStart) return 1.0F;
+    if (distanceAhead >= fadeEnd) return 0.0F;
+
+    const float t = std::clamp(
+        (distanceAhead - fadeStart) / (fadeEnd - fadeStart), 0.0F, 1.0F);
+    const float fog = t * t * (3.0F - 2.0F * t);
+    return 1.0F - fog;
+}
+
+[[nodiscard]] inline float tunnelVisibilityAtDistance(
+    float distanceAhead) noexcept {
+    return smoothFogVisibility(distanceAhead, 3.0F, 17.0F);
+}
+
+[[nodiscard]] inline float warningBeaconVisibilityAtDistance(
+    float distanceAhead) noexcept {
+    return smoothFogVisibility(distanceAhead, 10.0F, 74.0F);
+}
 
 enum class TunnelVisualFamily : std::uint8_t {
     RibbedMetal, PlasmaRails, FracturedPanels, SpiralConduits, Lattice
