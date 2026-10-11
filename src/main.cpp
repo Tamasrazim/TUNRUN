@@ -38,21 +38,32 @@ const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
-Color tunnelDepthFog(Color color, float distanceAhead) {
-    if (!std::isfinite(distanceAhead)) distanceAhead = 0.0F;
-    // Far sections disappear into the wormhole haze much sooner than before.
-    // The next constriction stays readable while later geometry fades away.
-    const float amount = std::clamp((distanceAhead - 3.0F) / 16.0F, 0.0F, 1.0F);
-    const float fog = amount * amount * (3.0F - 2.0F * amount);
-    constexpr float visibilityFloor = 0.025F;
-    const float visibility = 1.0F - fog * (1.0F - visibilityFloor);
+Color blendWithTunnelBackground(Color color, float visibility) {
+    if (!std::isfinite(visibility)) visibility = 0.0F;
+    visibility = std::clamp(visibility, 0.0F, 1.0F);
     color.r = static_cast<unsigned char>(std::clamp(
-        8.0F + (static_cast<float>(color.r) - 8.0F) * visibility, 0.0F, 255.0F));
+        static_cast<float>(kBackground.r) +
+            (static_cast<float>(color.r) - static_cast<float>(kBackground.r)) * visibility,
+        0.0F, 255.0F));
     color.g = static_cast<unsigned char>(std::clamp(
-        10.0F + (static_cast<float>(color.g) - 10.0F) * visibility, 0.0F, 255.0F));
+        static_cast<float>(kBackground.g) +
+            (static_cast<float>(color.g) - static_cast<float>(kBackground.g)) * visibility,
+        0.0F, 255.0F));
     color.b = static_cast<unsigned char>(std::clamp(
-        15.0F + (static_cast<float>(color.b) - 15.0F) * visibility, 0.0F, 255.0F));
+        static_cast<float>(kBackground.b) +
+            (static_cast<float>(color.b) - static_cast<float>(kBackground.b)) * visibility,
+        0.0F, 255.0F));
     return color;
+}
+
+Color tunnelDepthFog(Color color, float distanceAhead) {
+    return blendWithTunnelBackground(
+        color, tunrun::tunnelVisibilityAtDistance(distanceAhead));
+}
+
+Color warningBeaconFog(Color color, float distanceAhead) {
+    return blendWithTunnelBackground(
+        color, tunrun::warningBeaconVisibilityAtDistance(distanceAhead));
 }
 
 enum class CrashCause { Wall, Gate, Hazard };
@@ -1142,7 +1153,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
             : Color{255, 184, 101, 255};
         warningColor.a = static_cast<unsigned char>(std::clamp(
             60.0F + warning.intensity * 175.0F, 0.0F, 255.0F));
-        warningColor = tunnelDepthFog(warningColor, std::max(0.0F, ahead));
+        warningColor = warningBeaconFog(warningColor, std::max(0.0F, ahead));
         const float ringRadius = hazard.radius + warning.ringOffset;
         constexpr int warningSegments = 32;
         for (int i = 0; i < warningSegments; ++i) {
