@@ -1645,7 +1645,8 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     // This gives the player a spatial target in both FPP and TPP instead of
     // making them rely on a text instruction alone. The marker is only visual:
     // collision and navigation continue using the shared throat sampler.
-    if (throatGuidance.valid && throatGuidance.distanceAhead > 1.0F) {
+    if (throatGuidance.valid && throatGuidance.distanceAhead > 1.0F &&
+        tunrun::tunnelVisibilityAtDistance(throatGuidance.distanceAhead) > 0.0F) {
         const double guideDistance = static_cast<double>(distance) +
             static_cast<double>(throatGuidance.distanceAhead);
         const auto guideGate = tunrun::gateAt(seed, throatGuidance.gateIndex);
