@@ -9,10 +9,10 @@
 
 namespace tunrun {
 
-inline constexpr std::uint32_t kHazardGeneratorVersion = 3U;
-inline constexpr double kHazardBaseDistance = 88.0;
-inline constexpr double kHazardSpacing = 84.0;
-inline constexpr double kHazardMinimumGateSeparation = 8.0;
+inline constexpr std::uint32_t kHazardGeneratorVersion = 4U;
+inline constexpr double kHazardInterGateOffset = kGateSpacing * 0.5;
+inline constexpr double kHazardSpacing = kGateSpacing * 2.0;
+inline constexpr double kHazardMinimumGateSeparation = 20.0;
 inline constexpr float kHazardMinimumRadius = 0.48F;
 inline constexpr float kHazardMaximumRadius = 0.66F;
 inline constexpr float kHazardCraftCollisionRadius = 0.42F;
@@ -175,8 +175,11 @@ struct HazardValidation {
 inline ProceduralHazard hazardAt(std::uint64_t seed,
                                  std::uint32_t index) noexcept {
     const auto sample = static_cast<std::int64_t>(index);
-    const double firstDistance = kHazardBaseDistance +
-        static_cast<double>(courseUnit(seed, 0, 901U)) * 10.0;
+    // Place mines halfway between gate 1/2, 3/4, etc. A 20-unit minimum
+    // keeps their collision spheres outside the 18-unit gate throats instead
+    // of allowing a mine to sit in the narrow core immediately after a gate.
+    const double firstDistance =
+        gateAt(seed, 1U).distance + kHazardInterGateOffset;
     return ProceduralHazard{
         index,
         firstDistance + static_cast<double>(index) * kHazardSpacing,
