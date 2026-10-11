@@ -1104,6 +1104,30 @@ int main() {
     assert(hazardCenter.x == hazardCenterAgain.x &&
            hazardCenter.y == hazardCenterAgain.y);
 
+    // Invalid clocks or corrupted motion fields must never leak non-finite
+    // coordinates into the renderer or collision path. A finite base lane is
+    // used as the conservative stationary fallback.
+    const auto invalidClockCenter = tunrun::hazardCenterAt(
+        hazard, std::numeric_limits<double>::quiet_NaN());
+    assert(std::isfinite(invalidClockCenter.x) && std::isfinite(invalidClockCenter.y));
+    assert(invalidClockCenter.x == hazard.baseX && invalidClockCenter.y == hazard.baseY);
+    auto invalidAmplitudeHazard = hazard;
+    invalidAmplitudeHazard.amplitudeX = std::numeric_limits<float>::infinity();
+    const auto invalidAmplitudeCenter = tunrun::hazardCenterAt(
+        invalidAmplitudeHazard, 1.25);
+    assert(invalidAmplitudeCenter.x == hazard.baseX &&
+           invalidAmplitudeCenter.y == hazard.baseY);
+    auto invalidFamilyHazard = hazard;
+    invalidFamilyHazard.motionFamily = static_cast<tunrun::HazardMotionFamily>(255U);
+    const auto invalidFamilyCenter = tunrun::hazardCenterAt(invalidFamilyHazard, 1.25);
+    assert(invalidFamilyCenter.x == hazard.baseX &&
+           invalidFamilyCenter.y == hazard.baseY);
+    auto invalidBaseHazard = hazard;
+    invalidBaseHazard.baseX = std::numeric_limits<float>::quiet_NaN();
+    const auto invalidBaseCenter = tunrun::hazardCenterAt(invalidBaseHazard, 1.25);
+    assert(std::isfinite(invalidBaseCenter.x) && std::isfinite(invalidBaseCenter.y));
+    assert(invalidBaseCenter.x == 0.0F && invalidBaseCenter.y == hazard.baseY);
+
     const auto cue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.0F, 0.0F);
     const auto repeatedCue = tunrun::hazardHudCueAt(seed, 0.0, 1.25, 0.0F, 0.0F);
     assert(cue.valid && cue.hazardIndex == 0U);
