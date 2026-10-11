@@ -374,6 +374,11 @@ inline RouteAimAdjustment routeAimOutsideMineEnvelope(
     return result;
 }
 
+inline constexpr std::size_t kRouteGraphBeamWidth = 32U;
+inline constexpr std::size_t kRouteGraphBranchesPerParent = 4U;
+inline constexpr std::size_t kRouteGraphPreferredParentCount =
+    kRouteGraphBeamWidth / kRouteGraphBranchesPerParent;
+
 inline constexpr std::array<std::array<float, 2>, 9> kRouteGraphAimBiases{{
     {{ 0.00F,  0.00F}},
     {{-0.55F,  0.00F}},
@@ -409,15 +414,28 @@ inline constexpr std::array<RouteGraphPolicy, 36> kRouteGraphPolicies = []() con
     return policies;
 }();
 
-// The cap holds 32 candidates while each gate has 36 policies. Rotate the
-// omitted aim offset per gate so no control/offset policy is always excluded.
+// The beam samples four control modes for each of eight parents. With nine
+// aim offsets, rotate the omitted offset per gate so every policy is explored
+// during a short route without wasting the whole beam on single branches.
 [[nodiscard]] inline constexpr std::size_t routeGraphPolicyIndexForSlot(
     std::size_t slot, std::size_t gateIndex = 0U) noexcept {
-    const std::size_t mode = slot % 4U;
+    const std::size_t mode = slot % kRouteGraphBranchesPerParent;
     const std::size_t bias =
-        ((slot / 4U) + (gateIndex % kRouteGraphAimBiases.size())) %
+        ((slot / kRouteGraphBranchesPerParent) +
+         (gateIndex % kRouteGraphAimBiases.size())) %
         kRouteGraphAimBiases.size();
     return mode * kRouteGraphAimBiases.size() + bias;
+}
+
+// Passing states are ranked by their weakest gate clearance before branching.
+// Spend the next beam on four modes per parent for the eight safest trajectories
+// rather than giving each of 32 parents only one chance at the next gate.
+[[nodiscard]] inline constexpr std::size_t routeGraphParentIndexForSlot(
+    std::size_t slot, std::size_t passingCount) noexcept {
+    if (passingCount == 0U) return 0U;
+    const std::size_t parentCount = std::min(
+        passingCount, kRouteGraphPreferredParentCount);
+    return (slot / kRouteGraphBranchesPerParent) % parentCount;
 }
 
 // Bounded state-propagating route search. Each viable gate-crossing state
@@ -463,7 +481,7 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
         return result;
     }
 
-    constexpr std::size_t kMaximumStates = 32U;
+    constexpr std::size_t kMaximumStates = kRouteGraphBeamWidth;
     struct CandidateState {
         FlightState state{};
         double elapsedSeconds = 0.0;
@@ -561,10 +579,13 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
             const std::size_t totalBranches =
                 passingCount * kRouteGraphPolicies.size();
             const std::size_t nextCount = std::min(kMaximumStates, totalBranches);
-            // Stratify the fixed beam across parent trajectories and the full
-            // aim/mode policy set (cruise, boost, and precision).
+            // Expand each of the eight safest passing states with all four
+            // flight modes. Aim offsets rotate as the gate index advances.
+            // This preserves mode alternatives while avoiding a single-policy
+            // bottleneck when a parent reaches the next narrow passage.
             for (std::size_t slot = 0U; slot < nextCount; ++slot) {
-                const std::size_t parent = (slot * passingCount) / nextCount;
+                const std::size_t parent =
+                    routeGraphParentIndexForSlot(slot, passingCount);
                 const auto& policy = kRouteGraphPolicies[
                     routeGraphPolicyIndexForSlot(slot, activeGate.index)];
                 nextStates[slot] = passingStates[parent];

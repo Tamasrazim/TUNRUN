@@ -1341,6 +1341,28 @@ int main() {
     }
     for (const bool seen : policySeen) assert(seen);
 
+    // A 32-state expansion now keeps four flight-mode branches for each of
+    // eight high-clearance parent trajectories, instead of only one policy
+    // per parent. Smaller passing beams reuse parents to retain mode diversity.
+    std::array<std::uint32_t, tunrun::kRouteGraphPreferredParentCount> parentUses{};
+    for (std::size_t slot = 0U; slot < tunrun::kRouteGraphBeamWidth; ++slot) {
+        const auto parent = tunrun::routeGraphParentIndexForSlot(
+            slot, tunrun::kRouteGraphBeamWidth);
+        assert(parent < parentUses.size());
+        ++parentUses[parent];
+    }
+    for (const auto count : parentUses) {
+        assert(count == tunrun::kRouteGraphBranchesPerParent);
+    }
+    std::array<std::uint32_t, 4U> smallBeamParentUses{};
+    for (std::size_t slot = 0U; slot < tunrun::kRouteGraphBeamWidth; ++slot) {
+        const auto parent = tunrun::routeGraphParentIndexForSlot(slot, 4U);
+        assert(parent < smallBeamParentUses.size());
+        ++smallBeamParentUses[parent];
+    }
+    for (const auto count : smallBeamParentUses) assert(count == 8U);
+    assert(tunrun::routeGraphParentIndexForSlot(0U, 0U) == 0U);
+
     // The local mine-avoidance projection must be stable at the singular
     // case where the requested target is exactly on the mine center.
     const auto unchangedAim = tunrun::routeAimOutsideMineEnvelope(
