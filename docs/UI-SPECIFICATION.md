@@ -18,7 +18,7 @@ Play, Hangar, Modes, Seed Lab, Records / Statistics, Controls, Settings, Credits
 Rotatable 3D ship preview, name, handling stats, selected/unlocked/locked states, exact unlock price and resource balance, explicit cancel/confirm unlock flow, and a separate equip action. Purchases do not silently replace the active ship.
 
 ### Mode Select
-The current build exposes Custom Seed Run and Practice Preview. Campaign and a separate Endless mode are explicitly marked in development; selecting either displays what is unavailable instead of silently doing nothing. Seed Challenge, Daily Run, Rival Run, and Ghost Race remain planned.
+The current build exposes Endless Survival, Custom Seed Run, and Practice Preview. Campaign remains in development and must not accidentally launch a run. Seed Challenge, Daily Run, Rival Run, and Ghost Race remain planned.
 
 ### Seed Entry
 Text input with normalization, validation, copy/share function, generator version, ruleset, and a clear random-seed option. Invalid input displays an inline error; it must not crash or silently change to a different seed.
@@ -27,13 +27,13 @@ Text input with normalization, validation, copy/share function, generator versio
 Shows generation progress and a status message. CPU generation is asynchronous; the game must not freeze the UI while waiting. Cancel returns safely to the previous menu.
 
 ### In-Run HUD
-Speed, hull, energy, current score/multiplier, next mine distance, and its player-relative left/right and up/down bearing, plus pause prompt, optional distance/time, and minimal contextual warning. The TPP chase camera stays inside the rear tunnel cross-section; the camera placement is clamped relative to that section's own centerline as the route bends. The tube uses filled interior surfaces and raised ribs, and pickups use solid faceted 3D meshes for better depth/readability. All HUD elements respect UI scale and safe margins.
+Speed, boost energy, score/combo, next-mine distance and bearing, and the next gate's CLEAR/PREPARE/APPROACH/IMMINENT timing cue with distance and seconds; include the pause prompt and concise contextual warnings. The TPP chase camera stays inside the rear tunnel cross-section; the camera placement is clamped relative to that section's own centerline as the route bends. The tube uses filled interior surfaces and raised ribs, and pickups use solid faceted 3D meshes for better depth/readability. All HUD elements respect UI scale and safe margins.
 
 ### Pause
 Resume, Restart Same Seed, Controls, Settings, and Return to Main Menu. Restart and leaving the run both require explicit confirmation because the current score and unbanked pickups are discarded. Opening Controls or Settings keeps the run paused; Back returns to Pause.
 
 ### Controls
-A dedicated input reference is reachable from the main menu and Pause. WASD moves laterally, arrow keys independently rotate yaw/pitch, Q/E applies continuous roll, and the gamepad's left/right sticks separately move and rotate. The mouse pointer is for UI navigation only. Returning from Pause keeps the run paused.
+A dedicated input reference is reachable from the main menu and Pause. A/B steer laterally (D is a right-steer alias), W/S control forward speed, arrow keys rotate yaw/pitch, Q/E applies roll, and the gamepad's left/right sticks separately steer and rotate. During gameplay, relative mouse movement controls camera look only; it never steers the craft. The mouse pointer remains available for UI navigation outside active gameplay. Returning from Pause keeps the run paused.
 
 ### Settings
 Fullscreen, FPS counter, reduced-motion option, and confirmed option reset. Advanced controller curves, camera tuning, audio, and graphics controls remain future work.
