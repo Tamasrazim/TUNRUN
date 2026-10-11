@@ -417,9 +417,10 @@ struct GateThroatGuidance {
         gate = gateAt(seed, boundedSlot + 1U);
     }
 
-    // Begin aiming just inside the sleeve entry, instead of six units after it.
+    // Aim six units inside the sleeve entry so the player sees the first bend
+    // before entering it, rather than aiming at a nearly straight lead-in.
     const double approachStart = gate.distance -
-        static_cast<double>(kGateThroatHalfLength) + 0.5;
+        static_cast<double>(kGateThroatHalfLength - 6.0F);
     const double desiredDistance = std::max(playerDistance + lookAhead, approachStart);
     const double guideDistance = std::clamp(
         desiredDistance, approachStart,

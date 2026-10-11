@@ -534,7 +534,7 @@ int main() {
     const auto startGuideGate = tunrun::gateAt(frameSeed, throatGuideStart.gateIndex);
     const double startGuideDistance = throatGuideStart.distanceAhead;
     assert(std::abs(startGuideDistance -
-        (startGuideGate.distance - tunrun::kGateThroatHalfLength + 0.5)) < 0.01);
+        (startGuideGate.distance - (tunrun::kGateThroatHalfLength - 6.0F))) < 0.01);
     const auto startGuideSection = tunrun::gateThroatSectionAtDistance(
         frameSeed, startGuideGate, startGuideDistance);
     const auto startGuideCourse = tunrun::sampleCourse(frameSeed, startGuideDistance);
