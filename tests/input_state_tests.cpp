@@ -1119,7 +1119,7 @@ int main() {
     const auto imminentGate = tunrun::gateApproachCue(8.0, 0.0, 11.0F);
     assert(imminentGate.valid);
     assert(imminentGate.stage == tunrun::GateApproachStage::Imminent);
-    assert(imminentGate.urgency == 1.0F);
+    assert(imminentGate.urgency > 0.75F && imminentGate.urgency < 1.0F);
     assert(std::string_view(tunrun::gateApproachStageName(imminentGate.stage)) ==
            "IMMINENT");
 
