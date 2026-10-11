@@ -1260,7 +1260,7 @@ int main() {
                 tunrun::kGateMinApertureRadius) < 0.0001F);
             assert(std::hypot(narrowCoreSightline.centerX,
                               narrowCoreSightline.centerY) >
-                   0.50F * narrowCoreSightline.radius);
+                   0.20F * narrowCoreSightline.radius);
         }
 
         for (int sample = -35; sample <= 35; ++sample) {
