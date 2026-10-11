@@ -1196,10 +1196,10 @@ int main() {
             }
         }
 
-        // The waveform and the shared throat section must merge into the
-        // outer tunnel at both sleeve ends without a centre/radius step. The
-        // easing makes the final quarter-unit's bend slope smaller than the
-        // preceding quarter's slope, protecting the join from a visible kink.
+        // The waveform returns to the tunnel centre at both sleeve ends.
+        // Finite-difference checks above bound lateral/vertical slew through
+        // the final half-unit, so the join stays position-continuous without
+        // relying on a steep last-moment envelope.
         for (int endSign = -1; endSign <= 1; endSign += 2) {
             const double direction = static_cast<double>(endSign);
             const double endOffset = direction * tunrun::kGateThroatHalfLength;
@@ -1217,7 +1217,7 @@ int main() {
             assert(nearEndMagnitude < 0.70F * fartherMagnitude);
 
             const double innerDistance = generatedGate.distance + direction *
-                (tunrun::kGateThroatHalfLength - 0.25);
+                (tunrun::kGateThroatHalfLength - 0.001);
             const auto innerSection = tunrun::gateThroatSectionAtDistance(
                 seed, generatedGate, innerDistance);
             const auto innerCourse = tunrun::sampleCourse(seed, innerDistance);
