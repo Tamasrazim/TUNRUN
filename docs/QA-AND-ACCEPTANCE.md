@@ -41,14 +41,14 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Keyboard and gamepad can operate the same screen.
 
 Gameplay-specific mouse checks:
-- Entering a run captures relative mouse input only when mouse flight is enabled; on Windows the cursor is hidden and clipped to the current client area without recentering warps; the clipping rectangle refreshes after window movement or resizing.
-- Relative movement steers in the intended direction; the logarithmic sensitivity slider, bounded keyboard/controller adjustments, and enable/disable toggle work.
-- The in-world mouse aim reticle is visible when mouse flight is active and is absent when mouse flight is disabled or keyboard/gamepad movement has taken over. It follows the upcoming curved tunnel frame. Radial target clamping must use the narrower of the current and reticle-plane tunnel openings, minus craft clearance.
+- Entering a run captures relative mouse input only when mouse-look is enabled; on Windows the cursor is hidden and clipped to the current client area without recentering warps; the clipping rectangle refreshes after window movement or resizing.
+- Relative mouse movement rotates the camera only and never changes craft steering or position. The saved sensitivity responds to bounded left/right adjustments in Settings; the mouse-look enable/disable toggle works.
+- In settled FPP, the reticle is centred on the final camera ray and stays aligned when that ray is shortened by an outer wall or gate throat. It is not a steering target and does not disappear when keyboard/gamepad controls are used. In TPP, mouse-look orbits the camera eye around the ship while keeping the ship as the focus.
 - The system cursor is not repeatedly warped or stuck at screen center.
 - Escape pauses, releases capture, and leaves a visible working cursor.
 - Focus loss pauses and releases capture immediately.
-- Resume restores steering without reversed axes, huge accumulated deltas, or a frozen cursor.
-- Using keyboard/gamepad movement or rotation releases mouse steering for the current flight segment without affecting UI clicks.
+- Resume restores camera look without a stuck cursor or a sudden jump from stale relative deltas.
+- Keyboard/gamepad steering and rotation can be used alongside mouse camera look; input must not unexpectedly disable mouse-look or leak relative deltas into UI pointer hit-testing.
 - Disconnect/reconnect of a controller never leaves movement or boost stuck.
 - Right-trigger boost and left-trigger precision controls activate above the neutral axis value, ignore non-finite axis readings, and release as soon as the trigger returns to neutral.
 
