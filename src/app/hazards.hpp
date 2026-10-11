@@ -211,6 +211,21 @@ inline ProceduralHazard hazardAt(std::uint64_t seed,
 // clock. Identical hazards and times always reproduce identical centers.
 inline HazardCenter hazardCenterAt(const ProceduralHazard& hazard,
                                    double elapsedSeconds) noexcept {
+    // Malformed state must not introduce NaNs into collision or projection.
+    // Preserve a finite authored center as a deterministic, stationary fallback.
+    const HazardCenter fallback{
+        std::isfinite(hazard.baseX) ? hazard.baseX : 0.0F,
+        std::isfinite(hazard.baseY) ? hazard.baseY : 0.0F
+    };
+    if (!std::isfinite(elapsedSeconds) ||
+        !std::isfinite(hazard.baseX) || !std::isfinite(hazard.baseY) ||
+        !std::isfinite(hazard.amplitudeX) || !std::isfinite(hazard.amplitudeY) ||
+        !std::isfinite(hazard.frequency) || !std::isfinite(hazard.phaseX) ||
+        !std::isfinite(hazard.phaseY) ||
+        !validHazardMotionFamily(hazard.motionFamily)) {
+        return fallback;
+    }
+
     const double primaryPhase =
         elapsedSeconds * static_cast<double>(hazard.frequency) +
         static_cast<double>(hazard.phaseX);
@@ -239,6 +254,12 @@ inline HazardCenter hazardCenterAt(const ProceduralHazard& hazard,
         y += static_cast<double>(hazard.amplitudeY) *
              std::sin(2.0 * primaryPhase + static_cast<double>(hazard.phaseY));
         break;
+    }
+    constexpr double maximumFloat =
+        static_cast<double>(std::numeric_limits<float>::max());
+    if (!std::isfinite(x) || !std::isfinite(y) ||
+        std::abs(x) > maximumFloat || std::abs(y) > maximumFloat) {
+        return fallback;
     }
     return HazardCenter{static_cast<float>(x), static_cast<float>(y)};
 }
