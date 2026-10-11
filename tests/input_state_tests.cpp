@@ -1089,6 +1089,12 @@ int main() {
     assert(tunrun::tunnelVisibilityAtDistance(40.0F) == 0.0F);
     assert(tunrun::tunnelVisibilityAtDistance(
         std::numeric_limits<float>::quiet_NaN()) == 1.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(
+        std::numeric_limits<float>::infinity()) == 0.0F);
+    assert(tunrun::tunnelVisibilityAtDistance(
+        -std::numeric_limits<float>::infinity()) == 1.0F);
+    assert(tunrun::warningBeaconVisibilityAtDistance(
+        std::numeric_limits<float>::infinity()) == 0.0F);
     const float nearVisibility = tunrun::tunnelVisibilityAtDistance(6.0F);
     const float midVisibility = tunrun::tunnelVisibilityAtDistance(10.0F);
     const float horizonVisibility = tunrun::tunnelVisibilityAtDistance(16.0F);
