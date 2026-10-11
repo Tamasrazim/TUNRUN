@@ -2025,6 +2025,42 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawText(TextFormat("%.1f U", std::max(0.0F, distance)),
              111, 145, 10, kText);
 
+    const auto clearanceGate = tunrun::gateAt(
+        seed, throatGuidance.valid ? throatGuidance.gateIndex : 0U);
+    const auto activeClearanceThroat = tunrun::gateThroatSectionAtDistance(
+        seed, clearanceGate, static_cast<double>(distance));
+    const float clearanceCenterX = activeClearanceThroat.active
+        ? activeClearanceThroat.centerX : 0.0F;
+    const float clearanceCenterY = activeClearanceThroat.active
+        ? activeClearanceThroat.centerY : 0.0F;
+    const float clearanceRadius = activeClearanceThroat.active
+        ? activeClearanceThroat.radius : playerSection.radius;
+    const auto hullClearance = tunrun::hullClearanceAt(
+        shipX, shipY, clearanceCenterX, clearanceCenterY, clearanceRadius);
+    const float clearanceUnits = hullClearance.valid
+        ? hullClearance.unitsRemaining : -1.0F;
+    const char* nearestWall = !hullClearance.valid ? "SENSOR FAULT"
+        : std::abs(shipX - clearanceCenterX) >= std::abs(shipY - clearanceCenterY)
+            ? (shipX < clearanceCenterX ? "LEFT WALL" : "RIGHT WALL")
+            : (shipY < clearanceCenterY ? "FLOOR" : "CEILING");
+    const char* clearanceStatus = !hullClearance.valid ? "SENSOR FAULT"
+        : clearanceUnits < 0.55F ? "CRITICAL"
+        : clearanceUnits < 1.25F ? "CAUTION" : "NOMINAL";
+    const Color clearanceColor = !hullClearance.valid || clearanceUnits < 0.55F
+        ? kDanger : clearanceUnits < 1.25F
+            ? Color{255, 184, 101, 255} : kAccent;
+    const Rectangle clearancePanel{24.0F, 184.0F, 316.0F, 94.0F};
+    drawHudPanel(clearancePanel);
+    DrawText("HULL CLEARANCE", 38, 194, 10, kAccent);
+    DrawText(clearanceStatus, 38, 214, 11, clearanceColor);
+    DrawText(TextFormat("%.2f U / %s",
+        std::max(0.0F, clearanceUnits), nearestWall), 148, 214, 10, kText);
+    DrawRectangle(38, 237, 288, 5, Color{35, 47, 60, 255});
+    DrawRectangle(38, 237, static_cast<int>(
+        288.0F * std::clamp(clearanceUnits / 2.5F, 0.0F, 1.0F)),
+        5, clearanceColor);
+    DrawText("WARNING AT 1.25 U / CRITICAL AT 0.55 U", 38, 252, 8, kMuted);
+
     const Rectangle passagePanel{936.0F, 18.0F, 320.0F, 142.0F};
     drawHudPanel(passagePanel);
     DrawText("FLIGHT COMPUTER / PASSAGE", 950, 30, 11, kAccent);

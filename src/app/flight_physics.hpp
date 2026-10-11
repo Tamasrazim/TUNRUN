@@ -63,6 +63,33 @@ inline bool collidesWithTunnelWall(float x, float y,
     return dx * dx + dy * dy >= safeRadius * safeRadius;
 }
 
+// Gameplay HUD reading for the distance between the ship's collision envelope
+// and the nearest active tunnel/throat boundary. This is telemetry only; the
+// wall and throat collision checks remain authoritative.
+struct HullClearanceReading {
+    bool valid = false;
+    float unitsRemaining = 0.0F;
+    float radialOffset = 0.0F;
+};
+
+[[nodiscard]] inline HullClearanceReading hullClearanceAt(
+    float x, float y, float centerX, float centerY,
+    float tunnelRadius, float craftRadius = kCraftCollisionRadius) noexcept {
+    if (!std::isfinite(x) || !std::isfinite(y) ||
+        !std::isfinite(centerX) || !std::isfinite(centerY) ||
+        !std::isfinite(tunnelRadius) || tunnelRadius <= 0.0F ||
+        !std::isfinite(craftRadius)) {
+        return {};
+    }
+    const float radialOffset = std::hypot(x - centerX, y - centerY);
+    if (!std::isfinite(radialOffset)) return {};
+    return HullClearanceReading{
+        true,
+        tunnelRadius - std::max(0.0F, craftRadius) - radialOffset,
+        radialOffset
+    };
+}
+
 inline float approach(float current, float target, float maximumDelta) noexcept {
     if (current < target) return std::min(current + maximumDelta, target);
     return std::max(current - maximumDelta, target);

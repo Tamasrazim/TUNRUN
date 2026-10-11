@@ -763,6 +763,23 @@ int main() {
     assert(!tunrun::collidesWithTunnelWall(0.0F, 0.0F, centredSection));
     const float safeRadius = section.radius - tunrun::kCraftCollisionRadius;
     assert(tunrun::collidesWithTunnelWall(safeRadius + 0.01F, 0.0F, centredSection));
+    const auto centreClearance = tunrun::hullClearanceAt(
+        0.0F, 0.0F, 0.0F, 0.0F, section.radius);
+    assert(centreClearance.valid);
+    assert(std::abs(centreClearance.unitsRemaining -
+        (section.radius - tunrun::kCraftCollisionRadius)) < 0.0001F);
+    const auto wallClearance = tunrun::hullClearanceAt(
+        safeRadius, 0.0F, 0.0F, 0.0F, section.radius);
+    assert(wallClearance.valid && std::abs(wallClearance.unitsRemaining) < 0.0001F);
+    const auto throatClearance = tunrun::hullClearanceAt(
+        1.0F, -0.5F, 0.5F, -0.25F, 1.8F);
+    assert(throatClearance.valid);
+    assert(std::abs(throatClearance.unitsRemaining -
+        (1.8F - tunrun::kCraftCollisionRadius -
+         std::hypot(0.5F, -0.25F))) < 0.0001F);
+    assert(!tunrun::hullClearanceAt(
+        std::numeric_limits<float>::quiet_NaN(), 0.0F,
+        0.0F, 0.0F, section.radius).valid);
 
     assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
     assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
