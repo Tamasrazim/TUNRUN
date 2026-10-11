@@ -52,6 +52,11 @@ struct CourseValidation {
     float minimumRadius = std::numeric_limits<float>::infinity();
     float maximumRadius = 0.0F;
     float maximumCenterOffset = 0.0F;
+    // Largest change per course unit observed by the validation sweep.
+    // These values help catch an abrupt bend before it reaches gameplay.
+    float maximumCenterRate = 0.0F;
+    float maximumRadiusRate = 0.0F;
+    float maximumTwistRate = 0.0F;
     const char* failure = "not validated";
 };
 enum class GateKind : std::uint8_t {
@@ -858,6 +863,10 @@ inline CourseValidation validateCourse(std::uint64_t seed, double length,
         result.failure = "validation sample budget exceeded";
         return result;
     }
+
+    const double sampleStep = length / static_cast<double>(steps);
+    TunnelCrossSection previous{};
+    bool hasPrevious = false;
     for (std::uint64_t i = 0; i <= steps; ++i) {
         const double distance = length * static_cast<double>(i) / static_cast<double>(steps);
         const auto sample = sampleCourse(seed, distance);
@@ -879,6 +888,41 @@ inline CourseValidation validateCourse(std::uint64_t seed, double length,
             result.failure = "twist outside generator bounds";
             return result;
         }
+
+        if (hasPrevious) {
+            const float centerRate = static_cast<float>(
+                std::hypot(static_cast<double>(sample.centerX - previous.centerX),
+                           static_cast<double>(sample.centerY - previous.centerY)) /
+                sampleStep);
+            const float radiusRate = static_cast<float>(
+                std::abs(static_cast<double>(sample.radius - previous.radius)) /
+                sampleStep);
+            const float twistRate = static_cast<float>(
+                std::abs(static_cast<double>(sample.twist - previous.twist)) /
+                sampleStep);
+
+            result.maximumCenterRate = std::max(result.maximumCenterRate, centerRate);
+            result.maximumRadiusRate = std::max(result.maximumRadiusRate, radiusRate);
+            result.maximumTwistRate = std::max(result.maximumTwistRate, twistRate);
+
+            // These limits leave plenty of room for the current Catmull-Rom
+            // profile, while rejecting a sudden center, radius, or twist jump.
+            if (centerRate > 0.70F) {
+                result.failure = "centerline continuity limit exceeded";
+                return result;
+            }
+            if (radiusRate > 0.25F) {
+                result.failure = "radius continuity limit exceeded";
+                return result;
+            }
+            if (twistRate > 0.22F) {
+                result.failure = "twist continuity limit exceeded";
+                return result;
+            }
+        }
+
+        previous = sample;
+        hasPrevious = true;
         result.minimumRadius = std::min(result.minimumRadius, sample.radius);
         result.maximumRadius = std::max(result.maximumRadius, sample.radius);
         result.maximumCenterOffset = std::max(result.maximumCenterOffset,
