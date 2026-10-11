@@ -40,6 +40,13 @@ const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
 
+// One original high-resolution material sheet is streamed for the active screen.
+// The portable package contains the full 12-surface library; a source checkout
+// without baked materials continues to use the vector fallback.
+Texture2D gUiMaterialTexture{};
+int gUiMaterialIndex = -1;
+bool gReduceMotion = false;
+
 struct LetterboxViewport {
     Rectangle bounds{};
     float scale = 1.0F;
@@ -355,34 +362,225 @@ void drawCentred(const char* text, float y, int fontSize, Color color) {
 
 void drawBackground(float time, bool reducedMotion) {
     ClearBackground(kBackground);
-    const float drift = reducedMotion ? 0.0F : std::sin(time * 0.35F) * 10.0F;
-    const int width = kCanvasWidth;
-    const int height = kCanvasHeight;
-    for (int i = 0; i < 12; ++i) {
-        const float scale = static_cast<float>(i + 1) / 12.0F;
-        DrawEllipseLines(width / 2 + static_cast<int>(drift * scale),
-                         static_cast<int>(height * 0.54F),
-                         18.0F + scale * static_cast<float>(std::min(width, height)) * 0.65F,
-                         9.0F + scale * static_cast<float>(height) * 0.26F,
-                         Color{42, 55, 72, static_cast<unsigned char>(18 + i * 4)});
+
+    // The front end is still the same continuous seeded tunnel as flight, not a
+    // stock screen saver. It advances gently behind menus while gameplay stays
+    // paused and its run clock remains frozen.
+    constexpr std::uint64_t menuSeed = 0x54554E52554E3236ULL;
+    const double travel = reducedMotion
+        ? 0.0
+        : std::fmod(std::max(0.0, static_cast<double>(time)) * 2.8, 7200.0);
+    Camera3D camera{};
+    camera.position = Vector3{0.0F, 0.0F, 0.0F};
+    camera.target = Vector3{0.0F, 0.0F, -18.0F};
+    camera.up = Vector3{0.0F, 1.0F, 0.0F};
+    camera.fovy = 72.0F;
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    constexpr int sideCount = 28;
+    constexpr int ringCount = 43;
+    constexpr float spacing = 1.65F;
+    std::array<tunrun::TunnelFrame, ringCount> frames{};
+    std::array<std::array<Vector3, sideCount>, ringCount> rings{};
+    for (int ring = 0; ring < ringCount; ++ring) {
+        const double station = travel + (static_cast<double>(ring) + 1.0) * spacing;
+        frames[static_cast<std::size_t>(ring)] =
+            tunrun::sampleTunnelFrame(menuSeed, travel, station);
+        const auto& frame = frames[static_cast<std::size_t>(ring)];
+        for (int side = 0; side < sideCount; ++side) {
+            const float angle = static_cast<float>(side) * 2.0F * PI /
+                                static_cast<float>(sideCount);
+            const auto point = tunrun::tunnelFramePoint(
+                frame, std::cos(angle) * frame.radius, std::sin(angle) * frame.radius);
+            rings[static_cast<std::size_t>(ring)][static_cast<std::size_t>(side)] =
+                Vector3{point.x, point.y, point.z};
+        }
     }
-    for (int i = 0; i < 12; ++i) {
-        const int x = width * i / 11;
-        DrawLine(x, 0, width / 2 + (x - width / 2) / 5, height,
-                 Color{28, 38, 53, 100});
+
+    BeginMode3D(camera);
+    for (int ring = 0; ring + 1 < ringCount; ++ring) {
+        const double station = travel +
+            (static_cast<double>(ring) + 1.5) * static_cast<double>(spacing);
+        const auto visual = tunrun::tunnelVisualProfileAt(
+            menuSeed, tunrun::tunnelVisualSectionIndex(station));
+        const float ahead = (static_cast<float>(ring) + 1.5F) * spacing;
+        const float visibility = tunrun::smoothFogVisibility(ahead, 15.0F, 76.0F);
+        const auto& palette = visual.palette;
+        const Color wall = blendWithTunnelBackground(
+            Color{static_cast<unsigned char>(9U + palette.red / 12U),
+                  static_cast<unsigned char>(11U + palette.green / 12U),
+                  static_cast<unsigned char>(16U + palette.blue / 12U), 255},
+            visibility * 0.92F);
+        const Color seam = blendWithTunnelBackground(
+            Color{static_cast<unsigned char>(palette.red * visual.intensity * 0.43F),
+                  static_cast<unsigned char>(palette.green * visual.intensity * 0.43F),
+                  static_cast<unsigned char>(palette.blue * visual.intensity * 0.43F), 180},
+            visibility);
+        const auto& nearRing = rings[static_cast<std::size_t>(ring)];
+        const auto& farRing = rings[static_cast<std::size_t>(ring + 1)];
+        for (int side = 0; side < sideCount; ++side) {
+            const int next = (side + 1) % sideCount;
+            const Vector3 a = nearRing[static_cast<std::size_t>(side)];
+            const Vector3 b = nearRing[static_cast<std::size_t>(next)];
+            const Vector3 c = farRing[static_cast<std::size_t>(next)];
+            const Vector3 d = farRing[static_cast<std::size_t>(side)];
+            DrawTriangle3D(a, b, c, wall);
+            DrawTriangle3D(a, c, d, wall);
+            if (side % 2 == 0 || ring % 3 == 0) DrawLine3D(a, d, seam);
+            if (ring % 4 == 0) DrawLine3D(a, b, seam);
+        }
+    }
+
+    // Seeded gate silhouettes give the menu a sense of scale and movement. The
+    // bulkhead stays visually opaque; only a few near-field ribs are drawn.
+    const auto firstGate = tunrun::gateAt(menuSeed, 0U);
+    const auto relativeSlot = static_cast<std::int64_t>(
+        std::floor((travel - firstGate.distance) / tunrun::kGateSpacing));
+    const std::uint32_t startGate = relativeSlot <= 0 ? 0U
+        : static_cast<std::uint32_t>(std::min<std::int64_t>(relativeSlot, 1000000));
+    for (std::uint32_t index = startGate; index < startGate + 5U; ++index) {
+        const auto gate = tunrun::gateAt(menuSeed, index);
+        const float ahead = static_cast<float>(gate.distance - travel);
+        if (ahead < 3.0F || ahead > 75.0F) continue;
+        const auto frame = tunrun::sampleTunnelFrame(menuSeed, travel, gate.distance);
+        Color glow{123, 187, 225, 235};
+        if (gate.kind == tunrun::GateKind::Precision) glow = Color{255, 163, 126, 235};
+        else if (gate.kind == tunrun::GateKind::Offset) glow = Color{187, 154, 255, 235};
+        else if (gate.kind == tunrun::GateKind::Wide) glow = Color{123, 240, 203, 235};
+        glow = blendWithTunnelBackground(glow,
+            tunrun::smoothFogVisibility(ahead, 19.0F, 78.0F));
+        const float outer = frame.radius - 0.18F;
+        constexpr int gateSegments = 36;
+        for (int segment = 0; segment < gateSegments; ++segment) {
+            const float a0 = static_cast<float>(segment) * 2.0F * PI / gateSegments;
+            const float a1 = static_cast<float>(segment + 1) * 2.0F * PI / gateSegments;
+            const auto point = [&](float angle, float radius, float ox = 0.0F,
+                                   float oy = 0.0F) {
+                const auto p = tunrun::tunnelFramePoint(
+                    frame, gate.offsetX + ox + std::cos(angle) * radius,
+                    gate.offsetY + oy + std::sin(angle) * radius);
+                return Vector3{p.x, p.y, p.z};
+            };
+            DrawLine3D(point(a0, outer), point(a1, outer), glow);
+            DrawLine3D(point(a0, gate.apertureRadius, 0.0F, 0.0F),
+                       point(a1, gate.apertureRadius, 0.0F, 0.0F), glow);
+            if (segment % 3 == 0) {
+                DrawLine3D(point(a0, gate.apertureRadius + 0.14F),
+                           point(a0, outer), glow);
+            }
+        }
+    }
+    EndMode3D();
+
+    // Keep the edge treatment quiet so the actual tunnel geometry remains the
+    // focal point behind every menu and modal screen.
+    DrawRectangleGradientV(0, 0, kCanvasWidth, kCanvasHeight,
+        Color{2, 5, 9, 38}, Color{2, 5, 9, 204});
+    DrawRectangle(0, 0, 8, kCanvasHeight, Color{79, 190, 235, 80});
+    DrawRectangle(kCanvasWidth - 8, 0, 8, kCanvasHeight, Color{79, 190, 235, 44});
+    for (int i = 0; i < 10; ++i) {
+        const int x = kCanvasWidth * i / 9;
+        DrawLine(x, 0, x + (kCanvasWidth / 2 - x) / 9, kCanvasHeight,
+                 Color{28, 45, 62, 35});
+    }
+}
+
+void drawMaterialSurface(Rectangle bounds, Color textureTint, Color shade) {
+    if (gUiMaterialTexture.id != 0U) {
+        const float sourceWidth = std::min(
+            static_cast<float>(gUiMaterialTexture.width),
+            std::max(1.0F, bounds.width * 1.65F));
+        const float sourceHeight = std::min(
+            static_cast<float>(gUiMaterialTexture.height),
+            std::max(1.0F, bounds.height * 1.90F));
+        const float maxX = std::max(
+            0.0F, static_cast<float>(gUiMaterialTexture.width) - sourceWidth);
+        const float maxY = std::max(
+            0.0F, static_cast<float>(gUiMaterialTexture.height) - sourceHeight);
+        const float sourceX = maxX > 0.0F
+            ? std::fmod(std::abs(bounds.x * 7.0F), maxX) : 0.0F;
+        const float sourceY = maxY > 0.0F
+            ? std::fmod(std::abs(bounds.y * 5.0F), maxY) : 0.0F;
+        DrawTexturePro(gUiMaterialTexture,
+            Rectangle{sourceX, sourceY, sourceWidth, sourceHeight},
+            bounds, Vector2{0.0F, 0.0F}, 0.0F, textureTint);
+        DrawRectangleRec(bounds, shade);
+    } else {
+        DrawRectangleRec(bounds, shade);
+    }
+}
+
+int uiMaterialForScreen(tunrun::Screen screen) {
+    switch (screen) {
+    case tunrun::Screen::MainMenu: return 0;
+    case tunrun::Screen::Hangar: return 1;
+    case tunrun::Screen::HangarPurchaseConfirm: return 2;
+    case tunrun::Screen::Records: return 3;
+    case tunrun::Screen::Controls: return 4;
+    case tunrun::Screen::Modes: return 5;
+    case tunrun::Screen::Settings:
+    case tunrun::Screen::SettingsResetConfirm: return 6;
+    case tunrun::Screen::Credits: return 7;
+    case tunrun::Screen::Preview: return 8;
+    case tunrun::Screen::Pause:
+    case tunrun::Screen::RunConfirm:
+    case tunrun::Screen::ExitConfirm: return 9;
+    case tunrun::Screen::Crash:
+    case tunrun::Screen::SaveRecovery: return 10;
+    case tunrun::Screen::SeedLab:
+    case tunrun::Screen::SeedEntry: return 11;
+    }
+    return 0;
+}
+
+void ensureUiMaterial(int materialIndex) {
+    materialIndex = std::clamp(materialIndex, 0, 11);
+    if (materialIndex == gUiMaterialIndex) return;
+    if (gUiMaterialTexture.id != 0U) {
+        UnloadTexture(gUiMaterialTexture);
+        gUiMaterialTexture = Texture2D{};
+    }
+    gUiMaterialIndex = materialIndex;
+    std::string directory = GetApplicationDirectory();
+    if (!directory.empty() && directory.back() != '/' && directory.back() != '\\') {
+        directory.push_back('/');
+    }
+    const std::string path = directory + "assets/ui/surface_" +
+        (materialIndex < 10 ? "0" : "") + std::to_string(materialIndex) + ".bmp";
+    if (!FileExists(path.c_str())) return;
+    gUiMaterialTexture = LoadTexture(path.c_str());
+    if (gUiMaterialTexture.id != 0U) {
+        SetTextureFilter(gUiMaterialTexture, TEXTURE_FILTER_BILINEAR);
     }
 }
 
 bool drawButton(Rectangle bounds, const char* label, bool selected, bool danger = false) {
     const bool hovered = CheckCollisionPointRec(virtualMousePosition(), bounds);
     const bool focused = hovered || selected;
-    DrawRectangleRounded(bounds, 0.10F, 8, focused ? Color{36, 50, 68, 255} : kPanel);
-    DrawRectangleRoundedLinesEx(bounds, 0.10F, 8, 1.2F,
-                                danger ? kDanger : focused ? kAccent : kEdge);
-    DrawText(label,
-        static_cast<int>(bounds.x + (bounds.width - MeasureText(label, 18)) / 2),
-        static_cast<int>(bounds.y + (bounds.height - 18.0F) / 2), 18,
-        danger ? kDanger : kText);
+    drawMaterialSurface(bounds,
+        focused ? Color{135, 180, 211, 142} : Color{82, 105, 128, 112},
+        focused ? Color{7, 18, 29, 154} : Color{5, 10, 17, 198});
+    const Color border = danger ? kDanger : focused ? kAccent : Color{54, 73, 91, 235};
+    DrawRectangleLinesEx(bounds, focused ? 1.6F : 1.0F, border);
+    DrawRectangle(static_cast<int>(bounds.x), static_cast<int>(bounds.y + 1.0F),
+                  focused ? 3 : 1, std::max(1, static_cast<int>(bounds.height - 2.0F)),
+                  danger ? kDanger : focused ? kAccent : Color{44, 65, 83, 255});
+    // A subtle scan line gives focus a live state without flashing or changing hitboxes.
+    if (focused && !gReduceMotion && bounds.height > 20.0F) {
+        const float phase = static_cast<float>(GetTime() * 21.0);
+        const float scanY = bounds.y + 4.0F +
+            std::fmod(phase, std::max(1.0F, bounds.height - 8.0F));
+        DrawLine(static_cast<int>(bounds.x + 8.0F), static_cast<int>(scanY),
+                 static_cast<int>(bounds.x + bounds.width - 8.0F), static_cast<int>(scanY),
+                 Color{120, 213, 255, 38});
+    }
+    const int fontSize = bounds.height < 36.0F ? 14 : 16;
+    DrawText(label, static_cast<int>(bounds.x + 22.0F),
+        static_cast<int>(bounds.y + (bounds.height - static_cast<float>(fontSize)) / 2.0F),
+        fontSize, danger ? kDanger : focused ? Color{246, 251, 255, 255} : kText);
+    DrawText(focused ? ">>" : ">", static_cast<int>(bounds.x + bounds.width - 32.0F),
+        static_cast<int>(bounds.y + (bounds.height - 16.0F) / 2.0F), 14,
+        danger ? kDanger : focused ? kAccent : kMuted);
     return hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 
@@ -432,7 +630,8 @@ void moveSelection(int count, int& selection) {
 int drawMenu(const std::vector<std::string>& labels, int& selection,
              int firstY, bool confirmEnabled = true, int dangerIndex = -1,
              bool navigationEnabled = true, float buttonHeight = kButtonHeight,
-             float buttonGap = kButtonGap) {
+             float buttonGap = kButtonGap, float menuX = -1.0F,
+             float menuWidth = kPanelWidth) {
     if (navigationEnabled) {
         moveSelection(static_cast<int>(labels.size()), selection);
     } else if (labels.empty()) {
@@ -445,10 +644,11 @@ int drawMenu(const std::vector<std::string>& labels, int& selection,
         ? (kCanvasHeight - static_cast<int>(labels.size()) * rowHeight) / 2
         : firstY;
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
+        const float left = menuX >= 0.0F
+            ? menuX : (static_cast<float>(kCanvasWidth) - menuWidth) / 2.0F;
         const Rectangle bounds{
-            (static_cast<float>(kCanvasWidth) - kPanelWidth) / 2.0F,
-            static_cast<float>(top + i * rowHeight),
-            kPanelWidth, buttonHeight
+            left, static_cast<float>(top + i * rowHeight),
+            menuWidth, buttonHeight
         };
         if (CheckCollisionPointRec(virtualMousePosition(), bounds)) selection = i;
         const bool click = drawButton(bounds, labels[static_cast<std::size_t>(i)].c_str(),
@@ -1014,8 +1214,9 @@ void drawHangarShipPreview3D(std::uint32_t shipId, int centerX, int centerY,
                               double elapsedSeconds) {
     const Rectangle bounds{static_cast<float>(centerX - 150),
                            static_cast<float>(centerY - 92), 300.0F, 184.0F};
-    DrawRectangleRounded(bounds, 0.06F, 8, Color{10, 14, 21, 245});
-    DrawRectangleRoundedLinesEx(bounds, 0.06F, 8, 1.0F, kEdge);
+    drawMaterialSurface(bounds, Color{108, 139, 166, 130},
+                        Color{4, 10, 17, 190});
+    DrawRectangleLinesEx(bounds, 1.0F, kEdge);
     BeginScissorMode(static_cast<int>(bounds.x), static_cast<int>(bounds.y),
                      static_cast<int>(bounds.width), static_cast<int>(bounds.height));
     Camera3D camera{};
@@ -1755,8 +1956,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         }
     }
     EndMode3D();
-    DrawRectangle(22, 18, 344, 284, Color{10, 14, 21, 225});
-    DrawRectangleLines(22, 18, 344, 284, kEdge);
+    drawMaterialSurface(Rectangle{22.0F, 18.0F, 344.0F, 284.0F},
+        Color{98, 124, 150, 125}, Color{5, 10, 17, 178});
+    DrawRectangleLinesEx(Rectangle{22.0F, 18.0F, 344.0F, 284.0F}, 1.0F, kEdge);
     DrawText(TextFormat("TUNRUN / %s", tunrun::shipDefinition(shipId).name),
              35, 30, 15, kAccent);
     DrawText(TextFormat("%s / %s / %4.1f U/S",
@@ -1861,8 +2063,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawText(TextFormat("DASH NEEDS %.0f ENERGY", tunrun::kDashEnergyCost),
                  35, 249, 10, kMuted);
     }
-    DrawRectangle(22, kCanvasHeight - 48, kCanvasWidth - 44, 26,
-                  Color{10, 14, 21, 220});
+    drawMaterialSurface(Rectangle{22.0F, static_cast<float>(kCanvasHeight - 48),
+        static_cast<float>(kCanvasWidth - 44), 26.0F},
+        Color{92, 118, 143, 110}, Color{4, 9, 15, 190});
     DrawText("W GO   S BRAKE   A/B STEER   MOUSE LOOK   ARROWS ROTATE   Q/E ROLL   SPACE DASH   SHIFT BOOST   V CAMERA",
              36, kCanvasHeight - 42, 10, kMuted);
 }
@@ -2207,8 +2410,10 @@ int main() {
             }
         }
 
+        gReduceMotion = app.reduceMotion;
         BeginDrawing();
         BeginTextureMode(sceneCanvas);
+        ensureUiMaterial(uiMaterialForScreen(app.screens.current()));
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip),
@@ -2231,25 +2436,128 @@ int main() {
             continue;
         }
 
-        drawBackground(app.elapsed, app.reduceMotion);
+        if (app.screens.contains(tunrun::Screen::Pause)) {
+            // Keep the actual in-flight scene visible behind Pause, Settings,
+            // Controls and confirmations. Passing zero delta freezes camera
+            // presentation alongside the already-frozen flight and hazard clocks.
+            drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
+                       static_cast<std::uint32_t>(app.selectedShip),
+                       tunrun::gameModeName(app.activeMode), tpp, app.reduceMotion, !tpp,
+                       app.flight.pitch, app.flight.yaw,
+                       app.cameraLookYaw, app.cameraLookPitch, app.flight.roll,
+                       app.flight.bank, app.flight.actualForwardSpeed,
+                       app.flight.boostEnergy, app.flight.dashCooldownRemaining,
+                       app.flight.dashRemaining, app.elapsed, app.runScore,
+                       app.runAetherPickupReward, app.runSingularityCorePickupReward,
+                       app.tppCameraFollow, app.cameraModeBlend, 0.0F);
+            DrawRectangle(0, 0, kCanvasWidth, kCanvasHeight, Color{2, 5, 10, 176});
+        } else {
+            drawBackground(static_cast<float>(GetTime()), app.reduceMotion);
+        }
         switch (app.screens.current()) {
         case tunrun::Screen::MainMenu: {
-            drawCentred("T U N R U N", 56.0F, 54, kText);
-            drawCentred("PROCEDURAL TUNNEL RUNNER", 116.0F, 16, kAccent);
-            drawCentred("SEEDED COURSE / NATIVE FLIGHT PROTOTYPE", 141.0F, 12, kMuted);
-            DrawText(TextFormat("AETHER SHARDS  %llu",
-                                static_cast<unsigned long long>(app.profile.aetherShards)),
-                     52, 162, 14, kAccent);
-            DrawText(TextFormat("SINGULARITY CORES  %llu",
-                                static_cast<unsigned long long>(app.profile.singularityCores)),
-                     330, 162, 14, kText);
-            // Tighten rows at smaller window heights so every menu item stays visible.
-            const bool compactMenu = kCanvasHeight < 705;
-            const float mainButtonHeight = compactMenu ? 36.0F : kButtonHeight;
-            const float mainButtonGap = compactMenu ? 4.0F : kButtonGap;
-            const int mainMenuTop = compactMenu ? 180 : 185;
+            DrawText("TUNRUN", 54, 30, 48, kText);
+            DrawText("ENDLESS SPACEFLIGHT", 58, 85, 15, kAccent);
+            DrawText("PROCEDURAL FLIGHT SYSTEM  /  BUILD 0.1.0", 58, 109, 11, kMuted);
+            DrawRectangle(54, 137, 380, 2, Color{103, 207, 245, 220});
+            DrawRectangle(434, 137, 28, 2, Color{103, 207, 245, 75});
+            DrawText("OFFLINE PROFILE", 905, 48, 11, kMuted);
+            DrawCircle(892, 54, 4.0F, Color{120, 235, 190, 255});
+            DrawText("LOCAL SAVE / NO ACCOUNT REQUIRED", 905, 67, 10, kAccent);
+
+            const Rectangle commandPanel{48.0F, 154.0F, 416.0F, 514.0F};
+            drawMaterialSurface(commandPanel, Color{100, 130, 156, 124},
+                                Color{4, 10, 17, 183});
+            DrawRectangleLinesEx(commandPanel, 1.0F, Color{52, 77, 96, 235});
+            DrawText("COMMAND DECK", 64, 166, 12, kAccent);
+            DrawText("SELECT FLIGHT SYSTEM", 310, 168, 9, kMuted);
+
+            const int mainMenuTop = 189;
+            const float mainButtonHeight = 41.0F;
+            const float mainButtonGap = 5.0F;
             const int picked = drawMenu(mainItems, mainSelection, mainMenuTop,
-                true, -1, true, mainButtonHeight, mainButtonGap);
+                true, -1, true, mainButtonHeight, mainButtonGap, 64.0F, 384.0F);
+
+            DrawLine(64, 615, 448, 615, Color{45, 67, 83, 230});
+            DrawText("AETHER SHARDS", 65, 627, 9, kMuted);
+            DrawText(TextFormat("%llu",
+                static_cast<unsigned long long>(app.profile.aetherShards)),
+                65, 640, 18, kAccent);
+            DrawText("SINGULARITY CORES", 264, 627, 9, kMuted);
+            DrawText(TextFormat("%llu",
+                static_cast<unsigned long long>(app.profile.singularityCores)),
+                264, 640, 18, kText);
+            DrawText("W / S NAVIGATE     ENTER CONFIRM     ESC BACK",
+                     65, 658, 9, kMuted);
+
+            const Rectangle livePanel{482.0F, 154.0F, 742.0F, 514.0F};
+            drawMaterialSurface(livePanel, Color{100, 130, 156, 112},
+                                Color{4, 10, 17, 158});
+            DrawRectangleLinesEx(livePanel, 1.0F, Color{52, 77, 96, 235});
+            DrawText("FLIGHT SYSTEM / LIVE TELEMETRY", 510, 169, 12, kAccent);
+            DrawText("PROCEDURAL COURSE  //  REAL-TIME 3D SHIP PREVIEW",
+                     510, 190, 10, kMuted);
+            DrawLine(510, 215, 1198, 215, Color{45, 66, 83, 230});
+
+            const std::uint32_t previewId = static_cast<std::uint32_t>(
+                std::clamp(app.selectedShip, 0,
+                    static_cast<int>(tunrun::kShipCatalog.size()) - 1));
+            const auto& ship = tunrun::shipDefinition(previewId);
+            drawHangarShipPreview3D(previewId, 822, 365,
+                                    app.reduceMotion ? 0.0 : GetTime());
+            DrawText("ACTIVE HULL", 1000, 251, 10, kMuted);
+            DrawText(ship.name, 1000, 272, 22, kText);
+            DrawText(app.profile.unlockedShips[previewId]
+                ? "STATUS / READY" : "STATUS / LOCKED",
+                1000, 301, 10, app.profile.unlockedShips[previewId] ? kAccent : kDanger);
+            DrawLine(1000, 324, 1197, 324, Color{49, 72, 91, 220});
+            DrawText("TOP SPEED", 1000, 340, 9, kMuted);
+            DrawText(TextFormat("%.2fx", ship.speedMultiplier), 1000, 354, 16, kText);
+            DrawText("ACCELERATION", 1000, 384, 9, kMuted);
+            DrawText(TextFormat("%.2fx", ship.accelerationMultiplier), 1000, 398, 16, kText);
+            DrawText("ENERGY RECOVERY", 1000, 428, 9, kMuted);
+            DrawText(TextFormat("%.2fx", ship.energyRegenerationMultiplier),
+                     1000, 442, 16, kText);
+
+            const float pulse = app.reduceMotion ? 0.58F
+                : 0.45F + 0.10F * (0.5F + 0.5F * std::sin(GetTime() * 1.4));
+            DrawText("SYSTEM STATUS", 510, 480, 9, kMuted);
+            DrawText("PROCEDURAL STREAM", 510, 500, 11, kText);
+            DrawRectangle(690, 503, 220, 4, Color{28, 46, 60, 255});
+            DrawRectangle(690, 503, static_cast<int>(220.0F * pulse), 4,
+                          Color{105, 220, 247, 225});
+            DrawText("SAVE PROFILE", 932, 500, 10, kMuted);
+            DrawText(app.profileWritable ? "WRITABLE" : "READ ONLY",
+                     1068, 500, 10, app.profileWritable ? Color{134, 234, 191, 255} : kDanger);
+
+            const std::array<Rectangle, 3> telemetryCards{{
+                Rectangle{510.0F, 527.0F, 215.0F, 87.0F},
+                Rectangle{742.0F, 527.0F, 215.0F, 87.0F},
+                Rectangle{974.0F, 527.0F, 224.0F, 87.0F}
+            }};
+            const std::array<const char*, 3> telemetryLabels{{
+                "COURSE GENERATION", "SHIP COLLECTION", "RUN MODE"
+            }};
+            const std::array<const char*, 3> telemetryValues{{
+                "SEEDED / CURVED", "8 ORIGINAL HULLS", "ENDLESS SURVIVAL"
+            }};
+            for (std::size_t i = 0; i < telemetryCards.size(); ++i) {
+                drawMaterialSurface(telemetryCards[i],
+                    Color{92, 125, 151, 102}, Color{5, 12, 20, 178});
+                DrawRectangleLinesEx(telemetryCards[i], 1.0F,
+                                     Color{42, 66, 84, 225});
+                DrawText(telemetryLabels[i], static_cast<int>(telemetryCards[i].x + 12),
+                    static_cast<int>(telemetryCards[i].y + 14), 9, kMuted);
+                DrawText(telemetryValues[i], static_cast<int>(telemetryCards[i].x + 12),
+                    static_cast<int>(telemetryCards[i].y + 36), 11, kText);
+                DrawRectangle(static_cast<int>(telemetryCards[i].x + 12),
+                    static_cast<int>(telemetryCards[i].y + 67), 26, 2, kAccent);
+            }
+            DrawText(TextFormat("COURSE ROOT  %016llX",
+                static_cast<unsigned long long>(app.rootSeed)),
+                510, 634, 10, kMuted);
+            DrawText("WORMHOLE GEOMETRY / ALL SYSTEMS ONLINE", 820, 634, 10, kAccent);
+
             if (picked >= 0) {
                 switch (picked) {
                 case 0:
@@ -2295,7 +2603,8 @@ int main() {
             DrawText(TextFormat("ENERGY RECOVERY %.2fx", definition.energyRegenerationMultiplier),
                      66, 364, 14, kText);
             drawHangarShipPreview3D(static_cast<std::uint32_t>(previewShip),
-                                    kCanvasWidth - 210, 315, app.elapsed);
+                                    kCanvasWidth - 210, 315,
+                                    app.reduceMotion ? 0.0 : GetTime());
 
             std::string actionLabel;
             if (unlocked) {
@@ -3003,6 +3312,7 @@ case tunrun::Screen::SaveRecovery: {
     }
     if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
     rawMouse.uninstall();
+    if (gUiMaterialTexture.id != 0U) UnloadTexture(gUiMaterialTexture);
     UnloadRenderTexture(sceneCanvas);
     CloseWindow();
     return 0;

@@ -59,8 +59,8 @@ foreach ($relativePath in $requiredFiles) {
 }
 Copy-Item -LiteralPath $executable -Destination (Join-Path $stagePath "tunrun.exe") -Force
 
-# Future content packs are included automatically when present. This development
-# package does not fabricate assets or pad itself with unused data.
+# Keep optional source assets, then bake the original high-resolution material
+# sheets that the actual menu, hangar, dialogs and in-flight panels use.
 $includedContent = @()
 foreach ($contentDirectory in @("assets", "resources")) {
     $source = Join-Path $repositoryRoot $contentDirectory
@@ -68,6 +68,24 @@ foreach ($contentDirectory in @("assets", "resources")) {
         Copy-Item -LiteralPath $source -Destination (Join-Path $stagePath $contentDirectory) -Recurse -Force
         $includedContent += $contentDirectory
     }
+}
+
+$materialBuilder = Join-Path $repositoryRoot "scripts/build-ui-materials.py"
+if (-not (Test-Path -LiteralPath $materialBuilder -PathType Leaf)) {
+    throw "Missing UI material builder: $materialBuilder"
+}
+$python = Get-Command "python" -ErrorAction SilentlyContinue
+if ($null -eq $python) {
+    throw "Python 3 is required to bake the original material sheets. Install Python 3 and retry."
+}
+$uiAssetDirectory = Join-Path $stagePath "assets/ui"
+New-Item -ItemType Directory -Path $uiAssetDirectory -Force | Out-Null
+& $python.Source $materialBuilder --output-directory $uiAssetDirectory
+if ($LASTEXITCODE -ne 0) {
+    throw "UI material generation failed with exit code $LASTEXITCODE."
+}
+if ($includedContent -notcontains "assets/ui") {
+    $includedContent += "assets/ui"
 }
 
 if ([string]::IsNullOrWhiteSpace($CommitSha)) {

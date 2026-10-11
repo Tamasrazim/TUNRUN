@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Game UI/content pass (2026-10-11): replaced the static ellipse backdrop with a moving 3D procedural tunnel and seeded gate silhouettes, rebuilt the main menu as a command deck plus live ship hologram/telemetry, added animated angular controls, textured panels and screen-specific materials, and kept the real flight scene visible beneath pause and nested dialogs. The portable pack now generates 12 original 4096 × 2048 RGB material sheets (288 MiB of raw pixels); the UI streams one sheet per screen and unloads it on transitions. The source checkout still works without baked assets.
+
 - Collision frame fix (2026-10-11): gate-throat sweeps, exact gate-plane crossings, mine contact and pickup contact now interpolate FlightState X/Y as cross-section-local offsets. They no longer apply a second centerline shift during collision checks. Seeded layouts, tunnel geometry and the existing ship models are unchanged; regression assertions cover curved-course crossings and near-edge gate contact.
 
 - The flight HUD now labels the next gate CLEAR, PREPARE, APPROACH, or IMMINENT using estimated arrival time from actual forward speed, then shows both distance and seconds. The thresholds automatically respond to braking, acceleration, boost and dash; this gives the player a timing cue while far tunnel geometry is hidden by the visibility horizon. Pure-helper tests cover stage boundaries, speed changes, a gate already crossed, invalid input, and urgency ordering.

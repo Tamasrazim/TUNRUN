@@ -75,6 +75,8 @@ Still required before M1 can pass:
 
 ## Latest implementation update — 2026-10-11
 
+- Front-end presentation pass: added the animated procedural tunnel backdrop, live ship-showroom command menu, animated angular controls, screen-specific original surface materials, and a frozen in-world background for Pause and its nested screens. The portable package bakes 12 original 4096 × 2048 RGB material sheets, streams one at a time at runtime, and retains a vector fallback for unbaked development checkouts. Windows hardware visual/performance acceptance remains required.
+
 - Corrected the collision coordinate contract: flight X/Y are cross-section-local offsets, so swept throat/gate checks, moving mines and pickups now interpolate those offsets directly and leave centerline placement to the tunnel frame. This targets apparent side impacts on curved courses without changing the seeded layouts or the existing graphics model. Automated regression coverage was updated; runtime playability still needs a Windows build and hands-on run.
 
 - Added a speed-aware gate approach cue to the flight HUD. CLEAR/PREPARE/APPROACH/IMMINENT states show distance and estimated time using live forward speed, so the fogged gate remains trackable without making the far-side tunnel visible. Regression tests cover stage transitions, speed response, passed gates and invalid values; full native build and in-game timing review remain unverified in this editing session.
