@@ -268,7 +268,10 @@ struct GateThroatBendOffset {
 
 [[nodiscard]] inline GateThroatBendOffset gateThroatBendOffsetAt(
     std::uint64_t seed, std::uint32_t gateIndex, double throatOffset) noexcept {
-    if (!std::isfinite(throatOffset)) return {};
+    if (!std::isfinite(throatOffset) ||
+        std::abs(throatOffset) >= static_cast<double>(kGateThroatHalfLength)) {
+        return {};
+    }
     const auto profile = gateThroatBendProfileAt(seed, gateIndex);
     const double t = std::clamp(
         throatOffset / static_cast<double>(kGateThroatHalfLength), -1.0, 1.0);
