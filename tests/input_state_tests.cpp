@@ -1319,8 +1319,8 @@ int main() {
     }
     for (const auto count : policyModes) assert(count == 9U);
 
-    // Each 32-state gate beam remains balanced (eight slots per mode), and
-    // rotating the omitted offset visits all policies over nine gate indices.
+    // The first 32 policy slots are unique and balanced (eight per mode).
+    // The wider state beam may reuse a policy for different parent trajectories.
     std::array<bool, 36U> policySeen{};
     for (std::size_t gateIndex = 0U; gateIndex < 9U; ++gateIndex) {
         std::array<std::uint32_t, 4U> modeSlots{};
@@ -1341,9 +1341,9 @@ int main() {
     }
     for (const bool seen : policySeen) assert(seen);
 
-    // A 32-state expansion now keeps four flight-mode branches for each of
-    // eight high-clearance parent trajectories, instead of only one policy
-    // per parent. Smaller passing beams reuse parents to retain mode diversity.
+    // A 64-state expansion keeps eight branches for each of eight high-clearance
+    // parents: two distinct aim offsets across each of the four flight modes.
+    // Smaller passing beams reuse parents to retain mode diversity.
     std::array<std::uint32_t, tunrun::kRouteGraphPreferredParentCount> parentUses{};
     for (std::size_t slot = 0U; slot < tunrun::kRouteGraphBeamWidth; ++slot) {
         const auto parent = tunrun::routeGraphParentIndexForSlot(
@@ -1360,8 +1360,34 @@ int main() {
         assert(parent < smallBeamParentUses.size());
         ++smallBeamParentUses[parent];
     }
-    for (const auto count : smallBeamParentUses) assert(count == 8U);
+    for (const auto count : smallBeamParentUses) assert(count == 16U);
     assert(tunrun::routeGraphParentIndexForSlot(0U, 0U) == 0U);
+
+    // Each eight-slot parent block has exactly two distinct aim biases and
+    // visits every flight mode twice.
+    for (std::size_t parent = 0U;
+         parent < tunrun::kRouteGraphPreferredParentCount; ++parent) {
+        std::array<std::uint32_t, 4U> parentModes{};
+        std::array<bool, 9U> parentBiases{};
+        for (std::size_t offset = 0U;
+             offset < tunrun::kRouteGraphBranchesPerParent; ++offset) {
+            const std::size_t slot =
+                parent * tunrun::kRouteGraphBranchesPerParent + offset;
+            const auto policyIndex =
+                tunrun::routeGraphPolicyIndexForSlot(slot, 3U);
+            const std::size_t mode = policyIndex /
+                tunrun::kRouteGraphAimBiases.size();
+            const std::size_t bias = policyIndex %
+                tunrun::kRouteGraphAimBiases.size();
+            assert(mode < parentModes.size());
+            ++parentModes[mode];
+            parentBiases[bias] = true;
+        }
+        for (const auto count : parentModes) assert(count == 2U);
+        std::size_t distinctBiases = 0U;
+        for (const bool seen : parentBiases) distinctBiases += seen ? 1U : 0U;
+        assert(distinctBiases == 2U);
+    }
 
     // The local mine-avoidance projection must be stable at the singular
     // case where the requested target is exactly on the mine center.
@@ -1412,8 +1438,8 @@ int main() {
         assert(graph.hazardChecks > 0U);
         assert(graph.hazardCollisionStates <= graph.discardedStates);
         sawGraphBeamPruning = sawGraphBeamPruning || graph.beamPrunedStates > 0U;
-        assert(graph.candidateStatesGenerated >= 32U);
-        assert(graph.peakStateCount == 32U);
+        assert(graph.candidateStatesGenerated >= tunrun::kRouteGraphBeamWidth);
+        assert(graph.peakStateCount == tunrun::kRouteGraphBeamWidth);
         assert(graph.maximumPassingStatesAtGate > 0U);
         assert(graph.minimumGateClearance >= 0.0F);
         assert(graph.maximumLateralOffset < tunrun::kFlightLimit);
@@ -1454,8 +1480,9 @@ int main() {
             assert(graph.gatesChecked <= 8U);
             assert(graph.transitionsChecked <= 7U);
             assert(graph.candidateStatesGenerated >= 9U);
-            assert(graph.candidateStatesGenerated >= 32U);
-            assert(graph.peakStateCount == 32U);
+            assert(graph.candidateStatesGenerated >= tunrun::kRouteGraphPolicies.size());
+            assert(graph.peakStateCount >= tunrun::kRouteGraphPolicies.size());
+            assert(graph.peakStateCount <= tunrun::kRouteGraphBeamWidth);
             assert(graph.beamPrunedStates <= graph.candidateStatesGenerated);
             assert(graph.hazardCollisionStates <= graph.discardedStates);
             assert(graph.failure != nullptr);

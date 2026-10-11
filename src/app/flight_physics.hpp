@@ -374,8 +374,9 @@ inline RouteAimAdjustment routeAimOutsideMineEnvelope(
     return result;
 }
 
-inline constexpr std::size_t kRouteGraphBeamWidth = 32U;
-inline constexpr std::size_t kRouteGraphBranchesPerParent = 4U;
+inline constexpr std::size_t kRouteGraphBeamWidth = 64U;
+inline constexpr std::size_t kRouteGraphModeCount = 4U;
+inline constexpr std::size_t kRouteGraphBranchesPerParent = 8U;
 inline constexpr std::size_t kRouteGraphPreferredParentCount =
     kRouteGraphBeamWidth / kRouteGraphBranchesPerParent;
 
@@ -414,22 +415,22 @@ inline constexpr std::array<RouteGraphPolicy, 36> kRouteGraphPolicies = []() con
     return policies;
 }();
 
-// The beam samples four control modes for each of eight parents. With nine
-// aim offsets, rotate the omitted offset per gate so every policy is explored
-// during a short route without wasting the whole beam on single branches.
+// There are 36 distinct aim/mode policies but a wider beam is needed to keep
+// alternatives for the same parent state. Each parent receives two aim offsets
+// and all four flight modes; the aim sequence rotates as the route advances.
 [[nodiscard]] inline constexpr std::size_t routeGraphPolicyIndexForSlot(
     std::size_t slot, std::size_t gateIndex = 0U) noexcept {
-    const std::size_t mode = slot % kRouteGraphBranchesPerParent;
+    const std::size_t mode = slot % kRouteGraphModeCount;
     const std::size_t bias =
-        ((slot / kRouteGraphBranchesPerParent) +
+        ((slot / kRouteGraphModeCount) +
          (gateIndex % kRouteGraphAimBiases.size())) %
         kRouteGraphAimBiases.size();
     return mode * kRouteGraphAimBiases.size() + bias;
 }
 
 // Passing states are ranked by their weakest gate clearance before branching.
-// Spend the next beam on four modes per parent for the eight safest trajectories
-// rather than giving each of 32 parents only one chance at the next gate.
+// Expand the eight safest trajectories into eight choices each: two aim offsets
+// across every flight mode, rather than one choice each for 32 parent states.
 [[nodiscard]] inline constexpr std::size_t routeGraphParentIndexForSlot(
     std::size_t slot, std::size_t passingCount) noexcept {
     if (passingCount == 0U) return 0U;
@@ -499,9 +500,8 @@ inline StateGraphRouteValidation validateStateGraphRouteReachability(
     std::size_t passingCount = 0U;
     const FlightState initialState{};
     for (std::size_t i = 0U; i < stateCount; ++i) {
-        // Use the same mode-balanced selection as later gates; otherwise the
-        // mode-major policy table seeds 9 cruise, 9 boost, 9 precision, and
-        // only 5 dash candidates in the first beam.
+        // Start with every distinct aim/mode policy once (9 per mode). Later
+        // crossings expand the wider beam with several choices per parent.
         const auto& policy = kRouteGraphPolicies[
             routeGraphPolicyIndexForSlot(i, 0U)];
         states[i].state = initialState;
