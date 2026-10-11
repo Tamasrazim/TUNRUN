@@ -2073,7 +2073,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
         DrawRectangle(950, 259, 292, 4, Color{48, 39, 38, 255});
         DrawRectangle(950, 259, static_cast<int>(
             292.0F * std::clamp(1.0F - hazardCue.distanceAhead /
-                std::max(1.0F, tunrun::kHazardVisualHorizon), 0.0F, 1.0F)),
+                static_cast<float>(tunrun::kHazardWarningStartDistance), 0.0F, 1.0F)),
             4, warningText);
     } else {
         DrawText("NO THREAT IN SENSOR RANGE", 950, 207, 10, kMuted);
