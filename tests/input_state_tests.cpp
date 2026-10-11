@@ -1115,7 +1115,7 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 10U);
+    assert(tunrun::kObstacleGeneratorVersion == 11U);
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
@@ -1177,6 +1177,14 @@ int main() {
             assert(std::isfinite(wave.x) && std::isfinite(wave.y));
             assert(std::abs(wave.x) <= bend.amplitudeX + 0.0001F);
             assert(std::abs(wave.y) <= bend.amplitudeY + 0.0001F);
+            if (sample < 35) {
+                const auto nextWave = tunrun::gateThroatBendOffsetAt(
+                    seed, index, offset + 0.5);
+                assert(std::abs(nextWave.x - wave.x) / 0.5F <=
+                       tunrun::kGateThroatMaximumLateralSlope + 0.0005F);
+                assert(std::abs(nextWave.y - wave.y) / 0.5F <=
+                       tunrun::kGateThroatMaximumVerticalSlope + 0.0005F);
+            }
             const auto section = tunrun::gateThroatSectionAtDistance(
                 seed, generatedGate, generatedGate.distance + offset);
             if (std::abs(offset) < tunrun::kGateThroatHalfLength) {
@@ -1206,7 +1214,7 @@ int main() {
             const float nearEndMagnitude = std::hypot(nearEndWave.x, nearEndWave.y);
             const float fartherMagnitude = std::hypot(fartherWave.x, fartherWave.y);
             assert(fartherMagnitude > 0.00001F);
-            assert(nearEndMagnitude < 0.20F * fartherMagnitude);
+            assert(nearEndMagnitude < 0.70F * fartherMagnitude);
 
             const double innerDistance = generatedGate.distance + direction *
                 (tunrun::kGateThroatHalfLength - 0.25);

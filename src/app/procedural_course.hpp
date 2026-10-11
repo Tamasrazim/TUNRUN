@@ -24,11 +24,13 @@ inline constexpr float kGateThroatBendAmplitudeX = 1.90F;
 inline constexpr float kGateThroatBendAmplitudeY = 0.35F;
 inline constexpr float kGateThroatBendMinimumAmplitudeX = 1.45F;
 inline constexpr float kGateThroatBendMinimumAmplitudeY = 0.20F;
+inline constexpr float kGateThroatMaximumLateralSlope = 0.36F;
+inline constexpr float kGateThroatMaximumVerticalSlope = 0.20F;
 inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 10U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 11U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -237,8 +239,8 @@ enum class GateThroatShapeFamily : std::uint8_t {
 }
 
 // Every channel is independent of aperture type and visual support geometry.
-// All wave combinations are convex blends of sine waves, so the unit envelope
-// is preserved even though neighbouring gates now have different topologies.
+// Lateral high harmonics are attenuated to stay inside the ship's sideways-speed
+// budget; the smaller vertical channel can carry stronger frequency variation.
 struct GateThroatBendProfile {
     float amplitudeX = kGateThroatBendAmplitudeX;
     float amplitudeY = kGateThroatBendAmplitudeY;
@@ -280,35 +282,24 @@ struct GateThroatBendOffset {
     case GateThroatShapeFamily::SingleS:
         break;
     case GateThroatShapeFamily::DoubleS:
-        horizontal = doubleWave;
+        horizontal = 0.525F * doubleWave;
         vertical = single;
         break;
     case GateThroatShapeFamily::Helical:
-        horizontal = 0.72F * single + 0.28F * doubleWave;
+        horizontal = 0.82F * (0.72F * single + 0.28F * doubleWave);
         vertical = 0.50F * doubleWave + 0.50F * triple;
         break;
     case GateThroatShapeFamily::SplitWave:
-        horizontal = 0.62F * single + 0.38F * triple;
+        horizontal = 0.80F * (0.85F * single + 0.15F * triple);
         vertical = 0.38F * single + 0.62F * doubleWave;
         break;
     }
-    // Keep the core waveform intact and ease only the final quarter of each
-    // sleeve. Smoothstep has a zero slope at both ends of the easing region;
-    // multiplied by the sine waves, it makes the throat bend meet the main
-    // tunnel with zero lateral/vertical slope instead of a direction kink.
-    constexpr double edgeEaseStart = 0.75;
-    const double edgeEaseProgress = std::clamp(
-        (std::abs(t) - edgeEaseStart) / (1.0 - edgeEaseStart), 0.0, 1.0);
-    const double edgeEaseCurve = edgeEaseProgress * edgeEaseProgress *
-        (3.0 - 2.0 * edgeEaseProgress);
-    const float edgeEnvelope = static_cast<float>(1.0 - edgeEaseCurve);
-
     const std::uint64_t turnBits = mixCourseBits(
         seed ^ (static_cast<std::uint64_t>(gateIndex) * 0x9E3779B97F4A7C15ULL));
     const float turnSign = (turnBits & 1ULL) != 0ULL ? 1.0F : -1.0F;
     return GateThroatBendOffset{
-        turnSign * profile.amplitudeX * horizontal * edgeEnvelope,
-        profile.amplitudeY * vertical * edgeEnvelope
+        turnSign * profile.amplitudeX * horizontal,
+        profile.amplitudeY * vertical
     };
 }
 
