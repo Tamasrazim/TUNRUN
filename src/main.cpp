@@ -1740,6 +1740,9 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                  tunrun::gateApproachStageName(gateCue.stage),
                  gateCue.distanceAhead, gateCue.timeAheadSeconds),
                  35, 159, 10, gateCueColor);
+        DrawRectangle(260, 162, 92, 4, Color{42, 51, 64, 255});
+        DrawRectangle(260, 162,
+                      static_cast<int>(92.0F * gateCue.urgency), 4, gateCueColor);
     } else {
         DrawText("GATE APPROACH: UNAVAILABLE", 35, 159, 10, kMuted);
     }
