@@ -541,8 +541,13 @@ int main() {
             if (familyIndex < 4U) ++throatFamilyCounts[familyIndex];
 
             for (int step = -8; step <= 8; ++step) {
-                const double offset = static_cast<double>(step) *
-                    static_cast<double>(tunrun::kGateThroatHalfLength) / 8.0;
+                const double halfLength =
+                    static_cast<double>(tunrun::kGateThroatHalfLength);
+                // Stay clearly outside the sleeve at both boundaries instead
+                // of depending on subtraction rounding at exactly +/- 18.
+                const double offset = step == -8 ? -halfLength - 0.01
+                    : step == 8 ? halfLength + 0.01
+                    : static_cast<double>(step) * halfLength / 8.0;
                 const double distance = candidateGate.distance + offset;
                 const auto section = tunrun::gateThroatSectionAtDistance(
                     candidateSeed, candidateGate, distance);
