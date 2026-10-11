@@ -26,8 +26,8 @@
 #include <vector>
 
 namespace {
-constexpr int kInitialWidth = 1280;
-constexpr int kInitialHeight = 800;
+constexpr int kCanvasWidth = 1280;
+constexpr int kCanvasHeight = 720;
 constexpr float kPanelWidth = 540.0F;
 constexpr float kButtonHeight = 48.0F;
 constexpr float kButtonGap = 10.0F;
@@ -38,6 +38,46 @@ const Color kText{232, 238, 246, 255};
 const Color kMuted{137, 151, 171, 255};
 const Color kAccent{189, 222, 255, 255};
 const Color kDanger{255, 142, 142, 255};
+
+struct LetterboxViewport {
+    Rectangle bounds{};
+    float scale = 1.0F;
+};
+
+LetterboxViewport letterboxViewport() {
+    const float screenWidth = static_cast<float>(GetScreenWidth());
+    const float screenHeight = static_cast<float>(GetScreenHeight());
+    const float scale = std::max(0.01F, std::min(
+        screenWidth / static_cast<float>(kCanvasWidth),
+        screenHeight / static_cast<float>(kCanvasHeight)));
+    const float width = static_cast<float>(kCanvasWidth) * scale;
+    const float height = static_cast<float>(kCanvasHeight) * scale;
+    return LetterboxViewport{
+        Rectangle{(screenWidth - width) * 0.5F,
+                  (screenHeight - height) * 0.5F, width, height},
+        scale
+    };
+}
+
+Vector2 virtualMousePosition() {
+    const auto viewport = letterboxViewport();
+    const Vector2 physical = GetMousePosition();
+    return Vector2{
+        (physical.x - viewport.bounds.x) / viewport.scale,
+        (physical.y - viewport.bounds.y) / viewport.scale
+    };
+}
+
+void presentCanvas(RenderTexture2D canvas) {
+    EndTextureMode();
+    ClearBackground(kBackground);
+    const auto viewport = letterboxViewport();
+    DrawTexturePro(canvas.texture,
+        Rectangle{0.0F, 0.0F, static_cast<float>(kCanvasWidth),
+                  -static_cast<float>(kCanvasHeight)},
+        viewport.bounds, Vector2{0.0F, 0.0F}, 0.0F, WHITE);
+    EndDrawing();
+}
 
 Color blendWithTunnelBackground(Color color, float visibility) {
     if (!std::isfinite(visibility)) visibility = 0.0F;
@@ -308,7 +348,7 @@ void finishRun(AppState& app) {
 }
 
 void drawCentred(const char* text, float y, int fontSize, Color color) {
-    DrawText(text, (GetScreenWidth() - MeasureText(text, fontSize)) / 2,
+    DrawText(text, (kCanvasWidth - MeasureText(text, fontSize)) / 2,
              static_cast<int>(y), fontSize, color);
 }
 
@@ -316,7 +356,7 @@ void drawBackground(float time, bool reducedMotion) {
     ClearBackground(kBackground);
     const float drift = reducedMotion ? 0.0F : std::sin(time * 0.35F) * 10.0F;
     const int width = GetScreenWidth();
-    const int height = GetScreenHeight();
+    const int height = kCanvasHeight;
     for (int i = 0; i < 12; ++i) {
         const float scale = static_cast<float>(i + 1) / 12.0F;
         DrawEllipseLines(width / 2 + static_cast<int>(drift * scale),
@@ -333,7 +373,7 @@ void drawBackground(float time, bool reducedMotion) {
 }
 
 bool drawButton(Rectangle bounds, const char* label, bool selected, bool danger = false) {
-    const bool hovered = CheckCollisionPointRec(GetMousePosition(), bounds);
+    const bool hovered = CheckCollisionPointRec(virtualMousePosition(), bounds);
     const bool focused = hovered || selected;
     DrawRectangleRounded(bounds, 0.10F, 8, focused ? Color{36, 50, 68, 255} : kPanel);
     DrawRectangleRoundedLinesEx(bounds, 0.10F, 8, 1.2F,
@@ -576,7 +616,7 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
     const float ahead = static_cast<float>(
         gate.distance - static_cast<double>(playerDistance));
     if (ahead < -halfLength - 3.0F ||
-        ahead > halfLength + tunrun::kTunnelVisualHorizon) return;
+        ahead > halfLength + tunrun::kGateVisualHorizon) return;
 
     // A tapered opaque sleeve creates a deep passage through each aperture.
     // Its minimum radius and center match gate physics, so the visible opening
@@ -643,15 +683,15 @@ void drawGateThroat(std::uint64_t seed, float playerDistance,
             const float nextWallAhead = std::max(0.0F, static_cast<float>(
                 gate.distance + static_cast<double>(offsets[ring + 1U]) -
                 static_cast<double>(playerDistance)));
-            if (wallAhead >= tunrun::kTunnelVisualHorizon &&
-                nextWallAhead >= tunrun::kTunnelVisualHorizon) continue;
+            if (wallAhead >= tunrun::kGateVisualHorizon &&
+                nextWallAhead >= tunrun::kGateVisualHorizon) continue;
             const float wallFadeDistance = (wallAhead + nextWallAhead) * 0.5F;
-            const Color wall = tunnelDepthFog(
+            const Color wall = gateDepthFog(
                 ((side % 4) == 0 || (ring % 2U) == 0) ? wallLight : wallDark,
                 wallFadeDistance);
             DrawTriangle3D(a, b, c, wall);
             DrawTriangle3D(a, c, d, wall);
-            if (ring % 2U == 1U) DrawLine3D(a, b, tunnelDepthFog(edge, wallFadeDistance));
+            if (ring % 2U == 1U) DrawLine3D(a, b, gateDepthFog(edge, wallFadeDistance));
         }
     }
 }
@@ -1829,10 +1869,16 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
-    InitWindow(1280, 800, "TUNRUN | Procedural Tunnel Runner");
+    InitWindow(kCanvasWidth, kCanvasHeight, "TUNRUN | Procedural Tunnel Runner");
+    RenderTexture2D sceneCanvas = LoadRenderTexture(kCanvasWidth, kCanvasHeight);
+    if (!IsRenderTextureReady(sceneCanvas)) {
+        CloseWindow();
+        return 1;
+    }
+    SetTextureFilter(sceneCanvas.texture, TEXTURE_FILTER_BILINEAR);
     RawMouse rawMouse;
     (void)rawMouse.install(GetWindowHandle());
-    SetWindowMinSize(800, 560);
+    SetWindowMinSize(800, 450);
     SetExitKey(KEY_NULL);
     const int monitorRefreshRate = GetMonitorRefreshRate(GetCurrentMonitor());
     SetTargetFPS(tunrun::targetFpsForRefreshRate(monitorRefreshRate));
@@ -2161,6 +2207,7 @@ int main() {
         }
 
         BeginDrawing();
+        BeginTextureMode(sceneCanvas);
         if (app.screens.current() == tunrun::Screen::Preview) {
             drawTunnel(app.courseSeed, app.flight.distance, app.flight.x, app.flight.y,
                        static_cast<std::uint32_t>(app.selectedShip),
@@ -2179,7 +2226,7 @@ int main() {
                 app.screens.push(tunrun::Screen::Pause);
             }
             if (app.showFps) DrawFPS(GetScreenWidth() - 92, 72);
-            EndDrawing();
+            presentCanvas(sceneCanvas);
             continue;
         }
 
@@ -2945,10 +2992,11 @@ case tunrun::Screen::SaveRecovery: {
         }
         if (app.showFps) DrawFPS(GetScreenWidth() - 92, 16);
         DrawText("MAIN-ONLY DEVELOPMENT BUILD", 22, GetScreenHeight() - 25, 12, kMuted);
-        EndDrawing();
+        presentCanvas(sceneCanvas);
     }
     if (!app.profileRecoveryRequired && app.profileWritable) (void)persistProfile(app);
     rawMouse.uninstall();
+    UnloadRenderTexture(sceneCanvas);
     CloseWindow();
     return 0;
 }
