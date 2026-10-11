@@ -1108,11 +1108,15 @@ int main() {
     assert(std::abs(prepareGate.distanceAhead - 42.0F) < 0.001F);
     assert(std::abs(prepareGate.timeAheadSeconds - (42.0F / 11.0F)) < 0.001F);
     assert(prepareGate.stage == tunrun::GateApproachStage::Prepare);
+    assert(std::string_view(tunrun::gateApproachStageName(prepareGate.stage)) ==
+           "PREPARE");
     assert(prepareGate.urgency > 0.0F && prepareGate.urgency < 1.0F);
 
     const auto fasterApproach = tunrun::gateApproachCue(42.0, 0.0, 24.0F);
     assert(fasterApproach.valid);
     assert(fasterApproach.stage == tunrun::GateApproachStage::Approach);
+    assert(std::string_view(tunrun::gateApproachStageName(fasterApproach.stage)) ==
+           "APPROACH");
     assert(fasterApproach.timeAheadSeconds < prepareGate.timeAheadSeconds);
     assert(fasterApproach.urgency > prepareGate.urgency);
 
@@ -1129,7 +1133,15 @@ int main() {
 
     const auto distantGate = tunrun::gateApproachCue(55.0, 0.0, 11.0F);
     assert(distantGate.valid && distantGate.stage == tunrun::GateApproachStage::Clear);
+    assert(std::string_view(tunrun::gateApproachStageName(distantGate.stage)) ==
+           "CLEAR");
     assert(distantGate.urgency == 0.0F);
+    const auto prepareBoundary = tunrun::gateApproachCue(44.0, 0.0, 11.0F);
+    assert(prepareBoundary.stage == tunrun::GateApproachStage::Prepare);
+    const auto approachBoundary = tunrun::gateApproachCue(27.5, 0.0, 11.0F);
+    assert(approachBoundary.stage == tunrun::GateApproachStage::Approach);
+    const auto imminentBoundary = tunrun::gateApproachCue(11.0, 0.0, 11.0F);
+    assert(imminentBoundary.stage == tunrun::GateApproachStage::Imminent);
     assert(!tunrun::gateApproachCue(
         std::numeric_limits<double>::quiet_NaN(), 0.0, 11.0F).valid);
     assert(!tunrun::gateApproachCue(
