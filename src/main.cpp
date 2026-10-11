@@ -112,7 +112,7 @@ Color gateDepthFog(Color color, float distanceAhead) {
         color, tunrun::gateVisibilityAtDistance(distanceAhead));
 }
 
-enum class CrashCause { Wall, Gate, Hazard };
+enum class CrashCause { Wall, Gate, GateThroat, Hazard };
 enum class PendingRunAction { None, RestartSameSeed, ReturnToMainMenu };
 
 struct AppState {
@@ -2105,7 +2105,7 @@ int main() {
                     }
                 }
                 if (throatCollisionGate != std::numeric_limits<std::uint32_t>::max()) {
-                    app.crashCause = CrashCause::Gate;
+                    app.crashCause = CrashCause::GateThroat;
                     app.lastHitObjectIndex = throatCollisionGate;
                     finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
@@ -2662,14 +2662,17 @@ int main() {
         }
         case tunrun::Screen::Crash: {
             drawHeader("SYSTEM / FLIGHT TERMINATED",
-                       app.crashCause == CrashCause::Gate ? "GATE COLLISION" :
+                       app.crashCause == CrashCause::GateThroat ? "GATE THROAT IMPACT" :
+                           app.crashCause == CrashCause::Gate ? "APERTURE COLLISION" :
                            app.crashCause == CrashCause::Hazard ? "MOVING HAZARD IMPACT" :
                            "WALL COLLISION",
-                       app.crashCause == CrashCause::Gate
-                           ? "Craft crossed an obstacle plane outside its safe aperture."
-                           : app.crashCause == CrashCause::Hazard
-                               ? "Craft intersected a moving procedural mine."
-                               : "Craft collision volume touched the tunnel boundary.");
+                       app.crashCause == CrashCause::GateThroat
+                           ? "Craft touched the curved inner sleeve before clearing it."
+                           : app.crashCause == CrashCause::Gate
+                               ? "Craft crossed the gate plane outside its safe opening."
+                               : app.crashCause == CrashCause::Hazard
+                                   ? "Craft intersected a moving procedural mine."
+                                   : "Craft collision volume touched the tunnel boundary.");
             drawCentred(TextFormat("DISTANCE %.1f   TIME %.1fs   SEED %016llX",
                                    app.flight.distance, app.elapsed,
                                    static_cast<unsigned long long>(app.courseSeed)),
@@ -2697,10 +2700,13 @@ int main() {
                 drawCentred(resultNotice, 312.0F, 11,
                             app.saveWarning ? kDanger : kAccent);
             }
-            if (app.crashCause == CrashCause::Gate) {
+            if (app.crashCause == CrashCause::Gate ||
+                app.crashCause == CrashCause::GateThroat) {
                 const auto hitGate = tunrun::gateAt(app.courseSeed, app.lastHitObjectIndex);
-                drawCentred(TextFormat("GATE #%u   DISTANCE %.1f   TYPE %s",
+                drawCentred(TextFormat("GATE #%u   %.1f UNITS   %s   TYPE %s",
                                        app.lastHitObjectIndex, hitGate.distance,
+                                       app.crashCause == CrashCause::GateThroat
+                                           ? "INNER THROAT" : "APERTURE PLANE",
                                        tunrun::gateKindName(hitGate.kind)),
                             267.0F, 11, kDanger);
             } else if (app.crashCause == CrashCause::Hazard) {
