@@ -1541,7 +1541,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
                 seed, tunrun::tunnelVisualSectionIndex(midpointDistance));
             if (!tunrun::tunnelVisualRailEnabled(visual, ribbon)) continue;
             const float angleA = phase + static_cast<float>(ring - firstRing) * 0.095F;
-            const float angleB = phase + static_cast<float>(ring + 1 - firstRing) * 0.19F;
+            const float angleB = phase + static_cast<float>(ring + 1 - firstRing) * 0.095F;
             const float radiusA = std::max(0.25F, frameA.radius - 0.16F);
             const float radiusB = std::max(0.25F, frameB.radius - 0.16F);
             const Vector3 a = rayVector(tunrun::tunnelFramePoint(
