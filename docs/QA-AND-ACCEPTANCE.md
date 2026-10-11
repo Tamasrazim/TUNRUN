@@ -37,6 +37,8 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - A modal blocks clicks behind it.
 - Clicking one control cannot activate a second control.
 - Pointer location remains aligned after scaling, resolution change, or fullscreen transition.
+- The game is rendered to a fixed 1280×720 logical canvas (16:9). Test 16:9, 16:10, ultrawide, windowed and fullscreen displays: the image must remain undistorted, letterbox bars must stay outside the game canvas, and pointer targets must remain aligned inside the scaled viewport.
+- Gate rims and the inner throat must be visibly readable before their collision surfaces reach the ship. On a crash, the result screen must distinguish a throat-wall impact from a collision at the gate plane; the two events must not share a misleading explanation.
 - Right-click does not accidentally trigger gameplay.
 - Keyboard and gamepad can operate the same screen.
 
@@ -69,6 +71,7 @@ Gameplay-specific mouse checks:
 - Same seed and generator version produce the same canonical hash; a changed seed produces a different course hash. Seed Lab validation is cached by seed and active ship, so reopening the same configuration reuses the result while either key changing triggers a recomputation.
 - Generated centerline, radius, twist, gate aperture, and gate offsets remain inside declared bounds.
 - Gate distances are strictly increasing, retain minimum reaction spacing, and leave nominal tunnel clearance for the craft.
+- Obstacle generator v12 keeps throat lateral amplitude within 1.10–1.45 units, vertical amplitude within 0.14–0.28, and sampled slope within the corresponding 0.28/0.16 ceilings. Re-run the 512-gate suite for every ship; also perform a real build playtest because a bounded route witness cannot establish human handling fairness.
 - Swept gate-plane tests detect obstacle contact between fixed simulation steps while a craft in the opening clears the gate.
 - Run large headless seed batches for every difficulty tier and each ship profile. The automated suite checks 512 gates for all eight ship profiles and 64-gate batches across 24 deterministic derived seeds.
 - Run both the fixed-step single-trajectory route probe and the bounded state-propagating route graph across every ship profile and a deterministic multi-seed subset. Both must use gameplay flight physics, crossing interpolation and conservative tunnel clearance. The graph branches viable gate-crossing states into multiple target policies and reports beam width, discarded candidates, gates with multiple passing states and minimum aperture clearance. It is bounded multi-trajectory coverage, not a formal proof of every physically reachable state.
