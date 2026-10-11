@@ -16,37 +16,42 @@ Mappings are defaults and must be remappable later.
 
 | Action | Keyboard | Mouse | Gamepad |
 |---|---|---|---|
-| Steer horizontally/vertically | WASD | Relative movement steers toward a persistent in-tunnel aim point while mouse-flight mode is active | Left stick |
+| Lateral steer | A/B (D aliases right) | Camera look only; does not steer the craft | Left stick X |
+| Vertical steer | Not bound on keyboard in the current prototype | Camera look only | Left stick Y |
+| Rotate yaw/pitch | Arrow keys | Camera look only | Right stick |
+| Roll | Q/E | Not bound in the current prototype | Not bound in the current prototype |
 | Boost | Left Shift | Not bound in the current prototype | Right trigger (analog threshold) |
-| Energy dash | Space | Right button (optional configurable binding) | A / Cross |
+| Energy dash | Space | Not bound in the current prototype | A / Cross |
 | Brake / precision mode | Left Ctrl | Not bound in the current prototype | Left trigger (analog threshold) |
-| Switch FPP / TPP | V | Configurable secondary button | Y / Triangle |
+| Switch FPP / TPP | V | Not bound in the current prototype | Y / Triangle |
 | Pause | Esc | UI pause button; capture ends | Menu / Start |
 | Confirm / interact | Enter / E | Left click | A / Cross |
 | Back / cancel | Esc / Backspace | Right click only within a UI context | B / Circle |
 | UI navigation | Arrows / Tab | Pointer and click | D-pad / left stick |
-| Mouse sensitivity | Left/right arrows | Click/drag the visible logarithmic slider; pointer capture is not required | D-pad left/right or left stick with rate-limited repeat |
+| Mouse sensitivity | Left/right arrows | Not bound during active gameplay; adjust in Settings | D-pad left/right or left stick with rate-limited repeat |
 
-All bindings must be configurable with conflict detection, reset-to-defaults, and clear labels for the currently active device. The mouse-sensitivity setting can be adjusted with a logarithmic Settings slider or bounded keyboard/controller steps, persists to the local profile, and has a reset-options action that does not erase ships or progression. Platform-specific face-button labels should be rendered correctly where supported.
+The table records current prototype bindings, not a claim that every action is remappable. Mouse sensitivity is changed in Settings using left/right keyboard keys or controller navigation and persists to the local profile. Reset Options must not erase ships or progression. Full remapping and conflict detection remain future work. Platform-specific face-button labels should be rendered correctly where supported.
 
 ## Mouse implementation requirements
 
+**Current input contract:** During a focused gameplay run, relative mouse movement controls camera look only. It must never steer the spacecraft. Settings currently exposes a mouse-look toggle and sensitivity value; mouse inversion, smoothing, and custom response curves are not implemented.
+
 ### UI state
 
-- The normal system cursor is visible and interactive on Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Results, dialogs, and exit confirmation. On Windows, Raw Input is captured and the cursor hidden/clipped only while a run is active and mouse flight is enabled.
+- The normal system cursor is visible and interactive on Main Menu, Hangar, Mode Select, Seed Entry, Settings, Pause, Results, dialogs, and exit confirmation. On Windows, Raw Input is captured and the cursor hidden/clipped only while a run is active and mouse-look is enabled.
 - Every visible button must respond to mouse click. Sliders support click and drag; dropdowns, tabs, and confirmation dialogs must work.
 - UI hit testing must use the same logical coordinate system as layout. DPI scale, fullscreen, borderless mode, resizing, and resolution changes must not create offset click zones.
 - Hover styling is never the only indication of selection.
 
 ### Gameplay state
 
-- Windows builds use relative mouse deltas from Raw Input (WM_INPUT). Flight steering must never recenter the cursor with repeated SetCursorPos warps.
-- The native cursor is hidden over the client area and clipped to the client bounds only while gameplay mouse steering is active and the game window is focused. Clip bounds are refreshed as the window resizes.
+- Windows builds use relative mouse deltas from Raw Input (WM_INPUT). Mouse-look must never steer the craft or recenter the cursor with repeated SetCursorPos warps.
+- The native cursor is hidden over the client area and clipped to the client bounds only while gameplay mouse-look is active and the game window is focused. Clip bounds are refreshed as the window resizes.
 - Mouse capture is released before pause, menu, settings, results, focus loss, or shutdown.
 - A lost-focus event clears accumulated deltas and held mouse-button states before pausing.
 - Returning from pause re-enters gameplay input explicitly and restores only the requested gameplay capture state.
-- Sensitivity, smoothing, horizontal inversion, vertical inversion, dead-zone/response curve, and mouse-steering enable/disable are configurable.
-- If mouse steering is disabled, mouse remains available for UI and keyboard/gamepad flight is unaffected. Settings exposes both the mouse-flight toggle and sensitivity slider.
+- Current options cover mouse-look enable/disable and sensitivity. Smoothing, inversion, and custom response curves remain future work.
+- If mouse-look is disabled, mouse remains available for UI and keyboard/gamepad flight is unaffected. Settings exposes the mouse-look toggle and sensitivity control.
 
 The implementation must not depend on setting the OS cursor to the center every frame. The UI must never listen to relative gameplay deltas as pointer coordinates.
 
