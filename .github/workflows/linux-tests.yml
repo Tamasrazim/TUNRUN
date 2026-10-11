@@ -33,7 +33,7 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev \
             libxinerama-dev libxfixes-dev
       - name: Configure C++ tests
-        run: cmake -S . -B build -DTUNRUN_ENABLE_TESTS=ON -DBUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -S . -B build -DTUNRUN_ENABLE_TESTS=ON -DBUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
       - name: Compile portable test target
         run: cmake --build build --target tunrun_input_tests --parallel 2
       - name: Run deterministic and persistence tests
