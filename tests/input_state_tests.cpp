@@ -948,8 +948,8 @@ int main() {
         }
         const auto generatedHazard = tunrun::hazardAt(seed, index);
         assert(generatedHazard.motionFamily == tunrun::hazardMotionFamilyAt(seed, index));
-        // Gate indices are zero-based. Each mine belongs between gate indices
-        // (1,2), (3,4), etc.; verify both exact spacing and collision-envelope clearance.
+        // Gate indices are zero-based. The intro skips the first two gates; mines
+        // start between (2,3), then (4,5), etc. Verify spacing and clearance.
         const auto precedingGate = tunrun::gateAt(seed, index * 2U + 2U);
         const auto followingGate = tunrun::gateAt(seed, index * 2U + 3U);
         assert(std::abs(generatedHazard.distance - precedingGate.distance -
@@ -1335,6 +1335,8 @@ int main() {
         maximumBendY = std::max(maximumBendY, bend.amplitudeY);
 
         const auto generatedGate = tunrun::gateAt(seed, index);
+        const float expectedBendScale = index == 0U ? 0.35F
+            : index == 1U ? 0.55F : 1.0F;
         const auto atPlane = tunrun::gateThroatSectionAtDistance(
             seed, generatedGate, generatedGate.distance);
         assert(atPlane.active &&
@@ -1357,7 +1359,7 @@ int main() {
                 tunrun::kGateMinApertureRadius) < 0.0001F);
             assert(std::hypot(narrowCoreSightline.centerX,
                               narrowCoreSightline.centerY) >
-                   0.20F * narrowCoreSightline.radius);
+                   0.20F * expectedBendScale * narrowCoreSightline.radius);
         }
 
         for (int sample = -35; sample <= 35; ++sample) {
@@ -1379,9 +1381,11 @@ int main() {
             if (std::abs(offset) < tunrun::kGateThroatHalfLength) {
                 assert(section.active);
                 assert(std::abs(section.centerX -
-                    (generatedGate.offsetX * section.pinch + wave.x)) < 0.0001F);
+                    (generatedGate.offsetX * section.pinch +
+                     wave.x * expectedBendScale)) < 0.0001F);
                 assert(std::abs(section.centerY -
-                    (generatedGate.offsetY * section.pinch + wave.y)) < 0.0001F);
+                    (generatedGate.offsetY * section.pinch +
+                     wave.y * expectedBendScale)) < 0.0001F);
             }
         }
 
