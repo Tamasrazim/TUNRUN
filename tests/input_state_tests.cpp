@@ -100,10 +100,34 @@ int main() {
     assert(std::abs(ultrawideCenter.x - 640.0F) < 0.001F);
     assert(std::abs(ultrawideCenter.y - 360.0F) < 0.001F);
 
+    // UI clicks in the ultrawide side bars must remain outside the logical canvas.
+    const auto pointerInLeftBar = tunrun::toLogicalPointer(
+        viewportUltrawide, 220.0F, 720.0F);
+    const auto pointerInRightBar = tunrun::toLogicalPointer(
+        viewportUltrawide, 3300.0F, 720.0F);
+    assert(pointerInLeftBar.x < 0.0F);
+    assert(pointerInRightBar.x > 1280.0F);
+
+    // Portrait windows letterbox vertically without squeezing the game into a tall view.
+    const auto viewportPortrait = tunrun::makeLogicalViewport(1080.0F, 1920.0F);
+    assert(std::abs(viewportPortrait.x) < 0.001F);
+    assert(std::abs(viewportPortrait.y - 656.25F) < 0.001F);
+    assert(std::abs(viewportPortrait.width - 1080.0F) < 0.001F);
+    assert(std::abs(viewportPortrait.height - 607.5F) < 0.001F);
+    const auto pointerInPortraitBar = tunrun::toLogicalPointer(
+        viewportPortrait, 540.0F, 100.0F);
+    assert(pointerInPortraitBar.y < 0.0F);
+
     const auto invalidViewport = tunrun::makeLogicalViewport(
         std::numeric_limits<float>::quiet_NaN(), 1080.0F);
     assert(invalidViewport.scale == 1.0F);
     assert(invalidViewport.width == 1280.0F && invalidViewport.height == 720.0F);
+    const auto zeroSizeViewport = tunrun::makeLogicalViewport(0.0F, 0.0F);
+    assert(zeroSizeViewport.scale == 1.0F);
+    assert(zeroSizeViewport.width == 1280.0F && zeroSizeViewport.height == 720.0F);
+    const auto invalidPointer = tunrun::toLogicalPointer(
+        viewport16x9, std::numeric_limits<float>::infinity(), 20.0F);
+    assert(invalidPointer.x == 0.0F && invalidPointer.y == 0.0F);
 
     const auto goKeys = tunrun::keyboardFlightIntentFromKeys(
         true, false, false, false, false, false, false, false, false, false, false);
