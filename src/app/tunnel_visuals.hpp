@@ -12,6 +12,8 @@ namespace tunrun {
 inline constexpr double kTunnelVisualSectionLength = 24.0;
 inline constexpr float kTunnelVisualFadeStart = 3.0F;
 inline constexpr float kTunnelVisualHorizon = 17.0F;
+inline constexpr float kGateVisualFadeStart = 16.0F;
+inline constexpr float kGateVisualHorizon = 64.0F;
 inline constexpr float kWarningBeaconFadeStart = 10.0F;
 inline constexpr float kWarningBeaconHorizon = 74.0F;
 inline constexpr std::uint64_t kTunnelVisualFamilyChannel = 920U;
@@ -46,6 +48,14 @@ inline constexpr std::uint64_t kTunnelVisualIntensityChannel = 921U;
 [[nodiscard]] inline float warningBeaconVisibilityAtDistance(
     float distanceAhead) noexcept {
     return smoothFogVisibility(distanceAhead, kWarningBeaconFadeStart, kWarningBeaconHorizon);
+}
+
+// Gate rims and their opaque bulkheads need an earlier reveal than general
+// tunnel scenery. The aperture remains unlit/empty, so this does not expose
+// the tunnel beyond the gate while giving the player time to line up.
+[[nodiscard]] inline float gateVisibilityAtDistance(
+    float distanceAhead) noexcept {
+    return smoothFogVisibility(distanceAhead, kGateVisualFadeStart, kGateVisualHorizon);
 }
 
 enum class TunnelVisualFamily : std::uint8_t {
