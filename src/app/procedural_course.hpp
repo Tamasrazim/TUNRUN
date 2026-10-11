@@ -15,7 +15,7 @@ inline constexpr float kCourseMaxRadius = 6.15F;
 inline constexpr float kCourseMaxCenterX = 2.10F;
 inline constexpr float kCourseMaxCenterY = 1.55F;
 inline constexpr float kCourseMaxTwist = 0.58F;
-inline constexpr double kGateBaseDistance = 34.0;
+inline constexpr double kGateBaseDistance = 52.0;
 inline constexpr double kGateSpacing = 54.0;
 inline constexpr float kGateDepthHalfThickness = 0.40F;
 inline constexpr float kGateThroatHalfLength = 18.0F;
@@ -34,7 +34,7 @@ inline constexpr std::uint64_t kGateThroatBendChannelX = 125U;
 inline constexpr std::uint64_t kGateThroatBendChannelY = 126U;
 inline constexpr std::uint64_t kGateThroatShapeFamilyChannel = 127U;
 inline constexpr float kCraftCollisionRadius = 0.42F;
-inline constexpr std::uint32_t kObstacleGeneratorVersion = 14U;
+inline constexpr std::uint32_t kObstacleGeneratorVersion = 15U;
 inline constexpr float kGateMinApertureRadius = 1.35F;
 inline constexpr float kGateMaxApertureRadius = 2.45F;
 inline constexpr float kGateMaxOffsetX = 1.10F;
@@ -175,6 +175,13 @@ inline ProceduralGate gateAt(std::uint64_t seed, std::uint32_t index) noexcept {
     const auto sample = static_cast<std::int64_t>(index);
     const double firstDistance = kGateBaseDistance +
         static_cast<double>(courseUnit(seed, 0, 111U)) * 4.0;
+
+    // Gate zero is the launch/tutorial encounter: centered and comfortably wide.
+    // Later gates keep their normal seeded type, offset, and aperture variation.
+    if (index == 0U) {
+        return ProceduralGate{index, firstDistance, 0.0F, 0.0F, 2.40F, GateKind::Wide};
+    }
+
     const float kindRoll = courseUnit(seed, sample, 124U);
     GateKind kind = GateKind::Standard;
     float radiusMin = 1.75F, radiusMax = 2.05F;
@@ -353,8 +360,11 @@ struct GateThroatSection {
     // single S, double S, blended helical weave, and split wave. All systems
     // share this helper through the sampled throat centerline.
     const auto bend = gateThroatBendOffsetAt(seed, gate.index, offset);
-    const float bendX = bend.x;
-    const float bendY = bend.y;
+    // A softer first sleeve teaches the player the deep-throat mechanic before
+    // later procedural passages introduce their full seeded lateral weave.
+    const float bendScale = gate.index == 0U ? 0.35F : 1.0F;
+    const float bendX = bend.x * bendScale;
+    const float bendY = bend.y * bendScale;
     return GateThroatSection{
         true, gate.index, gate.offsetX * pinch + bendX,
         gate.offsetY * pinch + bendY,

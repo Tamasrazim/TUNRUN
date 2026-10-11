@@ -1270,12 +1270,25 @@ int main() {
     assert(tunrun::obstacleHash(seed) == tunrun::obstacleHash(seed));
     assert(tunrun::obstacleHash(seed) != tunrun::obstacleHash(seed + 1U));
     assert(tunrun::obstacleHash(seed, 0U) == 0U);
-    assert(tunrun::kObstacleGeneratorVersion == 14U);
+    assert(tunrun::kObstacleGeneratorVersion == 15U);
     assert(std::abs(tunrun::kGateRecoveryGap - 18.0) < 0.0001);
     const auto firstGateRunway = tunrun::gateAt(seed, 0U);
     assert(firstGateRunway.distance >= tunrun::kGateBaseDistance);
     assert(firstGateRunway.distance < tunrun::kGateBaseDistance + 4.0);
-    assert(firstGateRunway.distance - tunrun::kGateThroatHalfLength >= 16.0);
+    assert(firstGateRunway.distance - tunrun::kGateThroatHalfLength >= 34.0);
+    assert(firstGateRunway.kind == tunrun::GateKind::Wide);
+    assert(firstGateRunway.offsetX == 0.0F && firstGateRunway.offsetY == 0.0F);
+    assert(firstGateRunway.apertureRadius >= 2.30F);
+    for (int station = -17; station <= 17; ++station) {
+        const auto introThroat = tunrun::gateThroatSectionAtDistance(
+            seed, firstGateRunway,
+            firstGateRunway.distance + static_cast<double>(station));
+        assert(introThroat.active);
+        assert(std::abs(introThroat.centerX) <=
+               0.35F * tunrun::kGateThroatBendAmplitudeX + 0.001F);
+        assert(std::abs(introThroat.centerY) <=
+               0.35F * tunrun::kGateThroatBendAmplitudeY + 0.001F);
+    }
 
     // The actual throat chooses four bounded waveform topologies on a channel
     // separate from amplitude and aperture selection.
