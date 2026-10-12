@@ -874,6 +874,67 @@ int main() {
     assert(!tunrun::collidesWithTunnelWall(0.0F, 0.0F, centredSection));
     const float safeRadius = section.radius - tunrun::kCraftCollisionRadius;
     assert(tunrun::collidesWithTunnelWall(safeRadius + 0.01F, 0.0F, centredSection));
+
+
+    // A wall crossing should stop at the first contact, not at the overshot endpoint.
+    const auto directWallContact = tunrun::traceTunnelWallContact(
+        seed, safeRadius - 0.20F, 0.0F, 1.25,
+        safeRadius + 0.20F, 0.0F, 1.25);
+    assert(directWallContact.collided);
+    assert(directWallContact.fraction > 0.45F &&
+           directWallContact.fraction < 0.55F);
+    assert(std::abs(directWallContact.x - safeRadius) < 0.001F);
+    assert(std::abs(directWallContact.distance - 1.25) < 0.0001);
+
+    const auto clearWallSweep = tunrun::traceTunnelWallContact(
+        seed, 0.0F, 0.0F, 1.0, 0.0F, 0.0F, 2.0);
+    assert(!clearWallSweep.collided);
+
+    // Find a real generated radius pinch where the endpoints are safe but
+    // the wall closes around this path between the two frame samples.
+    bool foundIntermediateRadiusPinch = false;
+    for (std::uint64_t candidateIndex = 0U;
+         candidateIndex < 16U && !foundIntermediateRadiusPinch;
+         ++candidateIndex) {
+        const std::uint64_t candidateSeed =
+            tunrun::deriveCourseSeed(seed, candidateIndex);
+        for (double middleDistance = 1.0;
+             middleDistance < 720.0 && !foundIntermediateRadiusPinch;
+             middleDistance += 0.25) {
+            const auto middle = tunrun::sampleCourse(candidateSeed, middleDistance);
+            const auto before = tunrun::sampleCourse(candidateSeed, middleDistance - 1.0);
+            const auto after = tunrun::sampleCourse(candidateSeed, middleDistance + 1.0);
+            if (middle.radius + 0.02F >= before.radius ||
+                middle.radius + 0.02F >= after.radius) {
+                continue;
+            }
+
+            const float testOffset = middle.radius -
+                tunrun::kCraftCollisionRadius + 0.01F;
+            const tunrun::TunnelCrossSection beforeSection{
+                0.0F, 0.0F, before.radius, before.twist
+            };
+            const tunrun::TunnelCrossSection afterSection{
+                0.0F, 0.0F, after.radius, after.twist
+            };
+            assert(!tunrun::collidesWithTunnelWall(
+                testOffset, 0.0F, beforeSection));
+            assert(!tunrun::collidesWithTunnelWall(
+                testOffset, 0.0F, afterSection));
+
+            const auto pinchContact = tunrun::traceTunnelWallContact(
+                candidateSeed, testOffset, 0.0F, middleDistance - 1.0,
+                testOffset, 0.0F, middleDistance + 1.0);
+            assert(pinchContact.collided);
+            assert(pinchContact.fraction > 0.0F &&
+                   pinchContact.fraction < 1.0F);
+            assert(std::abs(pinchContact.x - testOffset) < 0.001F);
+            assert(pinchContact.distance >= middleDistance - 1.0 &&
+                   pinchContact.distance <= middleDistance + 1.0);
+            foundIntermediateRadiusPinch = true;
+        }
+    }
+    assert(foundIntermediateRadiusPinch);
     const auto centreClearance = tunrun::hullClearanceAt(
         0.0F, 0.0F, 0.0F, 0.0F, section.radius);
     assert(centreClearance.valid);
