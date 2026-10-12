@@ -2517,6 +2517,24 @@ int main() {
                             app.flight.x, app.flight.y, app.flight.distance, gate);
                         if (!gateCrossing.crossedPlane) continue;
                         if (tunrun::collidesWithGateAtCrossingPoint(gateCrossing, gate)) {
+                            // A gate miss is detected at the plane, not at the later frame endpoint.
+                            // Freeze the ship and run clock at that same first-contact fraction so
+                            // the impact animation and crash report match the collision calculation.
+                            if (gateCrossing.valid) {
+                                app.flight.x = gateCrossing.x;
+                                app.flight.y = gateCrossing.y;
+                                app.flight.distance = static_cast<float>(gate.distance);
+                                const float crossingFraction = std::clamp(
+                                    gateCrossing.fraction, 0.0F, 1.0F);
+                                app.elapsed = previousElapsed +
+                                    (app.elapsed - previousElapsed) * crossingFraction;
+                            } else {
+                                // Invalid crossings fail closed at the last known-good state.
+                                app.flight.x = previousX;
+                                app.flight.y = previousY;
+                                app.flight.distance = static_cast<float>(previousDistance);
+                                app.elapsed = previousElapsed;
+                            }
                             app.crashCause = CrashCause::Gate;
                             app.lastHitObjectIndex = gate.index;
                             finishRun(app);
