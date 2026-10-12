@@ -319,7 +319,14 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
 
 inline void advanceFlight(FlightState& state, FlightInput input,
                           float frameDelta, float& accumulator) noexcept {
+    // This only stores leftover frame time. If it gets corrupted, clear it
+    // before the fixed-step loop so infinity cannot trap the game in that loop.
+    if (!std::isfinite(accumulator) || accumulator < 0.0F ||
+        accumulator > kFlightFixedStep) {
+        accumulator = 0.0F;
+    }
     if (!std::isfinite(frameDelta) || frameDelta <= 0.0F) return;
+
     accumulator += std::min(frameDelta, 0.05F);
     while (accumulator + 1.0e-7F >= kFlightFixedStep) {
         updateFlight(state, input, kFlightFixedStep);

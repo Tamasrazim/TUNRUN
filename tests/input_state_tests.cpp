@@ -2149,6 +2149,21 @@ int main() {
         }
     }
 
+    // The fixed-step clock stores leftover time, not a frame queue. A damaged
+    // accumulator must recover instead of hanging the game in an endless loop.
+    const auto checkAccumulatorRecovery = [](float brokenValue) {
+        tunrun::FlightState recovered;
+        float accumulator = brokenValue;
+        tunrun::advanceFlight(recovered, tunrun::FlightInput{},
+                              1.0F / 60.0F, accumulator);
+        assert(std::isfinite(accumulator));
+        assert(accumulator >= 0.0F && accumulator < tunrun::kFlightFixedStep);
+        assert(recovered.distance > 0.0F);
+    };
+    checkAccumulatorRecovery(std::numeric_limits<float>::infinity());
+    checkAccumulatorRecovery(-1.0F);
+    checkAccumulatorRecovery(1000.0F);
+
     tunrun::FlightState normal;
     tunrun::FlightState precision;
     float normalAccumulator = 0.0F;

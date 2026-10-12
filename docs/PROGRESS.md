@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Fixed-step clock recovery (2026-10-12): the flight accumulator now validates its leftover-time value before stepping. Non-finite, negative, or impossible leftover values are discarded, preventing corrupted timing state from trapping the main loop in an unbounded fixed-step loop. Deterministic tests verify recovery from infinity, a negative value, and a huge backlog while the ship continues moving. Normal render-rate behavior is unchanged; frame pacing still needs physical-hardware profiling.
+
 - Controller input hardening (2026-10-12): left- and right-stick axes now use the same finite-checked dead-zone and full-range rescaling helper, and keyboard/controller rotation is bounded to the intended -1..+1 range. Invalid axis readings are ignored instead of contaminating the flight vector; regression tests cover stick drift, symmetry, over-range values, NaN/infinity, and mixed keyboard/controller inputs. This is automated input-state coverage only; gamepad feel still needs a real controller session on Windows.
 
 - Collision arbitration test extraction (2026-10-12): the first-contact comparator now lives in a small raylib-free helper instead of being hidden inside the game loop. Unit tests cover earlier contacts, ignored later contacts, stable tie ordering, absent candidates and non-finite fractions. This isolates the ordering rule so future collision changes can be checked without launching the renderer; manual gameplay and hardware verification are still separate acceptance steps.
