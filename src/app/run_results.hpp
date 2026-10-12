@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Collects the outcome of a run so scoring and progression can use the same result.
+ */
+
 #pragma once
 
 #include <cstdint>

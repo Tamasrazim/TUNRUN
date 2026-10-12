@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Connects the game to the platform's raw-mouse input when that option is available.
+ */
+
 #include "app/raw_mouse.hpp"
 
 #if defined(_WIN32)

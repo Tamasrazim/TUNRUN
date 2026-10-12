@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Builds a curved tunnel route from a seed, including gate placement and obstacle layout, so the same seed can reproduce a run.
+ */
+
 #pragma once
 
 #include <algorithm>

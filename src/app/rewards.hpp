@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Handles pickups and the rewards a player earns during a run.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"

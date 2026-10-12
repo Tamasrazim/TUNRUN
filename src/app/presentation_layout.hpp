@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Works out screen positions and scaling so the interface stays readable at different window sizes.
+ */
+
 #pragma once
 
 #include <algorithm>

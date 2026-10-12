@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Declares the raw-mouse interface without making the rest of the game depend on platform-specific details.
+ */
+
 #pragma once
 
 #include <algorithm>
