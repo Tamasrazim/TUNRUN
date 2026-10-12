@@ -1355,6 +1355,24 @@ int main() {
         hazard.distance - 0.8, 1.0,
         hazardAtTime.x + hazardCombinedRadius + 0.2F, hazardAtTime.y,
         hazard.distance + 0.8, 1.02, hazard));
+    // A stable mine lets the test check the exact first-contact fraction.
+    auto exactContactHazard = hazard;
+    exactContactHazard.distance = 100.0;
+    exactContactHazard.baseX = 0.0F;
+    exactContactHazard.baseY = 0.0F;
+    exactContactHazard.amplitudeX = 0.0F;
+    exactContactHazard.amplitudeY = 0.0F;
+    exactContactHazard.radius = 1.0F;
+    const auto firstMineContact = tunrun::traceSweptHazardContact(
+        seed, 0.0F, 0.0F, 98.0, 1.0,
+        0.0F, 0.0F, 102.0, 1.1, exactContactHazard, 0.5F);
+    assert(firstMineContact.collided);
+    assert(std::abs(firstMineContact.fraction - 0.125F) < 0.001F);
+    assert(std::abs(firstMineContact.distance - 98.5) < 0.001);
+    const auto missedMine = tunrun::traceSweptHazardContact(
+        seed, 2.0F, 0.0F, 98.0, 1.0,
+        2.0F, 0.0F, 102.0, 1.1, exactContactHazard, 0.5F);
+    assert(!missedMine.collided);
     // A render frame can have no fixed-step forward-distance advance. Mine
     // contact still has to be checked while the hazard clock advances.
     const auto stationaryStart = tunrun::hazardCenterAt(hazard, 1.0);

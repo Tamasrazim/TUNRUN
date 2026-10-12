@@ -393,55 +393,118 @@ inline bool collidesWithHazard(float x, float y,
     return dx * dx + dy * dy <= combinedRadius * combinedRadius;
 }
 
-// Tests the full frame-to-frame relative trajectory, including longitudinal
-// separation from the mine. Interpolating the mine center between frame times
-// makes this a swept 3D closest-approach test, instead of checking only the
-// exact center plane and potentially missing contact at the sphere's near edge.
-inline bool sweptCollidesWithHazard(
+// Reports the first point where the craft's swept path touches a moving mine.
+// X/Y are tunnel cross-section offsets; distance is the forward course coordinate.
+struct HazardContactPoint {
+    bool collided = false;
+    float x = 0.0F;
+    float y = 0.0F;
+    double distance = 0.0;
+    float fraction = 1.0F;
+};
+
+// Find the first sphere contact along the relative craft/mine movement in this frame.
+[[nodiscard]] inline HazardContactPoint traceSweptHazardContact(
     std::uint64_t /*seed*/,
     float previousX, float previousY, double previousDistance, double previousTime,
     float currentX, float currentY, double currentDistance, double currentTime,
     const ProceduralHazard& hazard,
     float craftRadius = kHazardCraftCollisionRadius) noexcept {
+    const auto failClosedAtStart = [&]() noexcept {
+        return HazardContactPoint{
+            true,
+            std::isfinite(previousX) ? previousX : 0.0F,
+            std::isfinite(previousY) ? previousY : 0.0F,
+            std::isfinite(previousDistance) ? previousDistance : 0.0,
+            0.0F
+        };
+    };
+
     if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
         !std::isfinite(currentX) || !std::isfinite(currentY) ||
         !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
         !std::isfinite(previousTime) || !std::isfinite(currentTime) ||
         !std::isfinite(hazard.distance) || !std::isfinite(hazard.radius) ||
-        !std::isfinite(craftRadius)) return true;
-    if (currentDistance < previousDistance || currentTime < previousTime) return false;
+        !std::isfinite(craftRadius)) {
+        return failClosedAtStart();
+    }
+
+    // Reverse movement or time is not a forward gameplay sweep.
+    if (currentDistance < previousDistance || currentTime < previousTime) {
+        return HazardContactPoint{false, currentX, currentY, currentDistance, 1.0F};
+    }
 
     const HazardCenter previousCenter = hazardCenterAt(hazard, previousTime);
     const HazardCenter currentCenter = hazardCenterAt(hazard, currentTime);
     if (!std::isfinite(previousCenter.x) || !std::isfinite(previousCenter.y) ||
-        !std::isfinite(currentCenter.x) || !std::isfinite(currentCenter.y)) return true;
-
-    // Craft and mine X/Y are offsets in their local tunnel cross-sections.
-    // Compare these offsets directly and keep course distance on Z; adding
-    // centerline deltas here would count tunnel curvature twice as a collision.
-    const double rx0 = static_cast<double>(previousX) - previousCenter.x;
-    const double ry0 = static_cast<double>(previousY) - previousCenter.y;
-    const double rz0 = previousDistance - hazard.distance;
-    const double rx1 = static_cast<double>(currentX) - currentCenter.x;
-    const double ry1 = static_cast<double>(currentY) - currentCenter.y;
-    const double rz1 = currentDistance - hazard.distance;
-    const double dx = rx1 - rx0;
-    const double dy = ry1 - ry0;
-    const double dz = rz1 - rz0;
-    const double lengthSquared = dx * dx + dy * dy + dz * dz;
-    double fraction = 0.0;
-    if (lengthSquared > 1.0e-12) {
-        fraction = std::clamp(
-            -(rx0 * dx + ry0 * dy + rz0 * dz) / lengthSquared, 0.0, 1.0);
+        !std::isfinite(currentCenter.x) || !std::isfinite(currentCenter.y)) {
+        return failClosedAtStart();
     }
-    const double closestX = rx0 + dx * fraction;
-    const double closestY = ry0 + dy * fraction;
-    const double closestZ = rz0 + dz * fraction;
-    const double combinedRadius = static_cast<double>(hazard.radius) +
-                                  std::max(0.0F, craftRadius);
-    if (combinedRadius <= 0.0) return true;
-    return closestX * closestX + closestY * closestY + closestZ * closestZ
-           <= combinedRadius * combinedRadius;
+
+    // Use relative motion so tunnel curvature is not counted twice as steering movement.
+    const double rx = static_cast<double>(previousX) - previousCenter.x;
+    const double ry = static_cast<double>(previousY) - previousCenter.y;
+    const double rz = previousDistance - hazard.distance;
+    const double dx = (static_cast<double>(currentX) - currentCenter.x) - rx;
+    const double dy = (static_cast<double>(currentY) - currentCenter.y) - ry;
+    const double dz = (currentDistance - hazard.distance) - rz;
+    const double radius = static_cast<double>(hazard.radius) +
+                          std::max(0.0F, craftRadius);
+    if (!std::isfinite(radius) || radius <= 0.0) {
+        return failClosedAtStart();
+    }
+
+    // Solve |start + t * movement|² = radius². The smaller root is first contact.
+    const double a = dx * dx + dy * dy + dz * dz;
+    const double c = rx * rx + ry * ry + rz * rz - radius * radius;
+    double fraction = 0.0;
+    if (c <= 0.0) {
+        fraction = 0.0; // The craft already touches the mine at the frame start.
+    } else {
+        if (!std::isfinite(a) || a <= 1.0e-12) {
+            return HazardContactPoint{false, currentX, currentY, currentDistance, 1.0F};
+        }
+        const double b = 2.0 * (rx * dx + ry * dy + rz * dz);
+        const double discriminant = b * b - 4.0 * a * c;
+        if (!std::isfinite(discriminant) || discriminant < 0.0) {
+            return HazardContactPoint{false, currentX, currentY, currentDistance, 1.0F};
+        }
+        const double firstRoot = (-b - std::sqrt(std::max(0.0, discriminant))) /
+                                 (2.0 * a);
+        if (!std::isfinite(firstRoot) || firstRoot < 0.0 || firstRoot > 1.0) {
+            return HazardContactPoint{false, currentX, currentY, currentDistance, 1.0F};
+        }
+        fraction = firstRoot;
+    }
+
+    const double impactX = static_cast<double>(previousX) +
+        (static_cast<double>(currentX) - previousX) * fraction;
+    const double impactY = static_cast<double>(previousY) +
+        (static_cast<double>(currentY) - previousY) * fraction;
+    const double impactDistance = previousDistance +
+        (currentDistance - previousDistance) * fraction;
+    if (!std::isfinite(impactX) || !std::isfinite(impactY) ||
+        !std::isfinite(impactDistance)) {
+        return failClosedAtStart();
+    }
+    return HazardContactPoint{
+        true, static_cast<float>(impactX), static_cast<float>(impactY),
+        impactDistance, static_cast<float>(fraction)
+    };
+}
+
+// The normal gameplay loop also needs the impact point to decide which obstacle
+// was hit first; tests that only need yes/no can keep using this wrapper.
+inline bool sweptCollidesWithHazard(
+    std::uint64_t seed,
+    float previousX, float previousY, double previousDistance, double previousTime,
+    float currentX, float currentY, double currentDistance, double currentTime,
+    const ProceduralHazard& hazard,
+    float craftRadius = kHazardCraftCollisionRadius) noexcept {
+    return traceSweptHazardContact(
+        seed, previousX, previousY, previousDistance, previousTime,
+        currentX, currentY, currentDistance, currentTime, hazard, craftRadius
+    ).collided;
 }
 
 inline std::uint64_t hazardHash(std::uint64_t seed,

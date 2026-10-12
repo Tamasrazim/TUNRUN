@@ -2475,107 +2475,116 @@ int main() {
                     app.flight.x, app.flight.y,
                     static_cast<double>(app.flight.distance));
 
-                // Both collision types now stop at their real first contact.
-                // This prevents the throat check from hiding an earlier outer
-                // wall impact just because its test used to run first.
-                if (throatContact.collided &&
-                    (!wallContact.collided ||
-                     throatContact.fraction <= wallContact.fraction)) {
-                    app.flight.x = throatContact.x;
-                    app.flight.y = throatContact.y;
-                    app.flight.distance = static_cast<float>(throatContact.distance);
-                    app.elapsed = previousElapsed +
-                        (app.elapsed - previousElapsed) * throatContact.fraction;
-                    app.crashCause = CrashCause::GateThroat;
-                    app.lastHitObjectIndex = throatContact.gateIndex;
-                    finishRun(app);
-                    app.screens.replace(tunrun::Screen::Crash);
-                } else if (wallContact.collided) {
-                    // The tunnel wall wins only when it is the earliest hit.
-                    app.flight.x = wallContact.x;
-                    app.flight.y = wallContact.y;
-                    app.flight.distance = static_cast<float>(wallContact.distance);
-                    app.elapsed = previousElapsed +
-                        (app.elapsed - previousElapsed) * wallContact.fraction;
-                    app.crashCause = CrashCause::Wall;
-                    finishRun(app);
-                    app.screens.replace(tunrun::Screen::Crash);
-                } else {
-                    const auto firstGate = tunrun::gateAt(app.courseSeed, 0U);
-                    const int firstCandidate = std::max(0, static_cast<int>(
-                        std::floor((previousDistance - firstGate.distance) /
-                                   tunrun::kGateSpacing)) - 1);
-                    const int lastCandidate = std::max(firstCandidate, static_cast<int>(
-                        std::ceil((static_cast<double>(app.flight.distance) +
-                                   tunrun::kGateDepthHalfThickness - firstGate.distance) /
-                                  tunrun::kGateSpacing)) + 1);
-                    for (int gateIndex = firstCandidate; gateIndex <= lastCandidate; ++gateIndex) {
-                        const auto gate = tunrun::gateAt(app.courseSeed,
-                            static_cast<std::uint32_t>(gateIndex));
-                        const auto gateCrossing = tunrun::gatePointAtCourseCrossing(
-                            app.courseSeed, previousX, previousY, previousDistance,
-                            app.flight.x, app.flight.y, app.flight.distance, gate);
-                        if (!gateCrossing.crossedPlane) continue;
-                        if (tunrun::collidesWithGateAtCrossingPoint(gateCrossing, gate)) {
-                            // A gate miss is detected at the plane, not at the later frame endpoint.
-                            // Freeze the ship and run clock at that same first-contact fraction so
-                            // the impact animation and crash report match the collision calculation.
-                            if (gateCrossing.valid) {
-                                app.flight.x = gateCrossing.x;
-                                app.flight.y = gateCrossing.y;
-                                app.flight.distance = static_cast<float>(gate.distance);
-                                const float crossingFraction = std::clamp(
-                                    gateCrossing.fraction, 0.0F, 1.0F);
-                                app.elapsed = previousElapsed +
-                                    (app.elapsed - previousElapsed) * crossingFraction;
-                            } else {
-                                // Invalid crossings fail closed at the last known-good state.
-                                app.flight.x = previousX;
-                                app.flight.y = previousY;
-                                app.flight.distance = static_cast<float>(previousDistance);
-                                app.elapsed = previousElapsed;
-                            }
-                            app.crashCause = CrashCause::Gate;
-                            app.lastHitObjectIndex = gate.index;
-                            finishRun(app);
-                            app.screens.replace(tunrun::Screen::Crash);
-                            break;
-                        }
-                        if (app.runGatesCleared < std::numeric_limits<std::uint64_t>::max()) {
-                            ++app.runGatesCleared;
-                        }
-                        if (gateCrossing.valid) {
-                            (void)tunrun::awardGatePass(
-                                app.runScore, gate, gateCrossing.x, gateCrossing.y);
-                        }
-                    }
+                // Gather the wall, sleeve, gate and mine impacts before choosing one.
+                struct FrameCollision {
+                    bool collided = false;
+                    float fraction = 1.0F;
+                    float x = 0.0F;
+                    float y = 0.0F;
+                    double distance = 0.0;
+                    CrashCause cause = CrashCause::Wall;
+                    std::uint32_t objectIndex = 0U;
+                };
+                FrameCollision firstCollision;
+                const auto considerCollision = [&](bool collided, float fraction,
+                    float x, float y, double distance, CrashCause cause,
+                    std::uint32_t objectIndex) {
+                    if (!collided) return;
+                    fraction = std::clamp(fraction, 0.0F, 1.0F);
+                    if (firstCollision.collided && fraction >= firstCollision.fraction) return;
+                    firstCollision = FrameCollision{
+                        true, fraction, x, y, distance, cause, objectIndex
+                    };
+                };
+
+                considerCollision(throatContact.collided, throatContact.fraction,
+                    throatContact.x, throatContact.y, throatContact.distance,
+                    CrashCause::GateThroat, throatContact.gateIndex);
+                considerCollision(wallContact.collided, wallContact.fraction,
+                    wallContact.x, wallContact.y, wallContact.distance,
+                    CrashCause::Wall, 0U);
+
+                // An aperture miss happens at the gate plane, so give it an
+                // exact crossing fraction like the tunnel wall and sleeve.
+                const auto firstGate = tunrun::gateAt(app.courseSeed, 0U);
+                const int firstCandidate = std::max(0, static_cast<int>(
+                    std::floor((previousDistance - firstGate.distance) /
+                               tunrun::kGateSpacing)) - 1);
+                const int lastCandidate = std::max(firstCandidate, static_cast<int>(
+                    std::ceil((static_cast<double>(app.flight.distance) +
+                               tunrun::kGateDepthHalfThickness - firstGate.distance) /
+                              tunrun::kGateSpacing)) + 1);
+                for (int gateIndex = firstCandidate; gateIndex <= lastCandidate; ++gateIndex) {
+                    const auto gate = tunrun::gateAt(app.courseSeed,
+                        static_cast<std::uint32_t>(gateIndex));
+                    const auto gateCrossing = tunrun::gatePointAtCourseCrossing(
+                        app.courseSeed, previousX, previousY, previousDistance,
+                        app.flight.x, app.flight.y, app.flight.distance, gate);
+                    if (!gateCrossing.crossedPlane ||
+                        !tunrun::collidesWithGateAtCrossingPoint(gateCrossing, gate)) continue;
+
+                    // Invalid crossings fail closed at the last known-good position.
+                    considerCollision(true, gateCrossing.valid ? gateCrossing.fraction : 0.0F,
+                        gateCrossing.valid ? gateCrossing.x : previousX,
+                        gateCrossing.valid ? gateCrossing.y : previousY,
+                        gateCrossing.valid ? gate.distance : previousDistance,
+                        CrashCause::Gate, gate.index);
                 }
-                if (app.screens.current() == tunrun::Screen::Preview) {
-                    const auto firstHazard = tunrun::hazardAt(app.courseSeed, 0U);
-                    const double hazardLongitudinalReach =
-                        tunrun::kHazardMaximumRadius + tunrun::kHazardCraftCollisionRadius;
-                    const int firstCandidate = std::max(0, static_cast<int>(std::floor(
-                        (previousDistance - hazardLongitudinalReach -
-                         firstHazard.distance) / tunrun::kHazardSpacing)) - 1);
-                    const int lastCandidate = std::max(firstCandidate, static_cast<int>(std::ceil(
-                        (static_cast<double>(app.flight.distance) +
-                         hazardLongitudinalReach - firstHazard.distance) /
-                        tunrun::kHazardSpacing)) + 1);
-                    for (int hazardIndex = firstCandidate;
-                         hazardIndex <= lastCandidate; ++hazardIndex) {
-                        const auto hazard = tunrun::hazardAt(app.courseSeed,
-                            static_cast<std::uint32_t>(hazardIndex));
-                        if (tunrun::sweptCollidesWithHazard(
-                                app.courseSeed, previousX, previousY, previousDistance, previousElapsed,
-                                app.flight.x, app.flight.y, app.flight.distance, app.elapsed,
-                                hazard)) {
-                            app.crashCause = CrashCause::Hazard;
-                            app.lastHitObjectIndex = hazard.index;
-                            finishRun(app);
-                            app.screens.replace(tunrun::Screen::Crash);
-                            break;
-                        }
+
+                // Moving mines now compete with the other hazards using their first sphere contact.
+                const auto firstHazard = tunrun::hazardAt(app.courseSeed, 0U);
+                const double hazardLongitudinalReach =
+                    tunrun::kHazardMaximumRadius + tunrun::kHazardCraftCollisionRadius;
+                const int firstHazardCandidate = std::max(0, static_cast<int>(std::floor(
+                    (previousDistance - hazardLongitudinalReach -
+                     firstHazard.distance) / tunrun::kHazardSpacing)) - 1);
+                const int lastHazardCandidate = std::max(firstHazardCandidate, static_cast<int>(std::ceil(
+                    (static_cast<double>(app.flight.distance) +
+                     hazardLongitudinalReach - firstHazard.distance) /
+                    tunrun::kHazardSpacing)) + 1);
+                for (int hazardIndex = firstHazardCandidate;
+                     hazardIndex <= lastHazardCandidate; ++hazardIndex) {
+                    const auto hazard = tunrun::hazardAt(app.courseSeed,
+                        static_cast<std::uint32_t>(hazardIndex));
+                    const auto hazardContact = tunrun::traceSweptHazardContact(
+                        app.courseSeed, previousX, previousY, previousDistance, previousElapsed,
+                        app.flight.x, app.flight.y, app.flight.distance, app.elapsed,
+                        hazard);
+                    considerCollision(hazardContact.collided, hazardContact.fraction,
+                        hazardContact.x, hazardContact.y, hazardContact.distance,
+                        CrashCause::Hazard, hazard.index);
+                }
+
+                // Preserve clean gate passes that happened before an impact, but don't
+                // count the gate reached at the same fraction as a collision.
+                for (int gateIndex = firstCandidate; gateIndex <= lastCandidate; ++gateIndex) {
+                    const auto gate = tunrun::gateAt(app.courseSeed,
+                        static_cast<std::uint32_t>(gateIndex));
+                    const auto gateCrossing = tunrun::gatePointAtCourseCrossing(
+                        app.courseSeed, previousX, previousY, previousDistance,
+                        app.flight.x, app.flight.y, app.flight.distance, gate);
+                    if (!gateCrossing.crossedPlane || !gateCrossing.valid) continue;
+                    if (firstCollision.collided &&
+                        gateCrossing.fraction >= firstCollision.fraction - 1.0e-6F) continue;
+                    if (tunrun::collidesWithGateAtCrossingPoint(gateCrossing, gate)) continue;
+                    if (app.runGatesCleared < std::numeric_limits<std::uint64_t>::max()) {
+                        ++app.runGatesCleared;
                     }
+                    (void)tunrun::awardGatePass(
+                        app.runScore, gate, gateCrossing.x, gateCrossing.y);
+                }
+
+                if (firstCollision.collided) {
+                    // Freeze the craft and run clock at the earliest contact point.
+                    app.flight.x = firstCollision.x;
+                    app.flight.y = firstCollision.y;
+                    app.flight.distance = static_cast<float>(firstCollision.distance);
+                    app.elapsed = previousElapsed +
+                        (app.elapsed - previousElapsed) * firstCollision.fraction;
+                    app.crashCause = firstCollision.cause;
+                    app.lastHitObjectIndex = firstCollision.objectIndex;
+                    finishRun(app);
+                    app.screens.replace(tunrun::Screen::Crash);
                 }
                 if (app.screens.current() == tunrun::Screen::Preview) {
                     const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(

@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Unified first-contact ordering (2026-10-12): tunnel walls, curved gate throats, missed gate planes and moving mines are compared by movement fraction before a run ends. The craft and run clock now stop at the earliest contact, rather than whichever collision check ran first. Clean gates passed before the impact still count; a gate reached at the same moment as a crash does not. A deterministic test checks the leading-edge mine-contact point. Automated checks can validate the code path, but real gameplay handling still needs a Windows hardware review.
+
 - Gate-plane crash positioning (2026-10-12): a missed aperture now freezes the craft and run clock at the interpolated gate-plane crossing, rather than showing the ship at the end of the frame after it had already crossed the gate. The crossing fraction is shared with the same point used for gate collision and scoring; invalid crossings fail closed at the last known-good state. A regression assertion checks the expected half-frame crossing. Windows/Linux CI can validate the code path, but in-game visuals still require a manual run.
 
 - First-contact ordering for wall and gate-throat impacts (2026-10-12): both collision paths now report contact fractions. The game chooses whichever impact happens first, freezes the flight state at that location/time, and records the correct gate index for a sleeve crash. This avoids letting the order of collision checks mislabel a same-frame impact. Regression coverage checks exact side contact inside a generated throat; automated Windows and Linux checks are rerunning after this slice.
