@@ -493,18 +493,51 @@ struct HazardContactPoint {
     };
 }
 
-// The normal gameplay loop also needs the impact point to decide which obstacle
-// was hit first; tests that only need yes/no can keep using this wrapper.
+// The route-search validator calls this many times. Keep its yes/no path
+// allocation-free and avoid the square root used to locate a visible crash point.
 inline bool sweptCollidesWithHazard(
-    std::uint64_t seed,
+    std::uint64_t /*seed*/,
     float previousX, float previousY, double previousDistance, double previousTime,
     float currentX, float currentY, double currentDistance, double currentTime,
     const ProceduralHazard& hazard,
     float craftRadius = kHazardCraftCollisionRadius) noexcept {
-    return traceSweptHazardContact(
-        seed, previousX, previousY, previousDistance, previousTime,
-        currentX, currentY, currentDistance, currentTime, hazard, craftRadius
-    ).collided;
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(previousTime) || !std::isfinite(currentTime) ||
+        !std::isfinite(hazard.distance) || !std::isfinite(hazard.radius) ||
+        !std::isfinite(craftRadius)) return true;
+    if (currentDistance < previousDistance || currentTime < previousTime) return false;
+
+    const HazardCenter previousCenter = hazardCenterAt(hazard, previousTime);
+    const HazardCenter currentCenter = hazardCenterAt(hazard, currentTime);
+    if (!std::isfinite(previousCenter.x) || !std::isfinite(previousCenter.y) ||
+        !std::isfinite(currentCenter.x) || !std::isfinite(currentCenter.y)) return true;
+
+    // Relative movement avoids counting a curved course centreline twice.
+    const double rx0 = static_cast<double>(previousX) - previousCenter.x;
+    const double ry0 = static_cast<double>(previousY) - previousCenter.y;
+    const double rz0 = previousDistance - hazard.distance;
+    const double rx1 = static_cast<double>(currentX) - currentCenter.x;
+    const double ry1 = static_cast<double>(currentY) - currentCenter.y;
+    const double rz1 = currentDistance - hazard.distance;
+    const double dx = rx1 - rx0;
+    const double dy = ry1 - ry0;
+    const double dz = rz1 - rz0;
+    const double lengthSquared = dx * dx + dy * dy + dz * dz;
+    double fraction = 0.0;
+    if (lengthSquared > 1.0e-12) {
+        fraction = std::clamp(
+            -(rx0 * dx + ry0 * dy + rz0 * dz) / lengthSquared, 0.0, 1.0);
+    }
+    const double closestX = rx0 + dx * fraction;
+    const double closestY = ry0 + dy * fraction;
+    const double closestZ = rz0 + dz * fraction;
+    const double combinedRadius = static_cast<double>(hazard.radius) +
+                                  std::max(0.0F, craftRadius);
+    if (combinedRadius <= 0.0) return true;
+    return closestX * closestX + closestY * closestY + closestZ * closestZ
+           <= combinedRadius * combinedRadius;
 }
 
 inline std::uint64_t hazardHash(std::uint64_t seed,
