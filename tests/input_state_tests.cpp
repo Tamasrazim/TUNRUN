@@ -2264,7 +2264,7 @@ int main() {
     normalModeInput.shipId = tunrun::kStarterShipId;
     practiceModeInput.shipId = tunrun::kStarterShipId;
     practiceModeInput.forwardSpeedScale =
-        tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::PracticePreview);
+        tunrun::gameModeSimulationScale(tunrun::GameModeChoice::PracticePreview);
     for (int i = 0; i < 240; ++i) {
         tunrun::advanceFlight(normalSpeed, normalModeInput, 1.0F / 120.0F,
                               normalSpeedAccumulator);
