@@ -601,15 +601,40 @@ struct GateThroatContact {
     };
 }
 
-// Keep a simple yes/no wrapper for validators that only need a safety answer.
+// The route validator calls this predicate many thousands of times. Keep its
+// yes/no path allocation-free and free of contact-point refinement; gameplay
+// uses traceGateThroatContactAlongSegment when the exact impact point is needed.
 [[nodiscard]] inline bool collidesWithGateThroatAlongSegment(
     std::uint64_t seed, const ProceduralGate& gate,
     float previousX, float previousY, double previousDistance,
     float currentX, float currentY, double currentDistance,
     float craftRadius = kCraftCollisionRadius) noexcept {
-    return traceGateThroatContactAlongSegment(
-        seed, gate, previousX, previousY, previousDistance,
-        currentX, currentY, currentDistance, craftRadius).collided;
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(currentX) || !std::isfinite(currentY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(craftRadius)) return true;
+    const double distanceSpan = std::abs(currentDistance - previousDistance);
+    const double lateralSpan = std::hypot(
+        static_cast<double>(currentX) - previousX,
+        static_cast<double>(currentY) - previousY);
+    const double sampleSpan = std::max(distanceSpan, lateralSpan);
+    if (!std::isfinite(sampleSpan) || sampleSpan > 256.0) return true;
+    const int samples = std::clamp(
+        static_cast<int>(std::ceil(sampleSpan / 0.15)), 1, 2048);
+    for (int i = 0; i <= samples; ++i) {
+        const double fraction = static_cast<double>(i) / static_cast<double>(samples);
+        const double distance = previousDistance +
+            (currentDistance - previousDistance) * fraction;
+        // Let the actual aperture-plane crossing check report a missed gate.
+        if (std::abs(distance - gate.distance) <= kGateDepthHalfThickness) continue;
+        const float x = static_cast<float>(static_cast<double>(previousX) +
+            (static_cast<double>(currentX) - previousX) * fraction);
+        const float y = static_cast<float>(static_cast<double>(previousY) +
+            (static_cast<double>(currentY) - previousY) * fraction);
+        if (collidesWithGateThroatAtDistance(
+                x, y, seed, gate, distance, craftRadius)) return true;
+    }
+    return false;
 }
 
 // Canonical identity for obstacle gameplay data, separate from the tunnel
