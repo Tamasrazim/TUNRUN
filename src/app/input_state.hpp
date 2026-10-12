@@ -4,6 +4,7 @@
  */
 
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -12,6 +13,31 @@ namespace tunrun {
 // raylib trigger axes commonly rest at -1 and move above zero when pressed.
 [[nodiscard]] inline bool triggerPressed(float axisValue) noexcept {
     return std::isfinite(axisValue) && axisValue > 0.0F;
+}
+
+// Ignore broken axis readings, remove stick drift, and rescale the remaining
+// movement so full stick travel still reaches the full control range.
+[[nodiscard]] inline float shapeGamepadAxis(
+    float axisValue, float deadzone) noexcept {
+    if (!std::isfinite(axisValue) || !std::isfinite(deadzone)) return 0.0F;
+    const float safeDeadzone = std::clamp(deadzone, 0.0F, 0.95F);
+    const float boundedAxis = std::clamp(axisValue, -1.0F, 1.0F);
+    const float magnitude = std::abs(boundedAxis);
+    if (magnitude <= safeDeadzone) return 0.0F;
+    const float scaledMagnitude =
+        (magnitude - safeDeadzone) / (1.0F - safeDeadzone);
+    return std::copysign(scaledMagnitude, boundedAxis);
+}
+
+// Keyboard and controller can work together, but their sum must stay in the
+// same -1..+1 range. Ignore a corrupt input rather than poisoning the other one.
+[[nodiscard]] inline float combineFlightAxis(
+    float keyboardAxis, float gamepadAxis) noexcept {
+    const float safeKeyboard = std::isfinite(keyboardAxis)
+        ? std::clamp(keyboardAxis, -1.0F, 1.0F) : 0.0F;
+    const float safeGamepad = std::isfinite(gamepadAxis)
+        ? std::clamp(gamepadAxis, -1.0F, 1.0F) : 0.0F;
+    return std::clamp(safeKeyboard + safeGamepad, -1.0F, 1.0F);
 }
 
 // Keyboard movement mapping is kept pure so it can be regression-tested

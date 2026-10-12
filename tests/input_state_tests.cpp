@@ -765,6 +765,31 @@ int main() {
     assert(!tunrun::triggerPressed(std::numeric_limits<float>::quiet_NaN()));
     assert(!tunrun::triggerPressed(std::numeric_limits<float>::infinity()));
 
+    // Gamepad sticks ignore drift, rescale past the dead zone, and never leak
+    // invalid driver values into the flight physics.
+    assert(tunrun::shapeGamepadAxis(0.10F, 0.18F) == 0.0F);
+    assert(tunrun::shapeGamepadAxis(0.18F, 0.18F) == 0.0F);
+    assert(std::abs(tunrun::shapeGamepadAxis(0.59F, 0.18F) - 0.5F) < 0.0001F);
+    assert(std::abs(tunrun::shapeGamepadAxis(-0.59F, 0.18F) + 0.5F) < 0.0001F);
+    assert(tunrun::shapeGamepadAxis(1.0F, 0.18F) == 1.0F);
+    assert(tunrun::shapeGamepadAxis(-1.0F, 0.18F) == -1.0F);
+    assert(tunrun::shapeGamepadAxis(3.0F, 0.18F) == 1.0F);
+    assert(tunrun::shapeGamepadAxis(-3.0F, 0.18F) == -1.0F);
+    assert(tunrun::shapeGamepadAxis(
+        std::numeric_limits<float>::quiet_NaN(), 0.18F) == 0.0F);
+    assert(tunrun::shapeGamepadAxis(
+        std::numeric_limits<float>::infinity(), 0.18F) == 0.0F);
+    assert(tunrun::shapeGamepadAxis(
+        0.8F, std::numeric_limits<float>::quiet_NaN()) == 0.0F);
+
+    assert(tunrun::combineFlightAxis(0.25F, 0.5F) == 0.75F);
+    assert(tunrun::combineFlightAxis(1.0F, 0.75F) == 1.0F);
+    assert(tunrun::combineFlightAxis(-1.0F, -0.75F) == -1.0F);
+    assert(tunrun::combineFlightAxis(
+        std::numeric_limits<float>::quiet_NaN(), 0.5F) == 0.5F);
+    assert(tunrun::combineFlightAxis(
+        0.5F, std::numeric_limits<float>::infinity()) == 0.5F);
+
     ButtonEdge edge;
     assert(!edge.update(false));
     assert(edge.update(true));

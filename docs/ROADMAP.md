@@ -16,7 +16,7 @@ Current slice:
 - Keyboard, pointer, gamepad D-pad and rate-limited left-stick navigation for menu controls.
 - Windows Raw Input relative mouse-look with focus-aware capture, cursor clipping (no recentering/warping), and immediate capture release on focus loss or leaving the run.
 - A moving 3D tunnel visual testbed with FPP/TPP camera presentation toggle and an in-run mouse-clickable Pause control.
-- Pure C++ tests for edge-triggered button activation, screen-stack navigation, mouse camera offset clamping, and first-person/third-person camera placement safety.
+- Pure C++ tests for edge-triggered button activation, screen-stack navigation, mouse camera offset clamping, first-person/third-person camera placement safety, and finite-safe gamepad-axis normalization.
 - Windows x64 build/test workflow on pushes to `main`.
 
 Still required before M1 can pass:

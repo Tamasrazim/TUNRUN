@@ -2384,31 +2384,27 @@ int main() {
                     IsKeyDown(KEY_LEFT), IsKeyDown(KEY_RIGHT),
                     IsKeyDown(KEY_UP), IsKeyDown(KEY_DOWN),
                     IsKeyDown(KEY_Q), IsKeyDown(KEY_E));
-                float steerX = keyboard.lateral;
-                float steerY = 0.0F;
                 const float speedControl = keyboard.speed;
-                float rotateYaw = keyboard.yaw;
-                float rotatePitch = keyboard.pitch;
-                float rollInput = keyboard.roll;
                 float padX = 0.0F;
                 float padY = 0.0F;
+                float padRotateYaw = 0.0F;
+                float padRotatePitch = 0.0F;
                 if (IsGamepadAvailable(0)) {
-                    padX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-                    padY = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
-                    if (std::abs(padX) < 0.18F) padX = 0.0F;
-                    else padX = std::copysign((std::abs(padX) - 0.18F) / 0.82F, padX);
-                    if (std::abs(padY) < 0.18F) padY = 0.0F;
-                    else padY = std::copysign((std::abs(padY) - 0.18F) / 0.82F, padY);
-                    steerX += padX;
-                    steerY += padY;
-                    float padRotateYaw = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-                    float padRotatePitch = -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-                    if (std::abs(padRotateYaw) < 0.16F) padRotateYaw = 0.0F;
-                    if (std::abs(padRotatePitch) < 0.16F) padRotatePitch = 0.0F;
-                    // A connected controller must not disable arrow-key rotation.
-                    rotateYaw += padRotateYaw;
-                    rotatePitch += padRotatePitch;
+                    padX = tunrun::shapeGamepadAxis(
+                        GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X), 0.18F);
+                    padY = tunrun::shapeGamepadAxis(
+                        -GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y), 0.18F);
+                    padRotateYaw = tunrun::shapeGamepadAxis(
+                        GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X), 0.16F);
+                    padRotatePitch = tunrun::shapeGamepadAxis(
+                        -GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y), 0.16F);
                 }
+                const float steerX = tunrun::combineFlightAxis(keyboard.lateral, padX);
+                const float steerY = padY;
+                // A connected controller must not disable arrow-key rotation.
+                const float rotateYaw = tunrun::combineFlightAxis(keyboard.yaw, padRotateYaw);
+                const float rotatePitch = tunrun::combineFlightAxis(keyboard.pitch, padRotatePitch);
+                const float rollInput = keyboard.roll;
 
                 // Mouse input now rotates the camera only. The flight path is
                 // controlled by A/D, arrows, and the gamepad, never by the view.
@@ -2863,7 +2859,8 @@ int main() {
             if (leftPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
             if (rightPressed()) app.hangarPreviewShip = (app.hangarPreviewShip + 1) % 8;
             if (IsGamepadAvailable(0)) {
-                const float horizontalAxis = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+                const float horizontalAxis = tunrun::shapeGamepadAxis(
+                    GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X), 0.0F);
                 if (horizontalAxis < -0.65F && !app.hangarAxisLeftHeld) {
                     app.hangarPreviewShip = (app.hangarPreviewShip + 7) % 8;
                     app.hangarAxisLeftHeld = true;

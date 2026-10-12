@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Controller input hardening (2026-10-12): left- and right-stick axes now use the same finite-checked dead-zone and full-range rescaling helper, and keyboard/controller rotation is bounded to the intended -1..+1 range. Invalid axis readings are ignored instead of contaminating the flight vector; regression tests cover stick drift, symmetry, over-range values, NaN/infinity, and mixed keyboard/controller inputs. This is automated input-state coverage only; gamepad feel still needs a real controller session on Windows.
+
 - Collision arbitration test extraction (2026-10-12): the first-contact comparator now lives in a small raylib-free helper instead of being hidden inside the game loop. Unit tests cover earlier contacts, ignored later contacts, stable tie ordering, absent candidates and non-finite fractions. This isolates the ordering rule so future collision changes can be checked without launching the renderer; manual gameplay and hardware verification are still separate acceptance steps.
 
 - Unified first-contact ordering (2026-10-12): tunnel walls, curved gate throats, missed gate planes and moving mines are compared by movement fraction before a run ends. The craft and run clock now stop at the earliest contact, rather than whichever collision check ran first. Clean gates passed before the impact still count; a gate reached at the same moment as a crash does not. A deterministic test checks the leading-edge mine-contact point. Automated checks can validate the code path, but real gameplay handling still needs a Windows hardware review.
