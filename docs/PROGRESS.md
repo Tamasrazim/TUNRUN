@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Practice speed rule (2026-10-12): Practice now applies a 0.65 forward-speed multiplier to normal, boost, and dash travel while retaining the selected seed's geometry, steering response and collision rules. A deterministic test compares Practice against a normal run and verifies the forward-distance ratio, plus checks that Endless and Custom Seed retain normal speed. This is only the first Practice-specific rule; section restart and richer practice controls remain unfinished.
+
 - Impact-time flight-state freeze (2026-10-12): a crash now rewinds orientation, lateral velocity, forward-speed state, boost energy and dash state to the same frame fraction as the swept contact, rather than combining an impact position with end-of-frame animation values. Wrapped angles interpolate over the short arc. Tests cover position and energy interpolation, angular wraparound, endpoint/clamped fractions, and invalid timing input. The exact position/distance from the collision solver remains authoritative; visual validation still requires a real gameplay run.
 
 - Fixed-step refresh-rate regression (2026-10-12): the deterministic test suite now drives the same six-second steering/boost/rotation input at 60, 144, and 240 Hz and compares the resulting flight state within tight tolerances. It also checks that each run finishes with a valid leftover-time accumulator. This checks steady-input simulation consistency; it does not replace real-time profiling or testing changing inputs on hardware.

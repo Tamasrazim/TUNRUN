@@ -747,6 +747,10 @@ int main() {
         tunrun::GameModeChoice::Endless)).empty());
     assert(std::string_view(tunrun::gameModeName(
         tunrun::GameModeChoice::Endless)) == "ENDLESS");
+    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::Endless) == 1.0F);
+    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::CustomSeedRun) == 1.0F);
+    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::PracticePreview) == 0.65F);
+    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::Campaign) == 1.0F);
 
     assert(tunrun::targetFpsForRefreshRate(0) == tunrun::kDefaultTargetFps);
     assert(tunrun::targetFpsForRefreshRate(15) == tunrun::kDefaultTargetFps);
@@ -2248,6 +2252,30 @@ int main() {
                               1.0F / 120.0F, boostAccumulator);
     }
     assert(boost.boostEnergy < 100.0F && boost.boostEnergy > 50.0F);
+
+    // Practice reduces forward travel without changing the seeded physics,
+    // steering response or collision dimensions.
+    tunrun::FlightState normalSpeed;
+    tunrun::FlightState practiceSpeed;
+    float normalSpeedAccumulator = 0.0F;
+    float practiceSpeedAccumulator = 0.0F;
+    tunrun::FlightInput normalModeInput{};
+    tunrun::FlightInput practiceModeInput{};
+    normalModeInput.shipId = tunrun::kStarterShipId;
+    practiceModeInput.shipId = tunrun::kStarterShipId;
+    practiceModeInput.forwardSpeedScale =
+        tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::PracticePreview);
+    for (int i = 0; i < 240; ++i) {
+        tunrun::advanceFlight(normalSpeed, normalModeInput, 1.0F / 120.0F,
+                              normalSpeedAccumulator);
+        tunrun::advanceFlight(practiceSpeed, practiceModeInput, 1.0F / 120.0F,
+                              practiceSpeedAccumulator);
+    }
+    assert(normalSpeed.distance > 0.0F);
+    assert(std::abs(practiceSpeed.distance / normalSpeed.distance - 0.65F) < 0.001F);
+    assert(std::abs(practiceSpeed.actualForwardSpeed /
+                    normalSpeed.actualForwardSpeed - 0.65F) < 0.001F);
+    assert(practiceSpeed.x == normalSpeed.x && practiceSpeed.y == normalSpeed.y);
 
     // With steady controls, the fixed-step simulation should produce nearly
     // identical flight states regardless of the renderer's refresh cadence.

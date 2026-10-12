@@ -2445,7 +2445,8 @@ int main() {
                     IsKeyDown(KEY_LEFT_CONTROL) || padPrecision,
                     static_cast<std::uint32_t>(app.selectedShip),
                     IsKeyDown(KEY_SPACE) || padDash,
-                    rotateYaw, rotatePitch, rollInput, speedControl
+                    rotateYaw, rotatePitch, rollInput, speedControl,
+                    tunrun::gameModeForwardSpeedScale(app.activeMode)
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 // Wall checks sample the whole frame movement inside

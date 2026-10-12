@@ -93,6 +93,7 @@ struct FlightInput {
     float rotatePitch = 0.0F;
     float roll = 0.0F;
     float speedControl = 0.0F; // -1 brake, 0 cruise, +1 accelerate
+    float forwardSpeedScale = 1.0F; // mode-level multiplier; 1.0 means normal speed
 };
 
 inline constexpr float kFlightLimit = 6.5F;
@@ -270,6 +271,8 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         ? std::clamp(input.roll, -1.0F, 1.0F) : 0.0F;
     input.speedControl = std::isfinite(input.speedControl)
         ? std::clamp(input.speedControl, -1.0F, 1.0F) : 0.0F;
+    const float forwardSpeedScale = std::isfinite(input.forwardSpeedScale)
+        ? std::clamp(input.forwardSpeedScale, 0.25F, 1.0F) : 1.0F;
 
     state.yawRate = approach(state.yawRate, input.rotateYaw * 1.8F, 6.0F * dt);
     state.pitchRate = approach(state.pitchRate, input.rotatePitch * 1.45F, 5.0F * dt);
@@ -337,7 +340,7 @@ inline void updateFlight(FlightState& state, FlightInput input, float deltaTime)
         : braking ? state.forwardSpeed
         : precision ? 8.0F
         : boosting ? 16.0F : state.forwardSpeed) * ship.speedMultiplier;
-    state.actualForwardSpeed = forwardSpeed;
+    state.actualForwardSpeed = forwardSpeed * forwardSpeedScale;
     state.distance += state.actualForwardSpeed * dt;
 
     const float energyDelta = boosting
