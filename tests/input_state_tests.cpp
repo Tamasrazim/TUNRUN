@@ -1060,6 +1060,7 @@ int main() {
         seed, centeredPreviousX, centeredPreviousY, gate.distance - 0.7,
         centeredCurrentX, centeredCurrentY, gate.distance + 0.7, gate);
     assert(scoredCrossing.crossedPlane && scoredCrossing.valid);
+    assert(std::abs(scoredCrossing.fraction - 0.5F) < 0.001F);
     assert(std::abs(scoredCrossing.x - gate.offsetX) < 0.001F);
     assert(std::abs(scoredCrossing.y - gate.offsetY) < 0.001F);
     assert(!tunrun::collidesWithGateAtCrossingPoint(scoredCrossing, gate));
