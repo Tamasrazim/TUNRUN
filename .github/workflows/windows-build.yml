@@ -1,3 +1,5 @@
+# Builds the Windows version and checks that the native game still compiles.
+
 name: Windows build and tests
 
 on:

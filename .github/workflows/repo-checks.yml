@@ -1,3 +1,5 @@
+# Checks the project files for common mistakes before they turn into build problems.
+
 name: Repository integrity
 
 on:

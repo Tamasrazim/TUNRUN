@@ -1,3 +1,5 @@
+# Runs the Linux checks so changes can be tested before they are treated as ready.
+
 name: Linux deterministic tests
 
 on:
