@@ -68,6 +68,116 @@ inline bool collidesWithTunnelWall(float x, float y,
     return dx * dx + dy * dy >= safeRadius * safeRadius;
 }
 
+
+// Report the first wall-contact point, not only whether the final frame position
+// is outside. This makes collision checks consistent when one frame spans
+// several fixed physics steps.
+struct TunnelWallContact {
+    bool collided = false;
+    float x = 0.0F;
+    float y = 0.0F;
+    double distance = 0.0;
+    float fraction = 1.0F;
+};
+
+// Check the full movement segment against the generated tunnel radius. A
+// narrow radius dip between frame endpoints must not be silently skipped.
+[[nodiscard]] inline TunnelWallContact traceTunnelWallContact(
+    std::uint64_t seed,
+    float previousX, float previousY, double previousDistance,
+    float currentX, float currentY, double currentDistance,
+    float craftRadius = kCraftCollisionRadius) noexcept {
+    const auto stoppedAtPreviousPosition = [&]() noexcept {
+        const float x = std::isfinite(previousX) ? previousX : 0.0F;
+        const float y = std::isfinite(previousY) ? previousY : 0.0F;
+        const double distance = std::isfinite(previousDistance) ? previousDistance : 0.0;
+        return TunnelWallContact{true, x, y, distance, 0.0F};
+    };
+
+    if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
+        !std::isfinite(previousDistance) || !std::isfinite(currentX) ||
+        !std::isfinite(currentY) || !std::isfinite(currentDistance) ||
+        !std::isfinite(craftRadius)) {
+        return stoppedAtPreviousPosition();
+    }
+
+    constexpr double sampleSpacing = 0.05;
+    constexpr double maximumSweepLength = 4096.0 * sampleSpacing;
+    const double lateralSpan = std::hypot(
+        static_cast<double>(currentX) - previousX,
+        static_cast<double>(currentY) - previousY);
+    const double forwardSpan = std::abs(currentDistance - previousDistance);
+    const double sweepLength = std::max(lateralSpan, forwardSpan);
+
+    // Real game segments are much shorter. A corrupt or unreasonable segment
+    // fails closed instead of creating an unbounded loop in the render frame.
+    if (!std::isfinite(sweepLength) || sweepLength > maximumSweepLength) {
+        return stoppedAtPreviousPosition();
+    }
+
+    const auto collidesAt = [&](double fraction,
+                                float& sampleX, float& sampleY,
+                                double& sampleDistance) noexcept {
+        sampleX = previousX + static_cast<float>(fraction) * (currentX - previousX);
+        sampleY = previousY + static_cast<float>(fraction) * (currentY - previousY);
+        sampleDistance = previousDistance +
+            (currentDistance - previousDistance) * fraction;
+        if (!std::isfinite(sampleX) || !std::isfinite(sampleY) ||
+            !std::isfinite(sampleDistance)) {
+            return true;
+        }
+
+        const auto courseSection = sampleCourse(seed, sampleDistance);
+        const TunnelCrossSection centeredSection{
+            0.0F, 0.0F, courseSection.radius, courseSection.twist
+        };
+        return collidesWithTunnelWall(sampleX, sampleY, centeredSection, craftRadius);
+    };
+
+    const auto stepCount = static_cast<std::uint32_t>(
+        std::max(1.0, std::ceil(sweepLength / sampleSpacing)));
+
+    float sampleX = previousX;
+    float sampleY = previousY;
+    double sampleDistance = previousDistance;
+    if (collidesAt(0.0, sampleX, sampleY, sampleDistance)) {
+        return TunnelWallContact{true, sampleX, sampleY, sampleDistance, 0.0F};
+    }
+
+    double lastSafeFraction = 0.0;
+    for (std::uint32_t step = 1U; step <= stepCount; ++step) {
+        const double fraction = static_cast<double>(step) /
+                                static_cast<double>(stepCount);
+        if (!collidesAt(fraction, sampleX, sampleY, sampleDistance)) {
+            lastSafeFraction = fraction;
+            continue;
+        }
+
+        // Refine the first safe/hit interval so the result stops at the wall.
+        double safeFraction = lastSafeFraction;
+        double hitFraction = fraction;
+        for (int refinement = 0; refinement < 12; ++refinement) {
+            const double middleFraction = (safeFraction + hitFraction) * 0.5;
+            float middleX = 0.0F;
+            float middleY = 0.0F;
+            double middleDistance = 0.0;
+            if (collidesAt(middleFraction, middleX, middleY, middleDistance)) {
+                hitFraction = middleFraction;
+            } else {
+                safeFraction = middleFraction;
+            }
+        }
+
+        (void)collidesAt(hitFraction, sampleX, sampleY, sampleDistance);
+        return TunnelWallContact{
+            true, sampleX, sampleY, sampleDistance,
+            static_cast<float>(hitFraction)
+        };
+    }
+
+    return TunnelWallContact{false, currentX, currentY, currentDistance, 1.0F};
+}
+
 // Gameplay HUD reading for the distance between the ship's collision envelope
 // and the nearest active tunnel/throat boundary. This is telemetry only; the
 // wall and throat collision checks remain authoritative.
