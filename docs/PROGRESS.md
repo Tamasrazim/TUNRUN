@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Reward settlement at impact (2026-10-12): run pickups are now processed up to the first collision point before the crash result is saved. A shard/core crossed before impact in the same frame is kept; a pickup reached at or after the impact is excluded. The reward helper has deterministic tests for earlier, equal-time, later, no-impact, and invalid impact fractions. This closes a same-frame ordering gap between gate scoring and wallet settlement; actual pickup visibility and timing still need in-game review.
+
 - Fixed-step clock recovery (2026-10-12): the flight accumulator now validates its leftover-time value before stepping. Non-finite, negative, or impossible leftover values are discarded, preventing corrupted timing state from trapping the main loop in an unbounded fixed-step loop. Deterministic tests verify recovery from infinity, a negative value, and a huge backlog while the ship continues moving. Normal render-rate behavior is unchanged; frame pacing still needs physical-hardware profiling.
 
 - Controller input hardening (2026-10-12): left- and right-stick axes now use the same finite-checked dead-zone and full-range rescaling helper, and keyboard/controller rotation is bounded to the intended -1..+1 range. Invalid axis readings are ignored instead of contaminating the flight vector; regression tests cover stick drift, symmetry, over-range values, NaN/infinity, and mixed keyboard/controller inputs. This is automated input-state coverage only; gamepad feel still needs a real controller session on Windows.

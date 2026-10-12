@@ -1432,6 +1432,23 @@ int main() {
         seed, 2.0F, 0.0F, 98.0, 1.0,
         2.0F, 0.0F, 102.0, 1.1, exactContactHazard, 0.5F);
     assert(!missedMine.collided);
+
+    // If a crash and a pickup cross during one large frame, only pickups
+    // reached before the impact are allowed into the run's saved reward total.
+    const auto timingReward = tunrun::rewardAt(seed, 4U);
+    const auto beforeImpactReward = [&] (double rewardDistance, bool collided,
+                                         float impactFraction) {
+        auto reward = timingReward;
+        reward.distance = rewardDistance;
+        return tunrun::rewardCrossingPrecedesImpact(
+            0.0, 10.0, reward, collided, impactFraction);
+    };
+    assert(beforeImpactReward(2.0, true, 0.5F));
+    assert(!beforeImpactReward(5.0, true, 0.5F));
+    assert(!beforeImpactReward(8.0, true, 0.5F));
+    assert(beforeImpactReward(8.0, false, 0.0F));
+    assert(!beforeImpactReward(2.0, true,
+        std::numeric_limits<float>::quiet_NaN()));
     // A render frame can have no fixed-step forward-distance advance. Mine
     // contact still has to be checked while the hazard clock advances.
     const auto stationaryStart = tunrun::hazardCenterAt(hazard, 1.0);

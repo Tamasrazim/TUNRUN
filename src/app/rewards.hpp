@@ -62,6 +62,26 @@ inline bool crossesRewardPlane(double previousDistance, double currentDistance,
            currentDistance > previousDistance;
 }
 
+// A pickup on the same frame as a crash counts only if its course plane was
+// reached strictly before the impact. That keeps pickup rewards consistent with gate scoring.
+[[nodiscard]] inline bool rewardCrossingPrecedesImpact(
+    double previousDistance, double frameEndDistance,
+    const ProceduralReward& reward, bool impactOccurred,
+    float impactFraction) noexcept {
+    if (!crossesRewardPlane(previousDistance, frameEndDistance, reward)) return false;
+    if (!impactOccurred) return true;
+    if (!std::isfinite(impactFraction)) return false;
+
+    const double travel = frameEndDistance - previousDistance;
+    if (travel <= 1.0e-9) return false;
+    const double crossingFraction =
+        (reward.distance - previousDistance) / travel;
+    if (!std::isfinite(crossingFraction)) return false;
+    const double boundedImpactFraction =
+        std::clamp(static_cast<double>(impactFraction), 0.0, 1.0);
+    return crossingFraction < boundedImpactFraction - 1.0e-6;
+}
+
 inline bool collectsReward(float x, float y, const ProceduralReward& reward,
                            float radius = kRewardPickupRadius) noexcept {
     if (!std::isfinite(x) || !std::isfinite(y) ||

@@ -2579,8 +2579,47 @@ int main() {
                         app.runScore, gate, gateCrossing.x, gateCrossing.y);
                 }
 
+                // Process pickups before saving a crash, just like gates. Use
+                // the impact point as the end of the pickup path so rewards after
+                // the crash cannot be collected by a long render frame.
+                if (app.screens.current() == tunrun::Screen::Preview) {
+                    const float rewardEndX = firstCollision.collided
+                        ? firstCollision.x : app.flight.x;
+                    const float rewardEndY = firstCollision.collided
+                        ? firstCollision.y : app.flight.y;
+                    const double rewardEndDistance = firstCollision.collided
+                        ? firstCollision.distance : static_cast<double>(app.flight.distance);
+                    const double fullFrameEndDistance = static_cast<double>(app.flight.distance);
+                    const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
+                        (previousDistance - tunrun::kRewardStartDistance) /
+                        tunrun::kRewardSpacing)) - 1);
+                    const int lastRewardIndex = std::max(firstRewardIndex,
+                        static_cast<int>(std::floor(
+                            (rewardEndDistance - tunrun::kRewardStartDistance) /
+                            tunrun::kRewardSpacing)) + 1);
+                    for (int rewardIndex = firstRewardIndex;
+                         rewardIndex <= lastRewardIndex; ++rewardIndex) {
+                        const auto reward = tunrun::rewardAt(app.courseSeed,
+                            static_cast<std::uint32_t>(rewardIndex));
+                        if (!tunrun::rewardCrossingPrecedesImpact(
+                                previousDistance, fullFrameEndDistance, reward,
+                                firstCollision.collided, firstCollision.fraction)) continue;
+                        if (!tunrun::collectsRewardAtCourseCrossing(
+                                app.courseSeed, previousX, previousY, previousDistance,
+                                rewardEndX, rewardEndY, rewardEndDistance, reward)) continue;
+                        const auto maxReward = std::numeric_limits<std::uint64_t>::max();
+                        if (reward.kind == tunrun::RewardKind::AetherShard) {
+                            app.runAetherPickupReward =
+                                maxReward - app.runAetherPickupReward < reward.shardValue
+                                ? maxReward : app.runAetherPickupReward + reward.shardValue;
+                        } else if (app.runSingularityCorePickupReward < maxReward) {
+                            ++app.runSingularityCorePickupReward;
+                        }
+                    }
+                }
+                // Save the final result only after all pickups before the impact
+                // have been added to this run's reward totals.
                 if (firstCollision.collided) {
-                    // Freeze the craft and run clock at the earliest contact point.
                     app.flight.x = firstCollision.x;
                     app.flight.y = firstCollision.y;
                     app.flight.distance = static_cast<float>(firstCollision.distance);
@@ -2590,33 +2629,6 @@ int main() {
                     app.lastHitObjectIndex = firstCollision.objectIndex;
                     finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
-                }
-                if (app.screens.current() == tunrun::Screen::Preview) {
-                    const int firstRewardIndex = std::max(0, static_cast<int>(std::floor(
-                        (previousDistance - tunrun::kRewardStartDistance) /
-                        tunrun::kRewardSpacing)) - 1);
-                    const int lastRewardIndex = std::max(firstRewardIndex,
-                        static_cast<int>(std::floor(
-                            (static_cast<double>(app.flight.distance) -
-                             tunrun::kRewardStartDistance) / tunrun::kRewardSpacing)) + 1);
-                    for (int rewardIndex = firstRewardIndex;
-                         rewardIndex <= lastRewardIndex; ++rewardIndex) {
-                        const auto reward = tunrun::rewardAt(app.courseSeed,
-                            static_cast<std::uint32_t>(rewardIndex));
-                        if (!tunrun::collectsRewardAtCourseCrossing(
-                                app.courseSeed, previousX, previousY, previousDistance,
-                                app.flight.x, app.flight.y, app.flight.distance, reward)) continue;
-                        const auto maxReward = std::numeric_limits<std::uint64_t>::max();
-                        if (reward.kind == tunrun::RewardKind::AetherShard) {
-                            app.runAetherPickupReward =
-                                maxReward - app.runAetherPickupReward < reward.shardValue
-                                ? maxReward : app.runAetherPickupReward + reward.shardValue;
-                        } else {
-                            if (app.runSingularityCorePickupReward < maxReward) {
-                                ++app.runSingularityCorePickupReward;
-                            }
-                        }
-                    }
                 }
                 if (app.screens.current() == tunrun::Screen::Preview &&
                     (IsKeyPressed(KEY_V) || padPressed(GAMEPAD_BUTTON_RIGHT_FACE_UP))) tpp = !tpp;
