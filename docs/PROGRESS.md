@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Collision arbitration test extraction (2026-10-12): the first-contact comparator now lives in a small raylib-free helper instead of being hidden inside the game loop. Unit tests cover earlier contacts, ignored later contacts, stable tie ordering, absent candidates and non-finite fractions. This isolates the ordering rule so future collision changes can be checked without launching the renderer; manual gameplay and hardware verification are still separate acceptance steps.
+
 - Unified first-contact ordering (2026-10-12): tunnel walls, curved gate throats, missed gate planes and moving mines are compared by movement fraction before a run ends. The craft and run clock now stop at the earliest contact, rather than whichever collision check ran first. Clean gates passed before the impact still count; a gate reached at the same moment as a crash does not. A deterministic test checks the leading-edge mine-contact point. Automated checks can validate the code path, but real gameplay handling still needs a Windows hardware review.
 
 - Gate-plane crash positioning (2026-10-12): a missed aperture now freezes the craft and run clock at the interpolated gate-plane crossing, rather than showing the ship at the end of the frame after it had already crossed the gate. The crossing fraction is shared with the same point used for gate collision and scoring; invalid crossings fail closed at the last known-good state. A regression assertion checks the expected half-frame crossing. Windows/Linux CI can validate the code path, but in-game visuals still require a manual run.

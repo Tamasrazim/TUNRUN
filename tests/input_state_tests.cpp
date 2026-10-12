@@ -3,6 +3,7 @@
  * Tests the control mapping so keyboard and controller input produce the intended actions.
  */
 
+#include "app/collision_order.hpp"
 #include "app/input_state.hpp"
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"
@@ -66,6 +67,39 @@ bool writeTestFile(const std::filesystem::path& path, std::string_view content) 
 } // namespace
 
 int main() {
+    // Collision reports from different systems must select the earliest frame contact.
+    tunrun::CollisionContact earliestContact;
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        true, 0.72F, 1.0F, 0.0F, 72.0, tunrun::CollisionKind::Hazard, 4U
+    });
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        true, 0.31F, 0.3F, 0.0F, 31.0, tunrun::CollisionKind::Gate, 2U
+    });
+    assert(earliestContact.collided);
+    assert(std::abs(earliestContact.fraction - 0.31F) < 0.0001F);
+    assert(earliestContact.kind == tunrun::CollisionKind::Gate);
+    assert(earliestContact.objectIndex == 2U);
+    // A later contact cannot replace the gate already selected.
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        true, 0.51F, 0.5F, 0.0F, 51.0, tunrun::CollisionKind::Wall, 0U
+    });
+    assert(earliestContact.kind == tunrun::CollisionKind::Gate);
+    // Equal fractions keep the first inserted cause, making tie outcomes deterministic.
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        true, 0.31F, 0.31F, 0.0F, 31.0, tunrun::CollisionKind::GateThroat, 7U
+    });
+    assert(earliestContact.kind == tunrun::CollisionKind::Gate);
+    // An absent or non-finite report must not poison the selected contact.
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        false, 0.0F, 0.0F, 0.0F, 0.0, tunrun::CollisionKind::Wall, 0U
+    });
+    tunrun::considerFirstCollision(earliestContact, tunrun::CollisionContact{
+        true, std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0,
+        tunrun::CollisionKind::Hazard, 9U
+    });
+    assert(earliestContact.kind == tunrun::CollisionKind::Gate);
+    assert(std::abs(earliestContact.fraction - 0.31F) < 0.0001F);
+
     using tunrun::ButtonEdge;
     using tunrun::Screen;
     using tunrun::ScreenStack;

@@ -3,6 +3,7 @@
  * The main game loop lives here. It connects input, movement, the generated tunnel, drawing, menus, and saved progress into one playable game.
  */
 
+#include "app/collision_order.hpp"
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
@@ -126,6 +127,16 @@ Color gateDepthFog(Color color, float distanceAhead) {
 }
 
 enum class CrashCause { Wall, Gate, GateThroat, Hazard };
+
+CrashCause crashCauseFromCollisionKind(tunrun::CollisionKind kind) {
+    switch (kind) {
+    case tunrun::CollisionKind::Wall: return CrashCause::Wall;
+    case tunrun::CollisionKind::Gate: return CrashCause::Gate;
+    case tunrun::CollisionKind::GateThroat: return CrashCause::GateThroat;
+    case tunrun::CollisionKind::Hazard: return CrashCause::Hazard;
+    }
+    return CrashCause::Wall;
+}
 enum class PendingRunAction { None, RestartSameSeed, ReturnToMainMenu };
 
 struct AppState {
@@ -2476,25 +2487,23 @@ int main() {
                     static_cast<double>(app.flight.distance));
 
                 // Gather the wall, sleeve, gate and mine impacts before choosing one.
-                struct FrameCollision {
-                    bool collided = false;
-                    float fraction = 1.0F;
-                    float x = 0.0F;
-                    float y = 0.0F;
-                    double distance = 0.0;
-                    CrashCause cause = CrashCause::Wall;
-                    std::uint32_t objectIndex = 0U;
-                };
-                FrameCollision firstCollision;
+                // All candidate contacts share one frame fraction, so compare them
+                // with the same tested rule before the run is finalized.
+                tunrun::CollisionContact firstCollision;
                 const auto considerCollision = [&](bool collided, float fraction,
                     float x, float y, double distance, CrashCause cause,
                     std::uint32_t objectIndex) {
-                    if (!collided) return;
-                    fraction = std::clamp(fraction, 0.0F, 1.0F);
-                    if (firstCollision.collided && fraction >= firstCollision.fraction) return;
-                    firstCollision = FrameCollision{
-                        true, fraction, x, y, distance, cause, objectIndex
-                    };
+                    tunrun::CollisionKind kind = tunrun::CollisionKind::Wall;
+                    switch (cause) {
+                    case CrashCause::Wall: kind = tunrun::CollisionKind::Wall; break;
+                    case CrashCause::Gate: kind = tunrun::CollisionKind::Gate; break;
+                    case CrashCause::GateThroat: kind = tunrun::CollisionKind::GateThroat; break;
+                    case CrashCause::Hazard: kind = tunrun::CollisionKind::Hazard; break;
+                    }
+                    tunrun::considerFirstCollision(firstCollision,
+                        tunrun::CollisionContact{
+                            collided, fraction, x, y, distance, kind, objectIndex
+                        });
                 };
 
                 considerCollision(throatContact.collided, throatContact.fraction,
@@ -2581,7 +2590,7 @@ int main() {
                     app.flight.distance = static_cast<float>(firstCollision.distance);
                     app.elapsed = previousElapsed +
                         (app.elapsed - previousElapsed) * firstCollision.fraction;
-                    app.crashCause = firstCollision.cause;
+                    app.crashCause = crashCauseFromCollisionKind(firstCollision.kind);
                     app.lastHitObjectIndex = firstCollision.objectIndex;
                     finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
