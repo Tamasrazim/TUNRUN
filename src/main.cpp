@@ -2440,11 +2440,8 @@ int main() {
                     rotateYaw, rotatePitch, rollInput, speedControl
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
-                const auto tunnelSection = tunrun::sampleCourse(
-                    app.courseSeed, static_cast<double>(app.flight.distance));
-                const tunrun::TunnelCrossSection centredSection{
-                    0.0F, 0.0F, tunnelSection.radius, tunnelSection.twist
-                };
+                // Wall checks sample the whole frame movement inside
+                // traceTunnelWallContact; do not test only the frame endpoint.
                 const auto firstGateForThroat = tunrun::gateAt(app.courseSeed, 0U);
                 const double segmentMinimumDistance = std::min(
                     previousDistance, static_cast<double>(app.flight.distance));
