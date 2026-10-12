@@ -887,9 +887,16 @@ int main() {
     const auto textA=tunrun::parseSeedText("  White   Tunnel_7 ");
     const auto textB=tunrun::parseSeedText("white tunnel_7");
     assert(textA.valid && textB.valid && textA.seed==textB.seed && !textA.hexadecimal);
+    const auto whitespaceSeed=tunrun::parseSeedText(" White\tTunnel_7\n");
+    assert(whitespaceSeed.valid && whitespaceSeed.seed==textB.seed);
     assert(!tunrun::parseSeedText("").valid && !tunrun::parseSeedText("0x").valid);
+    assert(!tunrun::parseSeedText(" \t\n ").valid);
     assert(!tunrun::parseSeedText("bad@seed").valid);
     assert(!tunrun::parseSeedText(std::string(65U,'x')).valid);
+    const auto maxSeedRoundTrip=tunrun::parseSeedText("0xffffffffffffffff");
+    assert(maxSeedRoundTrip.valid && maxSeedRoundTrip.hexadecimal &&
+           maxSeedRoundTrip.seed==std::numeric_limits<std::uint64_t>::max());
+    assert(!tunrun::parseSeedText("0x10000000000000000").valid);
 
     float mouseX = 0.0F;
     float mouseY = 0.0F;
