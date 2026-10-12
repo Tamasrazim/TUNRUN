@@ -487,14 +487,39 @@ struct GateThroatGuidance {
     return dx * dx + dy * dy >= safeRadius * safeRadius;
 }
 
-[[nodiscard]] inline bool collidesWithGateThroatAlongSegment(
+// Report the first point where the craft's hull touches a gate's curved sleeve.
+// The exact same throat sampler remains authoritative for collision and rendering.
+struct GateThroatContact {
+    bool collided = false;
+    std::uint32_t gateIndex = 0U;
+    float x = 0.0F;
+    float y = 0.0F;
+    double distance = 0.0;
+    float fraction = 1.0F;
+};
+
+[[nodiscard]] inline GateThroatContact traceGateThroatContactAlongSegment(
     std::uint64_t seed, const ProceduralGate& gate,
     float previousX, float previousY, double previousDistance,
     float currentX, float currentY, double currentDistance,
     float craftRadius = kCraftCollisionRadius) noexcept {
+    const auto stoppedAtPreviousPosition = [&]() noexcept {
+        return GateThroatContact{
+            true, gate.index,
+            std::isfinite(previousX) ? previousX : 0.0F,
+            std::isfinite(previousY) ? previousY : 0.0F,
+            std::isfinite(previousDistance) ? previousDistance : 0.0,
+            0.0F
+        };
+    };
+
     if (!std::isfinite(previousX) || !std::isfinite(previousY) ||
         !std::isfinite(currentX) || !std::isfinite(currentY) ||
-        !std::isfinite(previousDistance) || !std::isfinite(currentDistance)) return true;
+        !std::isfinite(previousDistance) || !std::isfinite(currentDistance) ||
+        !std::isfinite(craftRadius)) {
+        return stoppedAtPreviousPosition();
+    }
+
     const double distanceSpan = std::abs(currentDistance - previousDistance);
     // FlightState X/Y are offsets in the current tunnel cross-section. The
     // tunnel frame carries the centreline through world space, so folding that
@@ -503,27 +528,88 @@ struct GateThroatGuidance {
         static_cast<double>(currentX) - previousX,
         static_cast<double>(currentY) - previousY);
     const double sampleSpan = std::max(distanceSpan, lateralSpan);
-    if (!std::isfinite(sampleSpan) || sampleSpan > 256.0) return true;
+    if (!std::isfinite(sampleSpan) || sampleSpan > 256.0) {
+        return stoppedAtPreviousPosition();
+    }
     const int samples = std::clamp(
         static_cast<int>(std::ceil(sampleSpan / 0.15)), 1, 2048);
-    for (int i = 0; i <= samples; ++i) {
-        const double t = static_cast<double>(i) / static_cast<double>(samples);
-        const double distance = previousDistance +
-            (currentDistance - previousDistance) * t;
-        // Gate-plane contact uses shared crossing interpolation below. The
-        // sleeve handles finite approach/departure length around that plane.
-        if (std::abs(distance - gate.distance) <= kGateDepthHalfThickness) continue;
-        const float x = static_cast<float>(
-            static_cast<double>(previousX) +
-            (static_cast<double>(currentX) - previousX) * t);
-        const float y = static_cast<float>(
-            static_cast<double>(previousY) +
-            (static_cast<double>(currentY) - previousY) * t);
-        if (collidesWithGateThroatAtDistance(x, y, seed, gate, distance, craftRadius)) {
+
+    const auto collidesAt = [&](double fraction, float& x, float& y,
+                                double& distance) noexcept {
+        distance = previousDistance +
+            (currentDistance - previousDistance) * fraction;
+        x = static_cast<float>(static_cast<double>(previousX) +
+            (static_cast<double>(currentX) - previousX) * fraction);
+        y = static_cast<float>(static_cast<double>(previousY) +
+            (static_cast<double>(currentY) - previousY) * fraction);
+        if (!std::isfinite(x) || !std::isfinite(y) ||
+            !std::isfinite(distance)) {
             return true;
         }
+
+        // Gate-plane contact is evaluated separately against the actual
+        // aperture, so the finite-depth sleeve never masks an aperture miss.
+        if (std::abs(distance - gate.distance) <= kGateDepthHalfThickness) {
+            return false;
+        }
+        return collidesWithGateThroatAtDistance(
+            x, y, seed, gate, distance, craftRadius);
+    };
+
+    float contactX = previousX;
+    float contactY = previousY;
+    double contactDistance = previousDistance;
+    if (collidesAt(0.0, contactX, contactY, contactDistance)) {
+        return GateThroatContact{
+            true, gate.index, contactX, contactY, contactDistance, 0.0F
+        };
     }
-    return false;
+
+    double lastSafeFraction = 0.0;
+    for (int i = 1; i <= samples; ++i) {
+        const double fraction = static_cast<double>(i) /
+                                static_cast<double>(samples);
+        if (!collidesAt(fraction, contactX, contactY, contactDistance)) {
+            lastSafeFraction = fraction;
+            continue;
+        }
+
+        // Refine the safe/hit interval and keep the first contact on the path.
+        double safeFraction = lastSafeFraction;
+        double hitFraction = fraction;
+        for (int refinement = 0; refinement < 12; ++refinement) {
+            const double middleFraction = (safeFraction + hitFraction) * 0.5;
+            float middleX = 0.0F;
+            float middleY = 0.0F;
+            double middleDistance = 0.0;
+            if (collidesAt(middleFraction, middleX, middleY, middleDistance)) {
+                hitFraction = middleFraction;
+            } else {
+                safeFraction = middleFraction;
+            }
+        }
+
+        (void)collidesAt(hitFraction, contactX, contactY, contactDistance);
+        return GateThroatContact{
+            true, gate.index, contactX, contactY, contactDistance,
+            static_cast<float>(hitFraction)
+        };
+    }
+
+    return GateThroatContact{
+        false, gate.index, currentX, currentY, currentDistance, 1.0F
+    };
+}
+
+// Keep a simple yes/no wrapper for validators that only need a safety answer.
+[[nodiscard]] inline bool collidesWithGateThroatAlongSegment(
+    std::uint64_t seed, const ProceduralGate& gate,
+    float previousX, float previousY, double previousDistance,
+    float currentX, float currentY, double currentDistance,
+    float craftRadius = kCraftCollisionRadius) noexcept {
+    return traceGateThroatContactAlongSegment(
+        seed, gate, previousX, previousY, previousDistance,
+        currentX, currentY, currentDistance, craftRadius).collided;
 }
 
 // Canonical identity for obstacle gameplay data, separate from the tunnel
