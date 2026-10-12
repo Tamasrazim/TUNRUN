@@ -890,27 +890,28 @@ int main() {
         seed, 0.0F, 0.0F, 1.0, 0.0F, 0.0F, 2.0);
     assert(!clearWallSweep.collided);
 
-    // Find a real generated radius pinch where the endpoints are safe but
-    // the wall closes around this path between the two frame samples.
+    // Find a generated local radius minimum. The ship must fit at both
+    // endpoints but touch the narrowing wall somewhere between them.
     bool foundIntermediateRadiusPinch = false;
     for (std::uint64_t candidateIndex = 0U;
-         candidateIndex < 16U && !foundIntermediateRadiusPinch;
+         candidateIndex < 64U && !foundIntermediateRadiusPinch;
          ++candidateIndex) {
         const std::uint64_t candidateSeed =
             tunrun::deriveCourseSeed(seed, candidateIndex);
         for (double middleDistance = 1.0;
-             middleDistance < 720.0 && !foundIntermediateRadiusPinch;
+             middleDistance < 1800.0 && !foundIntermediateRadiusPinch;
              middleDistance += 0.25) {
             const auto middle = tunrun::sampleCourse(candidateSeed, middleDistance);
-            const auto before = tunrun::sampleCourse(candidateSeed, middleDistance - 1.0);
-            const auto after = tunrun::sampleCourse(candidateSeed, middleDistance + 1.0);
-            if (middle.radius + 0.02F >= before.radius ||
-                middle.radius + 0.02F >= after.radius) {
-                continue;
-            }
+            const auto before = tunrun::sampleCourse(candidateSeed, middleDistance - 0.5);
+            const auto after = tunrun::sampleCourse(candidateSeed, middleDistance + 0.5);
+
+            // Derive the test offset from the observed gap so the fixture does
+            // not depend on an arbitrary minimum radius-change threshold.
+            const float margin = std::min(before.radius, after.radius) - middle.radius;
+            if (margin <= 0.001F) continue;
 
             const float testOffset = middle.radius -
-                tunrun::kCraftCollisionRadius + 0.01F;
+                tunrun::kCraftCollisionRadius + margin * 0.5F;
             const tunrun::TunnelCrossSection beforeSection{
                 0.0F, 0.0F, before.radius, before.twist
             };
@@ -923,14 +924,14 @@ int main() {
                 testOffset, 0.0F, afterSection));
 
             const auto pinchContact = tunrun::traceTunnelWallContact(
-                candidateSeed, testOffset, 0.0F, middleDistance - 1.0,
-                testOffset, 0.0F, middleDistance + 1.0);
+                candidateSeed, testOffset, 0.0F, middleDistance - 0.5,
+                testOffset, 0.0F, middleDistance + 0.5);
             assert(pinchContact.collided);
             assert(pinchContact.fraction > 0.0F &&
                    pinchContact.fraction < 1.0F);
             assert(std::abs(pinchContact.x - testOffset) < 0.001F);
-            assert(pinchContact.distance >= middleDistance - 1.0 &&
-                   pinchContact.distance <= middleDistance + 1.0);
+            assert(pinchContact.distance >= middleDistance - 0.5 &&
+                   pinchContact.distance <= middleDistance + 0.5);
             foundIntermediateRadiusPinch = true;
         }
     }
