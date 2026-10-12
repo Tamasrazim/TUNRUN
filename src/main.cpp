@@ -2474,8 +2474,18 @@ int main() {
                     app.lastHitObjectIndex = throatCollisionGate;
                     finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
-                } else if (tunrun::collidesWithTunnelWall(
-                        app.flight.x, app.flight.y, centredSection)) {
+                } else if (const auto wallContact = tunrun::traceTunnelWallContact(
+                        app.courseSeed, previousX, previousY, previousDistance,
+                        app.flight.x, app.flight.y,
+                        static_cast<double>(app.flight.distance));
+                           wallContact.collided) {
+                    // Stop at wall contact so the run record cannot include
+                    // the rest of the rendered frame after the collision.
+                    app.flight.x = wallContact.x;
+                    app.flight.y = wallContact.y;
+                    app.flight.distance = static_cast<float>(wallContact.distance);
+                    app.elapsed = previousElapsed +
+                        (app.elapsed - previousElapsed) * wallContact.fraction;
                     app.crashCause = CrashCause::Wall;
                     finishRun(app);
                     app.screens.replace(tunrun::Screen::Crash);
