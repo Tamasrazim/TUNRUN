@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Gate-plane crash positioning (2026-10-12): a missed aperture now freezes the craft and run clock at the interpolated gate-plane crossing, rather than showing the ship at the end of the frame after it had already crossed the gate. The crossing fraction is shared with the same point used for gate collision and scoring; invalid crossings fail closed at the last known-good state. A regression assertion checks the expected half-frame crossing. Windows/Linux CI can validate the code path, but in-game visuals still require a manual run.
+
 - First-contact ordering for wall and gate-throat impacts (2026-10-12): both collision paths now report contact fractions. The game chooses whichever impact happens first, freezes the flight state at that location/time, and records the correct gate index for a sleeve crash. This avoids letting the order of collision checks mislabel a same-frame impact. Regression coverage checks exact side contact inside a generated throat; automated Windows and Linux checks are rerunning after this slice.
 
 - Swept tunnel-wall contact (2026-10-12): wall checks now sample the full movement segment against the generated tunnel radius and refine the first safe/hit interval to locate contact. A crash result stops at that contact point instead of the rendered frame's endpoint, so a narrow section cannot be skipped between frames and the run record does not include travel after impact. Automated tests cover a direct crossing, a clear segment, and a generated radius pinch with safe endpoints. Manual handling and frame-rate checks on Windows hardware are still required.
