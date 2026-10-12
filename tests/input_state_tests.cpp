@@ -2181,6 +2181,54 @@ int main() {
     checkAccumulatorRecovery(-1.0F);
     checkAccumulatorRecovery(1000.0F);
 
+    // A collision frame freezes orientation, velocity and energy at the same
+    // fraction as its position. Wrapped angles must take the short path.
+    tunrun::FlightState impactStart;
+    impactStart.x = -2.0F;
+    impactStart.y = 1.0F;
+    impactStart.velocityX = 0.5F;
+    impactStart.boostEnergy = 90.0F;
+    impactStart.distance = 100.0F;
+    impactStart.yaw = 3.10F;
+    impactStart.pitch = 0.2F;
+    impactStart.roll = -0.3F;
+    impactStart.bank = 0.4F;
+    impactStart.dashRemaining = 0.2F;
+    impactStart.dashButtonWasDown = false;
+    tunrun::FlightState impactEnd = impactStart;
+    impactEnd.x = 6.0F;
+    impactEnd.y = -3.0F;
+    impactEnd.velocityX = 2.5F;
+    impactEnd.boostEnergy = 70.0F;
+    impactEnd.distance = 112.0F;
+    impactEnd.yaw = -3.10F;
+    impactEnd.pitch = 0.6F;
+    impactEnd.roll = 0.5F;
+    impactEnd.bank = -0.4F;
+    impactEnd.dashRemaining = 0.0F;
+    impactEnd.dashButtonWasDown = true;
+    const auto impactMid = tunrun::flightStateAtFraction(impactStart, impactEnd, 0.5F);
+    assert(std::abs(impactMid.x - 2.0F) < 0.0001F);
+    assert(std::abs(impactMid.y + 1.0F) < 0.0001F);
+    assert(std::abs(impactMid.velocityX - 1.5F) < 0.0001F);
+    assert(std::abs(impactMid.boostEnergy - 80.0F) < 0.0001F);
+    assert(std::abs(impactMid.distance - 106.0F) < 0.0001F);
+    assert(std::abs(std::abs(impactMid.yaw) - 3.14159265F) < 0.05F);
+    assert(std::abs(impactMid.pitch - 0.4F) < 0.0001F);
+    assert(std::abs(impactMid.roll - 0.1F) < 0.0001F);
+    assert(std::abs(impactMid.bank) < 0.0001F);
+    assert(std::abs(impactMid.dashRemaining - 0.1F) < 0.0001F);
+    assert(!impactMid.dashButtonWasDown);
+    assert(tunrun::flightStateAtFraction(
+        impactStart, impactEnd, 0.0F).x == impactStart.x);
+    assert(tunrun::flightStateAtFraction(
+        impactStart, impactEnd, 1.0F).x == impactEnd.x);
+    assert(tunrun::flightStateAtFraction(
+        impactStart, impactEnd, -1.0F).x == impactStart.x);
+    assert(tunrun::flightStateAtFraction(
+        impactStart, impactEnd,
+        std::numeric_limits<float>::quiet_NaN()).x == impactStart.x);
+
     tunrun::FlightState normal;
     tunrun::FlightState precision;
     float normalAccumulator = 0.0F;

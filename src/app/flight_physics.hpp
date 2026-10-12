@@ -38,6 +38,50 @@ struct FlightState {
     float rollRate = 0.0F;
 };
 
+// Rewind every continuous flight value to the same point in the frame as a
+// swept collision. Angles use the shortest wrapped path, so crossing +/- PI
+// does not cause the displayed ship to take the long way around.
+[[nodiscard]] inline FlightState flightStateAtFraction(
+    const FlightState& start, const FlightState& end, float fraction) noexcept {
+    if (!std::isfinite(fraction)) return start;
+    const float t = std::clamp(fraction, 0.0F, 1.0F);
+    const auto lerp = [t](float a, float b) noexcept {
+        if (!std::isfinite(a)) return std::isfinite(b) ? b : 0.0F;
+        if (!std::isfinite(b)) return a;
+        return a + (b - a) * t;
+    };
+    constexpr float kTwoPi = 6.2831853071795864769F;
+    const auto lerpAngle = [t](float a, float b) noexcept {
+        if (!std::isfinite(a)) return std::isfinite(b) ? b : 0.0F;
+        if (!std::isfinite(b)) return a;
+        constexpr float twoPi = 6.2831853071795864769F;
+        return std::remainder(a + std::remainder(b - a, twoPi) * t, twoPi);
+    };
+
+    FlightState result;
+    result.x = lerp(start.x, end.x);
+    result.y = lerp(start.y, end.y);
+    result.velocityX = lerp(start.velocityX, end.velocityX);
+    result.velocityY = lerp(start.velocityY, end.velocityY);
+    result.boostEnergy = lerp(start.boostEnergy, end.boostEnergy);
+    result.distance = lerp(start.distance, end.distance);
+    result.forwardSpeed = lerp(start.forwardSpeed, end.forwardSpeed);
+    result.actualForwardSpeed = lerp(start.actualForwardSpeed, end.actualForwardSpeed);
+    result.dashRemaining = lerp(start.dashRemaining, end.dashRemaining);
+    result.dashCooldownRemaining = lerp(
+        start.dashCooldownRemaining, end.dashCooldownRemaining);
+    result.dashButtonWasDown = t >= 1.0F ? end.dashButtonWasDown : start.dashButtonWasDown;
+    result.pitch = lerpAngle(start.pitch, end.pitch);
+    result.yaw = lerpAngle(start.yaw, end.yaw);
+    result.roll = lerpAngle(start.roll, end.roll);
+    result.bank = lerpAngle(start.bank, end.bank);
+    result.pitchRate = lerp(start.pitchRate, end.pitchRate);
+    result.yawRate = lerp(start.yawRate, end.yawRate);
+    result.rollRate = lerp(start.rollRate, end.rollRate);
+    (void)kTwoPi;
+    return result;
+}
+
 struct FlightInput {
     float steerX = 0.0F; // lateral translation: -1 left, +1 right
     float steerY = 0.0F; // lateral translation: -1 down, +1 up

@@ -30,7 +30,7 @@ Still required before M1 can pass:
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
 - Both cameras work without changing physics.
 - Flight remains stable across render rates; deterministic coverage compares six-second steady-input runs at 60, 144, and 240 Hz, and the fixed-step accumulator rejects corrupted leftover-time values instead of allowing an unbounded catch-up loop. Real hardware profiling and variable-input testing remain required.
-- Wall, obstacle, pause/resume and controller tests pass; obstacle collision and the manual hardware matrix remain outstanding.
+- The first swept collision now freezes the flight state at the same interpolated frame fraction as the impact position, with deterministic interpolation tests for wrapped angles and energy; wall, obstacle, pause/resume and controller behavior still need real hardware validation.
 
 ## M3 — Deterministic procedural geometry
 **Status: in progress.** Generator v1 now produces seeded centerline offsets, bounded radii and twist, Catmull-Rom joins, a canonical course hash, a bounded-parameter validator, and an in-game Seed Lab. Rendering and wall collision read the same seeded cross-section data.

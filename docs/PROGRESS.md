@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Impact-time flight-state freeze (2026-10-12): a crash now rewinds orientation, lateral velocity, forward-speed state, boost energy and dash state to the same frame fraction as the swept contact, rather than combining an impact position with end-of-frame animation values. Wrapped angles interpolate over the short arc. Tests cover position and energy interpolation, angular wraparound, endpoint/clamped fractions, and invalid timing input. The exact position/distance from the collision solver remains authoritative; visual validation still requires a real gameplay run.
+
 - Fixed-step refresh-rate regression (2026-10-12): the deterministic test suite now drives the same six-second steering/boost/rotation input at 60, 144, and 240 Hz and compares the resulting flight state within tight tolerances. It also checks that each run finishes with a valid leftover-time accumulator. This checks steady-input simulation consistency; it does not replace real-time profiling or testing changing inputs on hardware.
 
 - Reward settlement at impact (2026-10-12): run pickups are now processed up to the first collision point before the crash result is saved. A shard/core crossed before impact in the same frame is kept; a pickup reached at or after the impact is excluded. The reward helper has deterministic tests for earlier, equal-time, later, no-impact, and invalid impact fractions. This closes a same-frame ordering gap between gate scoring and wallet settlement; actual pickup visibility and timing still need in-game review.

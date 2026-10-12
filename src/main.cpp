@@ -2426,6 +2426,7 @@ int main() {
                     (void)rawMouse.consume();
                 }
                 const float previousElapsed = std::max(0.0F, app.elapsed - dt);
+                const tunrun::FlightState previousFlight = app.flight;
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
                 const double previousDistance = app.flight.distance;
@@ -2620,6 +2621,10 @@ int main() {
                 // Save the final result only after all pickups before the impact
                 // have been added to this run's reward totals.
                 if (firstCollision.collided) {
+                    app.flight = tunrun::flightStateAtFraction(
+                        previousFlight, app.flight, firstCollision.fraction);
+                    // The swept collision solver is authoritative for the exact
+                    // point; use it after interpolating the remaining flight state.
                     app.flight.x = firstCollision.x;
                     app.flight.y = firstCollision.y;
                     app.flight.distance = static_cast<float>(firstCollision.distance);
