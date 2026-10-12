@@ -956,8 +956,15 @@ int main() {
 
     assert(tunrun::courseHash(seed) == tunrun::courseHash(seed));
     assert(tunrun::courseHash(seed) != tunrun::courseHash(seed + 1U));
-    // Emit a one-line cross-compiler fingerprint while fixed expected values
-    // are established. The exact same fixture runs under MSVC and GCC.
+
+    // These expected fingerprints were captured from both MSVC on Windows and
+    // GCC on Linux. If a generator changes intentionally, update the version
+    // and this fixture together instead of silently accepting drift.
+    assert(tunrun::courseHash(seed) == 0x556EA4DAEC0CC3D7ULL);
+    assert(tunrun::obstacleHash(seed) == 0x9116979C8F2EF5A0ULL);
+    assert(tunrun::hazardHash(seed) == 0x7B2113BD09520A3CULL);
+    assert(tunrun::rewardHash(seed) == 0x6DAFD1C378962356ULL);
+
     std::cout << "TUNRUN_HASH_FIXTURE seed=" << seed
               << " course=" << tunrun::courseHash(seed)
               << " gates=" << tunrun::obstacleHash(seed)
