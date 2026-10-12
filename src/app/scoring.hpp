@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Calculates the points and bonuses earned as the player moves through a run.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"

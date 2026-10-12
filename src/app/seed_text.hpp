@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Turns course seeds into readable text and parses them back, making a particular generated route reusable.
+ */
+
 #pragma once
 #include "app/procedural_course.hpp"
 #include <cstdint>

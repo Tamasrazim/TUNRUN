@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Defines what goes into the saved player profile and the functions used to read or write it.
+ */
+
 #pragma once
 
 #include <array>

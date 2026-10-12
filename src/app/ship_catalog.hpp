@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Lists the playable ships and the stats that make each one behave differently.
+ */
+
 #pragma once
 
 #include <array>

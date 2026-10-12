@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Loads and saves the player's local progress and settings between sessions.
+ */
+
 #include "app/save_profile.hpp"
 
 #include <algorithm>

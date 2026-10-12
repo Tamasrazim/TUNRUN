@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Defines directions around a curved tunnel so movement, camera, and visuals agree on what left, right, and up mean.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"
