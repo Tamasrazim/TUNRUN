@@ -1,3 +1,5 @@
+# Tells CMake which game files and libraries belong in the build, and how to build the tests.
+
 cmake_minimum_required(VERSION 3.21)
 project(TUNRUN VERSION 0.1.0 LANGUAGES C CXX)
 

@@ -1,3 +1,5 @@
+# Checks the repository's files and project setup and reports problems that should be fixed.
+
 #!/usr/bin/env python3
 """Dependency-free integrity and automation-permission checks for TUNRUN."""
 

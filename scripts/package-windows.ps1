@@ -1,3 +1,5 @@
+# Builds the game and gathers the files needed for a Windows package.
+
 [CmdletBinding()]
 param(
     [string]$BuildDirectory = "build/Release",

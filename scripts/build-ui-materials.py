@@ -1,3 +1,5 @@
+# Creates the prebuilt UI material images; the game can still use its simpler vector fallback if these images are missing.
+
 #!/usr/bin/env python3
 """Bake TUNRUN's original UI material library.
 

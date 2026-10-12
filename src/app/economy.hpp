@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Sets the game's currency rules, ship prices, and unlock costs.
+ */
+
 #pragma once
 
 #include "app/save_profile.hpp"

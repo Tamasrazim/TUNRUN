@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Keeps the camera in the right place and pointed down the curved tunnel.
+ */
+
 #pragma once
 
 #include "app/tunnel_frame.hpp"
