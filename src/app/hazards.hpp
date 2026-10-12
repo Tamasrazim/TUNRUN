@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Describes the hazards in the tunnel and the rules that decide how they affect a run.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"

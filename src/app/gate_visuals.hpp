@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Draws the gates and their visible cues so the player can judge the opening while flying.
+ */
+
 #pragma once
 
 #include <algorithm>

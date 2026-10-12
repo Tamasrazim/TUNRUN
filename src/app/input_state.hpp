@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Turns keyboard and controller state into the gameplay actions used by the rest of the game.
+ */
+
 #pragma once
 #include <cmath>
 #include <cstddef>

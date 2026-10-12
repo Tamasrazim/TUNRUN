@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Calculates the on-screen hints that help the player line up with upcoming gates.
+ */
+
 #pragma once
 
 #include <algorithm>

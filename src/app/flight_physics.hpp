@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Works out how the ship steers, boosts, brakes, rotates, and collides with the tunnel.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"

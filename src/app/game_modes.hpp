@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Keeps the different run modes and their rules separate, so the game knows what kind of session is active.
+ */
+
 #pragma once
 
 #include <cstdint>
