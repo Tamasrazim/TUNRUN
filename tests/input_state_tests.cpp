@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Tests the control mapping so keyboard and controller input produce the intended actions.
+ */
+
 #include "app/input_state.hpp"
 #include "app/camera_rig.hpp"
 #include "app/tunnel_frame.hpp"

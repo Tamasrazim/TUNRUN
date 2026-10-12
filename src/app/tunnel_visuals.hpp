@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * Builds the visible tunnel surfaces and details from the generated route.
+ */
+
 #pragma once
 
 #include "app/procedural_course.hpp"

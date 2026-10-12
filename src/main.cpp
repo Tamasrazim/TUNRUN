@@ -1,3 +1,8 @@
+/*
+ * What this does:
+ * The main game loop lives here. It connects input, movement, the generated tunnel, drawing, menus, and saved progress into one playable game.
+ */
+
 #include "app/input_state.hpp"
 #include "app/flight_physics.hpp"
 #include "app/seed_text.hpp"
