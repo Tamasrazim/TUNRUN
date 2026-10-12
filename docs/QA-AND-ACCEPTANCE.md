@@ -38,6 +38,7 @@ For each screen (Main Menu, Hangar, Records / Statistics, Controls, Mode Select,
 - Clicking one control cannot activate a second control.
 - Pointer location remains aligned after scaling, resolution change, or fullscreen transition.
 - The game is rendered to a fixed 1280×720 logical canvas (16:9). Test 16:9, 16:10, ultrawide, windowed and fullscreen displays: the image must remain undistorted, letterbox bars must stay outside the game canvas, and pointer targets must remain aligned inside the scaled viewport.
+- Tunnel-wall collision checks the full movement segment, not just the last rendered-frame position. Use a deterministic narrow section where the same path is clear at both endpoints but intersects the wall between them; the sweep must find the contact and stop the run there. Repeat at low and high render rates to verify that skipped render frames do not permit wall tunnelling or add distance past impact.
 - Gate rims and the inner throat must be visibly readable before their collision surfaces reach the ship. On a crash, the result screen must distinguish a throat-wall impact from a collision at the gate plane; the two events must not share a misleading explanation.
 - Right-click does not accidentally trigger gameplay.
 - Keyboard and gamepad can operate the same screen.
