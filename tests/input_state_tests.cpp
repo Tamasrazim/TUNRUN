@@ -633,6 +633,26 @@ int main() {
         throatCenter.centerX, throatCenter.centerY, throatGate.distance - 1.0,
         throatCenter.centerX, throatCenter.centerY, throatGate.distance + 1.0));
 
+    // A side impact inside the sleeve reports the first contact rather than
+    // only a yes/no answer, so the result screen can stop at the real impact.
+    const double throatHitDistance = throatGate.distance - 6.0;
+    const auto throatHitSection = tunrun::gateThroatSectionAtDistance(
+        frameSeed, throatGate, throatHitDistance);
+    assert(throatHitSection.active);
+    const float throatSafeRadius =
+        throatHitSection.radius - tunrun::kCraftCollisionRadius;
+    const auto throatContact = tunrun::traceGateThroatContactAlongSegment(
+        frameSeed, throatGate,
+        throatHitSection.centerX, throatHitSection.centerY, throatHitDistance,
+        throatHitSection.centerX + throatSafeRadius + 0.10F,
+        throatHitSection.centerY, throatHitDistance);
+    assert(throatContact.collided && throatContact.gateIndex == throatGate.index);
+    assert(throatContact.fraction > 0.0F && throatContact.fraction < 1.0F);
+    assert(std::abs(throatContact.x -
+        (throatHitSection.centerX + throatSafeRadius)) < 0.02F);
+    assert(std::abs(throatContact.y - throatHitSection.centerY) < 0.001F);
+    assert(std::abs(throatContact.distance - throatHitDistance) < 0.0001);
+
     // The live cue tracks the current throat after crossing its plane and
     // changes to the next gate only after leaving the old sleeve.
     const auto throatGuideStart = tunrun::gateThroatGuidanceForFlight(
