@@ -693,6 +693,8 @@ struct GateCrossingPoint {
     bool valid = false;
     float x = 0.0F;
     float y = 0.0F;
+    // Fraction of this frame's movement needed to reach the gate plane.
+    float fraction = 1.0F;
 };
 
 inline GateCrossingPoint gatePointAtCourseCrossing(
@@ -713,6 +715,7 @@ inline GateCrossingPoint gatePointAtCourseCrossing(
     if (!std::isfinite(travel) || travel <= 1.0e-9) return point;
     const double fraction = std::clamp(
         (gate.distance - previousDistance) / travel, 0.0, 1.0);
+    point.fraction = static_cast<float>(fraction);
     // Interpolate in the same course-local cross-section used by flight and
     // gate collision. Centerline placement belongs to the render frame.
     const double relativeX = static_cast<double>(previousX) +
