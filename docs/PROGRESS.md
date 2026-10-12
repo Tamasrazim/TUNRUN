@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Swept tunnel-wall contact (2026-10-12): wall checks now sample the full movement segment against the generated tunnel radius and refine the first safe/hit interval to locate contact. A crash result stops at that contact point instead of the rendered frame's endpoint, so a narrow section cannot be skipped between frames and the run record does not include travel after impact. Automated tests cover a direct crossing, a clear segment, and a generated radius pinch with safe endpoints. Manual handling and frame-rate checks on Windows hardware are still required.
+
 - Course continuity gate (2026-10-12): `validateCourse` now measures the per-course-unit rate of centerline, radius and twist changes and rejects samples exceeding generous continuity bounds. The metrics are exposed in `CourseValidation` and covered across the existing deterministic seed regression set. This is a generation-time validation improvement, not a claim that every camera or collision behavior has been manually verified in-game. The viewport tests also now cover portrait-window letterboxing and clicks in ultrawide bars.
 
 - Tunnel-frame continuity regression (2026-10-12): added an adjacent-frame sweep across 12 derived seeds and 257 stations per seed (3,072 neighbouring frame intervals) to catch abrupt tangent/right/up orientation changes. The same regression slice tests hazard-centre evaluation with an extreme finite clock value and asserts that the resulting position remains finite.
