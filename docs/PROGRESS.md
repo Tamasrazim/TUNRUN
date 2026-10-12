@@ -21,6 +21,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Fixed-step refresh-rate regression (2026-10-12): the deterministic test suite now drives the same six-second steering/boost/rotation input at 60, 144, and 240 Hz and compares the resulting flight state within tight tolerances. It also checks that each run finishes with a valid leftover-time accumulator. This checks steady-input simulation consistency; it does not replace real-time profiling or testing changing inputs on hardware.
+
 - Reward settlement at impact (2026-10-12): run pickups are now processed up to the first collision point before the crash result is saved. A shard/core crossed before impact in the same frame is kept; a pickup reached at or after the impact is excluded. The reward helper has deterministic tests for earlier, equal-time, later, no-impact, and invalid impact fractions. This closes a same-frame ordering gap between gate scoring and wallet settlement; actual pickup visibility and timing still need in-game review.
 
 - Fixed-step clock recovery (2026-10-12): the flight accumulator now validates its leftover-time value before stepping. Non-finite, negative, or impossible leftover values are discarded, preventing corrupted timing state from trapping the main loop in an unbounded fixed-step loop. Deterministic tests verify recovery from infinity, a negative value, and a huge backlog while the ship continues moving. Normal render-rate behavior is unchanged; frame pacing still needs physical-hardware profiling.

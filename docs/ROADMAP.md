@@ -29,7 +29,7 @@ Still required before M1 can pass:
 **Status: in progress.** The prototype now has fixed-step lateral/vertical flight with W accelerate, S brake, A/B lateral steering, independent mouse camera look, boost energy, precision steering, a shared analytic tunnel cross-section, wall collision, collectible seeded rewards, eight ship-specific solid low-poly 3D spacecraft, and a retry screen.
 **Deliverable:** controllable craft, FPP and TPP, collision with a manually generated curved test tunnel.
 - Both cameras work without changing physics.
-- Flight remains stable across render rates; the fixed-step accumulator rejects corrupted leftover-time values instead of allowing an unbounded catch-up loop.
+- Flight remains stable across render rates; deterministic coverage compares six-second steady-input runs at 60, 144, and 240 Hz, and the fixed-step accumulator rejects corrupted leftover-time values instead of allowing an unbounded catch-up loop. Real hardware profiling and variable-input testing remain required.
 - Wall, obstacle, pause/resume and controller tests pass; obstacle collision and the manual hardware matrix remain outstanding.
 
 ## M3 — Deterministic procedural geometry

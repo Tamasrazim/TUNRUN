@@ -2201,6 +2201,35 @@ int main() {
     }
     assert(boost.boostEnergy < 100.0F && boost.boostEnergy > 50.0F);
 
+    // With steady controls, the fixed-step simulation should produce nearly
+    // identical flight states regardless of the renderer's refresh cadence.
+    const auto simulateAtRefreshRate = [](int refreshRate) {
+        tunrun::FlightState state;
+        float accumulator = 0.0F;
+        const tunrun::FlightInput steadyInput{
+            0.25F, -0.12F, true, false, tunrun::kStarterShipId,
+            false, 0.18F, -0.11F, 0.06F, 0.15F
+        };
+        const float frameDelta = 1.0F / static_cast<float>(refreshRate);
+        for (int frame = 0; frame < refreshRate * 6; ++frame) {
+            tunrun::advanceFlight(state, steadyInput, frameDelta, accumulator);
+        }
+        assert(accumulator >= 0.0F && accumulator < tunrun::kFlightFixedStep);
+        return state;
+    };
+    const auto at60Hz = simulateAtRefreshRate(60);
+    const auto at144Hz = simulateAtRefreshRate(144);
+    const auto at240Hz = simulateAtRefreshRate(240);
+    for (const auto* sample : {&at144Hz, &at240Hz}) {
+        assert(std::abs(sample->distance - at60Hz.distance) < 0.15F);
+        assert(std::abs(sample->x - at60Hz.x) < 0.08F);
+        assert(std::abs(sample->y - at60Hz.y) < 0.08F);
+        assert(std::abs(sample->forwardSpeed - at60Hz.forwardSpeed) < 0.15F);
+        assert(std::abs(sample->yaw - at60Hz.yaw) < 0.03F);
+        assert(std::abs(sample->pitch - at60Hz.pitch) < 0.03F);
+        assert(std::abs(sample->boostEnergy - at60Hz.boostEnergy) < 0.5F);
+    }
+
     // W accelerates above the familiar cruise speed; S brakes quickly.
     tunrun::FlightState cruiseFlight;
     tunrun::FlightState acceleratedFlight;
