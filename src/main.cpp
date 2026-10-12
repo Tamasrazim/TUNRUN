@@ -2453,31 +2453,45 @@ int main() {
                 const int lastThroatGate = std::max(firstThroatGate, static_cast<int>(std::ceil(
                     (segmentMaximumDistance + tunrun::kGateThroatHalfLength -
                      firstGateForThroat.distance) / tunrun::kGateSpacing)) + 1);
-                std::uint32_t throatCollisionGate = std::numeric_limits<std::uint32_t>::max();
+                tunrun::GateThroatContact throatContact{};
                 for (int gateIndex = firstThroatGate; gateIndex <= lastThroatGate; ++gateIndex) {
                     const auto throatGate = tunrun::gateAt(
                         app.courseSeed, static_cast<std::uint32_t>(gateIndex));
-                    if (tunrun::collidesWithGateThroatAlongSegment(
-                            app.courseSeed, throatGate,
-                            previousX, previousY, previousDistance,
-                            app.flight.x, app.flight.y,
-                            static_cast<double>(app.flight.distance))) {
-                        throatCollisionGate = throatGate.index;
-                        break;
-                    }
-                }
-                if (throatCollisionGate != std::numeric_limits<std::uint32_t>::max()) {
-                    app.crashCause = CrashCause::GateThroat;
-                    app.lastHitObjectIndex = throatCollisionGate;
-                    finishRun(app);
-                    app.screens.replace(tunrun::Screen::Crash);
-                } else if (const auto wallContact = tunrun::traceTunnelWallContact(
-                        app.courseSeed, previousX, previousY, previousDistance,
+                    const auto candidateContact = tunrun::traceGateThroatContactAlongSegment(
+                        app.courseSeed, throatGate,
+                        previousX, previousY, previousDistance,
                         app.flight.x, app.flight.y,
                         static_cast<double>(app.flight.distance));
-                           wallContact.collided) {
-                    // Stop at wall contact so the run record cannot include
-                    // the rest of the rendered frame after the collision.
+                    // An unusually long movement segment may overlap more than
+                    // one candidate sleeve; preserve the first actual contact.
+                    if (candidateContact.collided &&
+                        (!throatContact.collided ||
+                         candidateContact.fraction < throatContact.fraction)) {
+                        throatContact = candidateContact;
+                    }
+                }
+                const auto wallContact = tunrun::traceTunnelWallContact(
+                    app.courseSeed, previousX, previousY, previousDistance,
+                    app.flight.x, app.flight.y,
+                    static_cast<double>(app.flight.distance));
+
+                // Both collision types now stop at their real first contact.
+                // This prevents the throat check from hiding an earlier outer
+                // wall impact just because its test used to run first.
+                if (throatContact.collided &&
+                    (!wallContact.collided ||
+                     throatContact.fraction <= wallContact.fraction)) {
+                    app.flight.x = throatContact.x;
+                    app.flight.y = throatContact.y;
+                    app.flight.distance = static_cast<float>(throatContact.distance);
+                    app.elapsed = previousElapsed +
+                        (app.elapsed - previousElapsed) * throatContact.fraction;
+                    app.crashCause = CrashCause::GateThroat;
+                    app.lastHitObjectIndex = throatContact.gateIndex;
+                    finishRun(app);
+                    app.screens.replace(tunrun::Screen::Crash);
+                } else if (wallContact.collided) {
+                    // The tunnel wall wins only when it is the earliest hit.
                     app.flight.x = wallContact.x;
                     app.flight.y = wallContact.y;
                     app.flight.distance = static_cast<float>(wallContact.distance);
