@@ -2372,7 +2372,11 @@ int main() {
             }
         }
         const float dt = std::min(GetFrameTime(), 0.05F);
-        if (tunrun::shouldAdvanceRunClock(app.screens)) app.elapsed += dt;
+        const float modeTimeScale = tunrun::gameModeSimulationScale(app.activeMode);
+        const float runClockDelta = dt * modeTimeScale;
+        if (tunrun::shouldAdvanceRunClock(app.screens)) {
+            app.elapsed += runClockDelta;
+        }
 
         if (app.screens.current() == tunrun::Screen::Preview) {
             if (!IsWindowFocused()) {
@@ -2425,7 +2429,8 @@ int main() {
                 } else if (rawMouse.installed()) {
                     (void)rawMouse.consume();
                 }
-                const float previousElapsed = std::max(0.0F, app.elapsed - dt);
+                const float previousElapsed = std::max(
+                    0.0F, app.elapsed - runClockDelta);
                 const tunrun::FlightState previousFlight = app.flight;
                 const float previousX = app.flight.x;
                 const float previousY = app.flight.y;
@@ -2446,7 +2451,7 @@ int main() {
                     static_cast<std::uint32_t>(app.selectedShip),
                     IsKeyDown(KEY_SPACE) || padDash,
                     rotateYaw, rotatePitch, rollInput, speedControl,
-                    tunrun::gameModeForwardSpeedScale(app.activeMode)
+                    modeTimeScale
                 };
                 tunrun::advanceFlight(app.flight, flightInput, dt, app.flightAccumulator);
                 // Wall checks sample the whole frame movement inside

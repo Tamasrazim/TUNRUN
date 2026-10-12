@@ -17,9 +17,10 @@ enum class GameModeChoice : std::uint8_t {
     Back = 4U
 };
 
-// Practice keeps the same seed geometry and collision rules, but slows forward
-// travel to 65% so new players have more time to read generated passages.
-[[nodiscard]] constexpr float gameModeForwardSpeedScale(
+// Practice keeps the same seed geometry and collision rules, but advances both
+// forward travel and the time-driven hazard simulation at 65% speed. This keeps
+// moving hazards on the same course-relative rhythm while giving players more time.
+[[nodiscard]] constexpr float gameModeSimulationScale(
     GameModeChoice choice) noexcept {
     return choice == GameModeChoice::PracticePreview ? 0.65F : 1.0F;
 }

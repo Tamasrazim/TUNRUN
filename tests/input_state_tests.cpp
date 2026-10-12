@@ -747,10 +747,10 @@ int main() {
         tunrun::GameModeChoice::Endless)).empty());
     assert(std::string_view(tunrun::gameModeName(
         tunrun::GameModeChoice::Endless)) == "ENDLESS");
-    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::Endless) == 1.0F);
-    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::CustomSeedRun) == 1.0F);
-    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::PracticePreview) == 0.65F);
-    assert(tunrun::gameModeForwardSpeedScale(tunrun::GameModeChoice::Campaign) == 1.0F);
+    assert(tunrun::gameModeSimulationScale(tunrun::GameModeChoice::Endless) == 1.0F);
+    assert(tunrun::gameModeSimulationScale(tunrun::GameModeChoice::CustomSeedRun) == 1.0F);
+    assert(tunrun::gameModeSimulationScale(tunrun::GameModeChoice::PracticePreview) == 0.65F);
+    assert(tunrun::gameModeSimulationScale(tunrun::GameModeChoice::Campaign) == 1.0F);
 
     assert(tunrun::targetFpsForRefreshRate(0) == tunrun::kDefaultTargetFps);
     assert(tunrun::targetFpsForRefreshRate(15) == tunrun::kDefaultTargetFps);

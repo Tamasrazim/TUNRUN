@@ -41,7 +41,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 - **Primary platform:** Windows x64
 - **Stack:** C++20, CMake, raylib 5.5 (pinned to an immutable upstream commit)
 - **Save location:** `%LOCALAPPDATA%\\Tamasrazim\\TUNRUN\\`
-- **Modes:** Endless survival and custom-seed runs use normal flight speed; Practice Preview uses 65% forward speed on the same seeded physics and collision rules. Campaign, section restart, daily/seed challenge variants, rival runs, and ghost racing remain planned.
+- **Modes:** Endless survival and custom-seed runs use normal simulation speed; Practice Preview runs forward travel and its time-driven hazard clock at 65%, using the same seeded geometry and collision rules. Campaign, section restart, daily/seed challenge variants, rival runs, and ghost racing remain planned.
 
 ## Documentation map
 

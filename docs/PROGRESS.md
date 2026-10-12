@@ -21,7 +21,7 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
-- Practice speed rule (2026-10-12): Practice now applies a 0.65 forward-speed multiplier to normal, boost, and dash travel while retaining the selected seed's geometry, steering response and collision rules. A deterministic test compares Practice against a normal run and verifies the forward-distance ratio, plus checks that Endless and Custom Seed retain normal speed. This is only the first Practice-specific rule; section restart and richer practice controls remain unfinished.
+- Practice speed rule (2026-10-12): Practice applies a 0.65 scale to forward travel and the run clock that drives moving hazards, so the same seeded route keeps its course-relative hazard rhythm while giving players more reaction time. Steering and collision rules stay unchanged. Regression tests compare forward-distance ratios and check that Endless and Custom Seed retain normal speed. Section restart and richer practice controls remain unfinished.
 
 - Impact-time flight-state freeze (2026-10-12): a crash now rewinds orientation, lateral velocity, forward-speed state, boost energy and dash state to the same frame fraction as the swept contact, rather than combining an impact position with end-of-frame animation values. Wrapped angles interpolate over the short arc. Tests cover position and energy interpolation, angular wraparound, endpoint/clamped fractions, and invalid timing input. The exact position/distance from the collision solver remains authoritative; visual validation still requires a real gameplay run.
 

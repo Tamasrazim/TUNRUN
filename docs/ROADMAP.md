@@ -58,7 +58,7 @@ Still required before M1 can pass:
 
 ## M7 — Progression and content breadth
 **Deliverable:** campaign, endless mode, seed challenges, practice and mode-specific records.
-- Endless, custom-seed runs, and Practice are accessible; Practice now runs at 65% forward speed using the normal seeded route and collision rules. Section restart, campaign progression, challenge variants, and mode-specific records remain outstanding.
+- Endless and custom-seed runs use normal speed. Practice runs forward travel and its time-driven hazard clock at 65%, preserving the seeded route/collision rules while slowing the hazard timeline proportionally. Section restart, campaign progression, challenge variants, and mode-specific records remain outstanding.
 - Difficulty tiers are measurable and documented.
 - Campaign content is complete enough for a full start-to-finish run.
 
