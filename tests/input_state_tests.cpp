@@ -147,6 +147,27 @@ int main() {
     assert(pointerInLeftBar.x < 0.0F);
     assert(pointerInRightBar.x > 1280.0F);
 
+ 
+    // The settings slider must use logical X just like its hit-test does.
+    // At 150% scaling, the physical center still maps to the logical midpoint.
+    const float sliderLeft = 360.0F;
+    const float sliderWidth = 240.0F;
+    const float logicalSliderMiddle = sliderLeft + sliderWidth * 0.5F;
+    const float physicalSliderMiddle =
+        viewport16x10.x + logicalSliderMiddle * viewport16x10.scale;
+    const auto sliderPointer = tunrun::toLogicalPointer(
+        viewport16x10, physicalSliderMiddle, 600.0F);
+    assert(std::abs(tunrun::normalizedSliderPosition(
+        sliderPointer.x, sliderLeft, sliderWidth) - 0.5F) < 0.001F);
+    assert(tunrun::normalizedSliderPosition(
+        sliderLeft - 100.0F, sliderLeft, sliderWidth) == 0.0F);
+    assert(tunrun::normalizedSliderPosition(
+        sliderLeft + sliderWidth + 100.0F, sliderLeft, sliderWidth) == 1.0F);
+    assert(tunrun::normalizedSliderPosition(
+        420.0F, 360.0F, 0.0F) == 0.0F);
+    assert(tunrun::normalizedSliderPosition(
+        std::numeric_limits<float>::quiet_NaN(), 360.0F, 240.0F) == 0.0F);
+
     // Portrait windows letterbox vertically without squeezing the game into a tall view.
     const auto viewportPortrait = tunrun::makeLogicalViewport(1080.0F, 1920.0F);
     assert(std::abs(viewportPortrait.x) < 0.001F);
