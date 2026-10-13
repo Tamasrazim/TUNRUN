@@ -16,7 +16,7 @@ The repository has moved into native implementation. **M5 persistence and ship e
 
 
 
-**Correctness and packaging pass (2026-10-14):** the sensitivity slider now calculates its value in the same logical canvas coordinates used for UI hit-testing, with regression coverage for scaled displays and invalid inputs. The Windows packaging workflow now verifies the generated ZIP's required contents, all 12 high-resolution UI sheets, and every SHA-256 manifest entry before publishing the staging directory as the Actions artifact. That preserves direct access to portable contents without nesting the standalone ZIP inside the artifact archive. The result must still pass its new Windows CI run before being treated as verified.
+**Correctness and packaging pass (2026-10-14):** the sensitivity slider now calculates its value in the same logical canvas coordinates used for UI hit-testing, with regression coverage for scaled displays and invalid inputs. The Windows packaging workflow now verifies the generated ZIP's required contents, all 12 high-resolution UI sheets, and every SHA-256 manifest entry before publishing the staging directory as the Actions artifact. That preserves direct access to portable contents without nesting the standalone ZIP inside the artifact archive. The result must still pass its new Windows CI run before being treated as verified. The Windows build also selects the static MSVC runtime to avoid a separate VC++ redistributable install; clean-machine launch testing is still outstanding.
 
 ## Core pillars
 

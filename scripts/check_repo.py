@@ -13,6 +13,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
     "README.md",
+    "CMakeLists.txt",
     "SECURITY.md",
     "CONTRIBUTING.md",
     ".gitignore",
@@ -194,6 +195,20 @@ def check_portable_package_workflow(errors: list[str]) -> None:
             )
 
 
+def check_windows_portable_runtime(errors: list[str]) -> None:
+    """Keep the Windows portable target on the statically linked MSVC runtime."""
+    cmake_path = ROOT / "CMakeLists.txt"
+    if not cmake_path.is_file():
+        return
+    content = cmake_path.read_text(encoding="utf-8")
+    required = 'set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")'
+    if required not in content:
+        errors.append(
+            "CMakeLists.txt: portable Windows targets must use the static MSVC runtime "
+            "so a separate VC++ redistributable installation is not required"
+        )
+
+
 def check_seed_lab_documentation(errors: list[str]) -> None:
     """Keep the documented Seed Lab beam width in sync with the current test model."""
     for relative in ("README.md", "docs/ROADMAP.md", "docs/PROGRESS.md"):
@@ -219,6 +234,7 @@ def main() -> int:
     check_local_markdown_links(errors)
     check_workflow_policy(errors)
     check_portable_package_workflow(errors)
+    check_windows_portable_runtime(errors)
     check_seed_lab_documentation(errors)
     if errors:
         for error in errors:
@@ -228,7 +244,7 @@ def main() -> int:
     print(
         f"Repository integrity passed: {len(REQUIRED_FILES)} required files, "
         f"{len(markdown_files())} Markdown files, local link paths valid; "
-        "workflows are read-only, checkout credentials are disabled, and automated commits are blocked."
+        "workflows are read-only, checkout credentials are disabled, automated commits are blocked, and static MSVC runtime selection is guarded."
     )
     return 0
 

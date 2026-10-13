@@ -9,6 +9,7 @@ The Windows workflow performs a clean x64 Release build and unit tests. It then 
 ## Toolchain
 
 - Windows x64 with MSVC; the local `windows-dev` preset targets Visual Studio 2022.
+- All MSVC targets, including raylib and the tests, use the static C/C++ runtime (`/MT` in Release) so the portable package does not require a separate Visual C++ Redistributable installation. A clean-machine launch check is still required before calling the package release-ready.
 - CMake 3.21 or newer and C++20.
 - raylib 5.5 from the immutable commit pinned in `CMakeLists.txt`.
 - The CI workflow runs on GitHub-hosted Windows and checks configuration, compile, tests, integrity, and secret scanning.
