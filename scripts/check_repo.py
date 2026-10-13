@@ -190,6 +190,7 @@ def check_portable_package_workflow(errors: list[str]) -> None:
         "Duplicate ZIP path:",
         "HashSet[string]",
         "Package manifest does not enumerate every payload file exactly once.",
+        "$entries[$entryPath] = $entry\n            }\n\n            foreach ($required in @(",
     ):
         if required not in content:
             errors.append(

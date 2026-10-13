@@ -51,7 +51,6 @@ jobs:
               }
               $entries[$entryPath] = $entry
             }
-            }
 
             foreach ($required in @(
               "tunrun.exe",
