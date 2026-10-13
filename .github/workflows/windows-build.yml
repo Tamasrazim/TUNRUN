@@ -64,7 +64,7 @@ jobs:
               }
             }
 
-            $surfaces = @($entries.Keys | Where-Object { $_ -match '^assets/ui/surface_\d{2}\.bmp })
+            $surfaces = @($entries.Keys | Where-Object { $_ -match '^assets/ui/surface_\d{2}\.bmp$' })
             if ($surfaces.Count -ne 12) {
               throw "Expected 12 UI material sheets in the ZIP; found $($surfaces.Count)."
             }

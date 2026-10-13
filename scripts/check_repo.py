@@ -183,6 +183,7 @@ def check_portable_package_workflow(errors: list[str]) -> None:
     for required in (
         "Verify portable ZIP, embedded catalogue, and SHA-256 manifest",
         "assets/ui/surface_",
+        r"$_ -match '^assets/ui/surface_\d{2}\.bmp$'",
         "package-manifest.json",
         "SHA-256 mismatch",
     ):
