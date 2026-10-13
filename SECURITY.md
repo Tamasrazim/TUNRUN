@@ -10,7 +10,7 @@ Please include the affected commit or version, Windows version, impact, and mini
 
 ## Scope and response
 
-The planned game is currently a documentation-only project. There is no released executable, updater, online service, or production save parser to assess yet. Reports about the repository, future C++ code, build workflow, save handling, package contents, and release integrity are in scope.
+TUNRUN is an actively developed native C++20 gameplay prototype. The repository includes procedural course and obstacle generation, collision and flight logic, a bounded profile parser with local save/recovery handling, automated tests, and Windows build/package automation. It is not a finished game, and there is no public release installer, updater, or online service. Temporary CI development artifacts may be produced by the build workflow. Reports about the C++ code, untrusted save/profile data, build workflow, package contents, dependency provenance, and release integrity are in scope.
 
 The maintainer will acknowledge reports when reasonably possible, assess severity and reproducibility, and fix confirmed issues before announcing technical details where practical. No fixed response or resolution time is promised.
 
