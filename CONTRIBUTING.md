@@ -20,7 +20,7 @@ The project uses the proprietary, all-rights-reserved notice in [`LICENSE`](LICE
 
 ## Project status
 
-The current repository is a specification baseline. Do not describe a feature, executable, installer, security scanner, or release as working until there is implementation and test evidence.
+The repository contains an implemented native C++20 gameplay prototype, deterministic and persistence test coverage, repository/secret checks, and a Windows workflow that creates a temporary portable development artifact. It is not a finished game or a public release. Describe a specific feature as working only when its implementation and relevant tests support that claim; treat manual Windows hardware checks and release-grade packaging as open until verified.
 
 ## Code and content standards
 
