@@ -162,21 +162,21 @@ def check_workflow_policy(errors: list[str]) -> None:
 
 
 def check_portable_package_workflow(errors: list[str]) -> None:
-    """Keep the file uploaded by CI identical to the generated, verified release ZIP."""
+    """Keep the direct-content Actions artifact and standalone ZIP verification aligned."""
     workflow_path = ROOT / ".github" / "workflows" / "windows-build.yml"
     if not workflow_path.is_file():
         return
     content = workflow_path.read_text(encoding="utf-8")
-    expected_archive = "path: build/package/TUNRUN-Windows-x64-Portable.zip"
-    if expected_archive not in content:
+    expected_directory = "path: build/package/TUNRUN-Windows-x64-Portable/"
+    if expected_directory not in content:
         errors.append(
-            ".github/workflows/windows-build.yml: upload the generated portable ZIP, "
-            "not only its staging directory"
+            ".github/workflows/windows-build.yml: upload the verified staging directory "
+            "so the Actions artifact opens directly to portable contents"
         )
-    if "path: build/package/TUNRUN-Windows-x64-Portable/" in content:
+    if "path: build/package/TUNRUN-Windows-x64-Portable.zip" in content:
         errors.append(
-            ".github/workflows/windows-build.yml: staging-directory upload bypasses the "
-            "standalone portable ZIP"
+            ".github/workflows/windows-build.yml: do not nest the standalone ZIP inside "
+            "the Actions artifact archive; upload its verified staging directory"
         )
     for required in (
         "Verify portable ZIP, embedded catalogue, and SHA-256 manifest",

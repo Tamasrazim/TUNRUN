@@ -25,7 +25,7 @@ ctest --preset windows-dev
 ./scripts/package-windows.ps1 -BuildDirectory build/windows-dev/Release -OutputDirectory build/package -Version "0.1.0-dev" -CommitSha "local-build"
 ```
 
-The package script validates its paths, requires the executable and license/docs, includes optional `assets/` and `resources/` directories when present, and emits `TUNRUN-Windows-x64-Portable.zip`, `build-info.json`, and a SHA-256 package manifest. Before upload, Windows CI opens the generated ZIP, checks the executable and required notices, verifies the 12 material sheets and catalog, and re-hashes every manifest entry against the archived bytes. CI uploads the generated ZIP itself rather than the unpacked staging directory, so the intended standalone distribution archive is preserved as the artifact payload. The default CI build directory is `build/Release`.
+The package script validates its paths, requires the executable and license/docs, includes optional `assets/` and `resources/` directories when present, and emits `TUNRUN-Windows-x64-Portable.zip`, `build-info.json`, and a SHA-256 package manifest. Before upload, Windows CI opens the generated ZIP, checks the executable and required notices, verifies the 12 material sheets and catalog, and re-hashes every manifest entry against the archived bytes. CI then uploads the verified staging directory rather than wrapping the standalone ZIP inside another Actions artifact archive; the downloaded artifact opens directly to portable contents, while the separately generated ZIP remains available for local distribution. The default CI build directory is `build/Release`.
 
 ## Distribution size and assets
 
