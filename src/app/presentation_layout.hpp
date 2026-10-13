@@ -62,4 +62,16 @@ struct LogicalPoint {
     };
 }
 
+ 
+// Convert a pointer position on the logical canvas into a safe slider value.
+// A zero-width slider or non-finite coordinate leaves the control at its minimum.
+[[nodiscard]] inline float normalizedSliderPosition(
+    float logicalPointerX, float sliderLeft, float sliderWidth) noexcept {
+    if (!std::isfinite(logicalPointerX) || !std::isfinite(sliderLeft) ||
+        !std::isfinite(sliderWidth) || sliderWidth <= 0.0F) {
+        return 0.0F;
+    }
+    return std::clamp((logicalPointerX - sliderLeft) / sliderWidth, 0.0F, 1.0F);
+}
+
 } // namespace tunrun
