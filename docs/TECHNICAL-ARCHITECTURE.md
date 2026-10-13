@@ -1,61 +1,68 @@
 # Technical Architecture
 
-## Current implementation slice
+## Current implementation
 
-The first source slice provides a raylib-based native window, explicit screen stack, pointer/keyboard/basic-gamepad menu navigation, preview settings, a wireframe 3D tunnel testbed, and pure-C++ input-state unit tests. This is scaffolding, not a finished flight model: collision, procedural generation, persistence and true relative mouse steering are not implemented yet.
+TUNRUN is an actively developed native C++20 gameplay prototype, not a documentation-only shell and not a finished game. The current code includes a raylib window and screen stack, keyboard/mouse/gamepad controls, Windows Raw Input mouse-look, a fixed 16:9 logical canvas, a seeded procedural tunnel, aperture gates and moving mines, flight/camera logic, first-contact collision handling, rewards/scoring, a ship hangar, and a versioned local profile store with validation, migration, checksums, backup recovery, and explicit reset/recovery behavior.
+
+The project has automated C++ regression tests for deterministic generation, input and camera helpers, collision ordering, viewport mapping, hazard motion, progression, and save/profile handling. GitHub Actions builds and tests the native Windows x64 target, runs portable deterministic tests with GCC on Linux, checks repository policy and Markdown links, scans history for secret-looking values, and uploads a temporary Windows development artifact. A passing unit test or build does not replace manual gameplay and hardware validation.
 
 raylib 5.5 is fetched from an immutable upstream commit recorded in `THIRD-PARTY-NOTICES.md`; it is not fetched from a moving branch.
 
-## Platform
+## Platform and build
 
 - Language: C++20.
 - Rendering and window/input foundation: raylib 5.5.
-- Build: CMake with Windows x64 / MSVC.
-- Primary deliverable: native Windows executable, installer, and portable package.
-- Persistence target: versioned local profile with Windows-native atomic write/hidden-file handling.
-- CI: GitHub Actions on Windows, triggered by direct pushes to `main`.
+- Build system: CMake with Windows x64 / MSVC as the primary game target.
+- Linux CI compiles and runs the deterministic test target; this is not a claim of supported Linux gameplay.
+- Windows CI produces a temporary portable development package. TUNRUN is not yet a finished release and does not claim a production installer or updater.
+- Persistent settings and progression are stored in a versioned local profile, with Windows-specific file handling and bounded parsing.
 
 ## Major modules
 
 ### Application and state machine
-Owns window lifecycle, screen transitions, pause, focus loss, loading, results, shutdown and error recovery. Screen navigation uses a stack so Settings opened from Pause returns to Pause.
 
-### Input service
-The shell currently reads raylib input APIs directly. This is temporary. The required next step is a named-action service for Confirm, Back, Navigate, Steer, Boost, Dash, Pause and CameraSwitch, with explicit UI and gameplay contexts. Relative mouse steering must use Windows Raw Input (`WM_INPUT`) or an equivalent native relative-motion path, never repeated `SetCursorPos` warping.
+`src/main.cpp` owns the native application loop, drawing, screen transitions, pause behavior, run results, camera presentation, and integration of the gameplay helpers. `src/app/input_state.hpp` provides the screen stack and input/state rules used by that loop. Settings opened from Pause return to the parent Pause screen, and the run clock is gated while pause or blocking dialogs are active.
 
-### Flight simulation
-Will own craft acceleration, speed, steering limits, angular response, boost, hull state and collision response. Rendering camera state must never decide physical flight state.
+### Input and presentation
 
-### Camera system
-Will implement FPP and TPP as separate camera rigs reading the same craft transform. Camera switching blends presentation only; it does not teleport the ship or change the course.
+The game supports keyboard and gamepad UI navigation, keyboard/gamepad flight control, pointer-driven menus, and a fixed 1280×720 logical canvas letterboxed inside other aspect ratios. Pointer hit-testing is converted back into logical coordinates. On Windows, `WM_INPUT` supplies relative camera-look deltas while a focused run has mouse-look enabled; capture and clipping are released when gameplay ends or focus is lost. Physical Windows DPI, focus-loss, and resize behavior still require hardware validation.
 
-### Procedural world service
-Produces deterministic section descriptions from root seed, generator version, section index, ship profile and ruleset. It does not own rendering objects.
+### Flight, collision, and camera
 
-### Generation validator
-Validates geometry, seams, player reachability, ship clearance, warning time and dynamic obstacle feasibility before content is accepted.
+Flight state and control response are held separately from the rendering camera. First-person and third-person camera rigs share the craft state while changing only the view. Swept wall, gate-throat, gate-plane, and moving-mine contact candidates are compared by movement fraction so the earliest collision determines the run outcome. Collision-time interpolation prevents post-impact movement from being counted in the final state. Manual playability, warning timing, and collision/render agreement still require Windows hardware checks.
 
-### Streaming manager
-Requests new sections ahead of the player and validates immutable data on workers. Workers must not manipulate raylib GPU resources or mutable live gameplay entities. Mesh/texture operations remain on the render thread.
+### Procedural world and validation
 
-### AI navigation
-Builds route options from the same validated course and produces legal steering actions. AI never bypasses world geometry or teleports to a better position.
+The deterministic course sampler creates a seed-driven tunnel centreline, radius, and twist. Versioned gate and hazard streams produce aperture families, moving mines, pickups, and rendering-only variations. Course and obstacle hashes support reproducibility. Seed Lab performs parameter validation and bounded route-witness searches; a missing witness is not proof that a safe route is impossible. More holdout seeds, broad cross-compiler fixtures, and manual continuity checks remain open.
 
-### Save service
-Will validate and migrate profile schema, write atomically, maintain a backup, and offer recovery without crashing or silently discarding progression.
+### Rewards, progression, and saved profile
 
-## Runtime invariants
+The prototype has seeded pickups, score/combo tracking, ship-specific handling, a hangar economy using Aether Shards and Singularity Cores, and persistent settings/progression records. The profile parser bounds file size and supported value types, rejects invalid checksums/state, migrates supported legacy schemas, and preserves a known-good backup during recovery. Campaign checkpoints, mode-specific records, and complete progression content remain unfinished.
 
-- UI input and gameplay input cannot act on the same event accidentally.
-- Focus loss pauses flight and clears held input/captured relative mouse state.
-- Same seed, generator version and ruleset reproduces the same underlying course.
-- Cosmetic random streams do not alter deterministic obstacles.
-- Every async result carries a run/generation token to prevent stale results from changing a restarted run.
-- User-controlled saves, seeds, replay data, paths and archives are untrusted input.
-- Save/award/purchase operations validate state, commit once and only then report success.
+### Rendering and assets
 
-## Error handling
-Invalid settings return to safe defaults; invalid files have bounded parsers and a clear recovery path; generation failures have finite retries and diagnostics. Failed saves must not be reported as successful. Disconnecting a controller must clear held actions.
+The renderer uses generated tunnel geometry, low-poly ships and obstacles, depth/fog visibility limits, and deterministic decorative variation. The Windows portable-development packaging script generates twelve original high-resolution UI material sheets and records a SHA-256 manifest. A source checkout can fall back to vector UI panels when baked material assets are absent. Production art/audio, measured frame-time profiling, and license/provenance review for any future external materials remain release work.
 
-## Security and build boundaries
-Do not require elevated privileges. Prefer RAII, standard containers, checked size arithmetic and explicit ownership. Apply supported MSVC security checks and executable mitigations, and verify their presence in compiler/linker output. Never commit keys, tokens, private saves, crash dumps or machine-specific paths. Build outputs must not depend on a developer's checkout.
+## Still planned or incomplete
+
+- Complete campaign/challenge content and broader progression.
+- AI pilots, drones, replay/ghost support, and related validation.
+- Wider multi-seed and cross-compiler regression fixtures.
+- Manual Windows hardware validation for Raw Input, focus handling, DPI, resize/fullscreen hitboxes, gamepad feel, camera clearance, hazard warnings, and long-session stability.
+- Release-candidate acceptance tests, clean-machine installation checks, final package verification, and release signing/checksum publication.
+
+## Runtime and security invariants
+
+- UI and gameplay input must not accidentally consume the same action.
+- Focus loss must release mouse capture and must not leave flight input stuck.
+- The same seed, generator version, and ruleset must reproduce the same gameplay data.
+- Cosmetic random streams must not change deterministic gameplay obstacles.
+- Asynchronous work must not mutate stale run state or manipulate raylib GPU resources off the render thread.
+- Save/profile data, seeds, and future imported replay or asset files are untrusted input.
+- Failed save, recovery, purchase, or unlock operations must not be reported as successful.
+- The application must not require elevated privileges or commit credentials, private saves, crash dumps, or machine-specific paths.
+
+## Error handling and resource ownership
+
+Invalid settings must fall back to safe defaults; invalid profile files must follow a bounded recovery path instead of silently discarding progression. Generation validation must fail with finite retries and diagnostic information. Owned textures and native input hooks must be released during screen transitions and shutdown. Build output must not depend on the developer's checkout layout.
+
