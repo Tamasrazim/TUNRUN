@@ -2771,5 +2771,78 @@ int main() {
     assert(foundPreservedDamagedFile);
     std::filesystem::remove_all(profileDirectory, filesystemError);
 
+#if !defined(_WIN32)
+    // A dangling profile symlink is not an empty install. It must trigger the
+    // recovery UI, and reset must preserve that link under a .corrupt- name.
+    const auto symlinkRecoveryDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-symlink-recovery-") + std::to_string(stamp));
+    std::filesystem::remove_all(symlinkRecoveryDirectory, filesystemError);
+    std::filesystem::create_directories(symlinkRecoveryDirectory, filesystemError);
+    assert(!filesystemError);
+    std::filesystem::create_symlink("missing-profile-target.json",
+        symlinkRecoveryDirectory / "profile.json", filesystemError);
+    assert(!filesystemError);
+    tunrun::ProfileStore symlinkRecoveryStore(symlinkRecoveryDirectory);
+    assert(symlinkRecoveryStore.load().status ==
+           tunrun::ProfileLoadStatus::RecoveryRequired);
+    assert(symlinkRecoveryStore.resetToDefaults(defaults).success);
+    assert(symlinkRecoveryStore.load().status == tunrun::ProfileLoadStatus::Loaded);
+    bool foundPreservedSymlink = false;
+    for (const auto& entry : std::filesystem::directory_iterator(symlinkRecoveryDirectory)) {
+        if (entry.path().filename().string().find("profile.json.corrupt-") == 0U) {
+            std::error_code statusError;
+            foundPreservedSymlink =
+                std::filesystem::symlink_status(entry.path(), statusError).type() ==
+                std::filesystem::file_type::symlink && !statusError;
+            if (foundPreservedSymlink) break;
+        }
+    }
+    assert(foundPreservedSymlink);
+    std::filesystem::remove_all(symlinkRecoveryDirectory, filesystemError);
+
+    // A planted link at the temporary path must not redirect a profile write.
+    const auto tempSymlinkDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-temp-symlink-") + std::to_string(stamp));
+    std::filesystem::remove_all(tempSymlinkDirectory, filesystemError);
+    std::filesystem::create_directories(tempSymlinkDirectory, filesystemError);
+    assert(!filesystemError);
+    const auto tempSentinel = tempSymlinkDirectory / "sentinel.txt";
+    assert(writeTestFile(tempSentinel, "leave this file unchanged"));
+    std::filesystem::create_symlink(tempSentinel.filename(),
+        tempSymlinkDirectory / "profile.json.tmp", filesystemError);
+    assert(!filesystemError);
+    tunrun::ProfileStore tempSymlinkStore(tempSymlinkDirectory);
+    assert(!tempSymlinkStore.save(profile).success);
+    std::ifstream tempSentinelFile(tempSentinel, std::ios::binary);
+    const std::string tempSentinelText{
+        std::istreambuf_iterator<char>(tempSentinelFile),
+        std::istreambuf_iterator<char>()};
+    assert(tempSentinelText == "leave this file unchanged");
+    std::filesystem::remove_all(tempSymlinkDirectory, filesystemError);
+
+    // A linked backup must not be overwritten by the primary profile's contents.
+    const auto backupSymlinkDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-backup-symlink-") + std::to_string(stamp));
+    std::filesystem::remove_all(backupSymlinkDirectory, filesystemError);
+    tunrun::ProfileStore backupSymlinkStore(backupSymlinkDirectory);
+    assert(backupSymlinkStore.save(profile).success);
+    const auto backupSentinel = backupSymlinkDirectory / "sentinel.txt";
+    assert(writeTestFile(backupSentinel, "backup target must remain untouched"));
+    std::filesystem::create_symlink(backupSentinel.filename(),
+        backupSymlinkDirectory / "profile.bak", filesystemError);
+    assert(!filesystemError);
+    assert(!backupSymlinkStore.save(nextProfile).success);
+    std::ifstream backupSentinelFile(backupSentinel, std::ios::binary);
+    const std::string backupSentinelText{
+        std::istreambuf_iterator<char>(backupSentinelFile),
+        std::istreambuf_iterator<char>()};
+    assert(backupSentinelText == "backup target must remain untouched");
+    assert(backupSymlinkStore.load().profile.runSerial == profile.runSerial);
+    std::filesystem::remove_all(backupSymlinkDirectory, filesystemError);
+#endif
+
     std::cout << "TUNRUN input, physics, course, and profile-persistence tests passed.\n";
 }

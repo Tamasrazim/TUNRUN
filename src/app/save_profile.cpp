@@ -200,15 +200,40 @@ private:
     std::size_t position_ = 0U;
 };
 
+// Inspect a directory entry itself instead of following a symlink to its target.
+// Treat permission/I/O errors as "possibly present" so a damaged profile can never
+// be mistaken for a fresh install.
+bool inspectPathNoFollow(const std::filesystem::path& path,
+                         std::filesystem::file_status& status,
+                         bool& exists) {
+    std::error_code ec;
+    status = std::filesystem::symlink_status(path, ec);
+    if (ec == std::errc::no_such_file_or_directory) {
+        status = std::filesystem::file_status(std::filesystem::file_type::not_found);
+        exists = false;
+        return true;
+    }
+    if (ec) {
+        exists = true;
+        return false;
+    }
+    exists = status.type() != std::filesystem::file_type::not_found;
+    return true;
+}
+
 bool readProfileFile(const std::filesystem::path& path, std::string& content,
                      bool& exists, std::string& error) {
-    std::error_code ec;
-    exists = std::filesystem::exists(path, ec);
-    if (ec) {
+    std::filesystem::file_status pathStatus;
+    if (!inspectPathNoFollow(path, pathStatus, exists)) {
         error = "unable to inspect profile file";
         return false;
     }
     if (!exists) return false;
+    if (!std::filesystem::is_regular_file(pathStatus)) {
+        error = "profile path is not a regular file";
+        return false;
+    }
+    std::error_code ec;
     const auto size = std::filesystem::file_size(path, ec);
     if (ec || size > kProfileMaxBytes) {
         error = "profile file is oversized or unreadable";
@@ -671,12 +696,45 @@ ProfileSaveResult ProfileStore::save(const Profile& profile,
         const auto temporary = directory_ / "profile.json.tmp";
         const std::string content = serializeProfile(profile);
         if (content.size() > kProfileMaxBytes) return {false, "serialized profile exceeds size limit"};
+
+        // Reject linked/non-regular destinations before opening a stream. This
+        // prevents a planted symlink from redirecting a save or backup copy.
+        std::filesystem::file_status temporaryStatus;
+        bool temporaryExists = false;
+        if (!inspectPathNoFollow(temporary, temporaryStatus, temporaryExists)) {
+            return {false, "unable to inspect temporary profile path"};
+        }
+        if (temporaryExists && !std::filesystem::is_regular_file(temporaryStatus)) {
+            return {false, "temporary profile path is not a regular file"};
+        }
+
         if (!writeAndFlush(temporary, content, error)) {
             std::filesystem::remove(temporary, ec);
             return {false, error};
         }
-        const bool primaryExists = std::filesystem::exists(primary, ec) && !ec;
+
+        std::filesystem::file_status primaryStatus;
+        bool primaryExists = false;
+        if (!inspectPathNoFollow(primary, primaryStatus, primaryExists)) {
+            std::filesystem::remove(temporary, ec);
+            return {false, "unable to inspect existing profile path"};
+        }
+        if (primaryExists && !std::filesystem::is_regular_file(primaryStatus)) {
+            std::filesystem::remove(temporary, ec);
+            return {false, "existing profile path is not a regular file"};
+        }
+
         if (primaryExists && !preserveBackup) {
+            std::filesystem::file_status backupStatus;
+            bool backupExists = false;
+            if (!inspectPathNoFollow(backup, backupStatus, backupExists)) {
+                std::filesystem::remove(temporary, ec);
+                return {false, "unable to inspect profile backup path"};
+            }
+            if (backupExists && !std::filesystem::is_regular_file(backupStatus)) {
+                std::filesystem::remove(temporary, ec);
+                return {false, "profile backup path is not a regular file"};
+            }
             if (!copyFile(primary, backup, error)) {
                 std::filesystem::remove(temporary, ec);
                 return {false, error};
@@ -705,10 +763,14 @@ ProfileSaveResult ProfileStore::resetToDefaults(const Profile& profile) const no
             std::chrono::steady_clock::now().time_since_epoch().count());
         for (const char* name : {"profile.json", "profile.bak", "profile.json.tmp"}) {
             const auto source = directory_ / name;
-            if (!std::filesystem::exists(source, ec) || ec) {
-                ec.clear();
-                continue;
+            // No-follow status also sees dangling links, so explicit recovery
+            // can archive the damaged path rather than quietly discarding it.
+            std::filesystem::file_status sourceStatus;
+            bool sourceExists = false;
+            if (!inspectPathNoFollow(source, sourceStatus, sourceExists)) {
+                return {false, "unable to inspect damaged profile before reset"};
             }
+            if (!sourceExists) continue;
             const auto target = directory_ / (std::string(name) + ".corrupt-" + stamp);
             std::filesystem::rename(source, target, ec);
             if (ec) return {false, "unable to preserve damaged profile before reset"};

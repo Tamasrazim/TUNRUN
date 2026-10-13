@@ -25,6 +25,8 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 - Endless-distance precision (2026-10-14): the flight simulation now keeps course distance in double precision, so the normal fixed-step travel increment remains representable after long sessions pass the float precision threshold. Collision rewinds and the 3D renderer now retain the same double-precision course coordinate instead of narrowing it back to float at the drawing boundary. A regression test starts at 1,048,576 course units and checks the exact forward increment.
 
+- Profile-path safety (2026-10-14): profile reads and recovery use no-follow filesystem status checks, so a dangling link is not mistaken for a fresh install and can be preserved during explicit reset. Saves reject linked/non-regular temporary, primary, and backup paths before writing or copying. Linux regression tests cover dangling-link recovery, non-destructive reset, temporary-link writes, and backup-link overwrite protection.
+
 
 - Practice speed rule (2026-10-12): Practice applies a 0.65 scale to forward travel and the run clock that drives moving hazards, so the same seeded route keeps its course-relative hazard rhythm while giving players more reaction time. Steering and collision rules stay unchanged. Regression tests compare forward-distance ratios and check that Endless and Custom Seed retain normal speed. Section restart and richer practice controls remain unfinished.
 

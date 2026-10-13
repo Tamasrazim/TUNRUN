@@ -144,6 +144,7 @@ Gameplay-specific mouse checks:
 - Save, replay, seed and imported-asset paths cannot escape their designated directories; archive extraction rejects absolute paths and `..` traversal.
 - JSON numbers, arrays, strings, nesting depth, entity counts and replay durations have explicit limits.
 - Corrupted primary and backup saves produce a recoverable error and never silently reset progression.
+- Profile reads and resets inspect path entries without following symlinks; dangling profile links enter recovery, reset preserves them, and saves never write through linked temporary or backup paths.
 - No credentials, signing keys, personal profile data, or local build paths are present in tracked files or release packages.
 - No update, asset-download, or telemetry code runs without explicit documented approval and a security review.
 - Any later updater verifies authenticated release metadata and artifact signatures before replacing files; invalid, stale, or rolled-back packages are rejected.
