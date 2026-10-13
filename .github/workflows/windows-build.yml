@@ -36,10 +36,92 @@ jobs:
         shell: pwsh
         run: ./scripts/package-windows.ps1 -BuildDirectory build/Release -OutputDirectory build/package -Version "0.1.0-dev" -CommitSha $env:GITHUB_SHA
 
+      - name: Verify portable ZIP, embedded catalogue, and SHA-256 manifest
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archivePath = (Resolve-Path "build/package/TUNRUN-Windows-x64-Portable.zip").Path
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $entries = @{}
+            foreach ($entry in $archive.Entries) {
+              $entries[$entry.FullName.Replace('\', '/')] = $entry
+            }
+
+            foreach ($required in @(
+              "tunrun.exe",
+              "README.md",
+              "LICENSE",
+              "THIRD-PARTY-NOTICES.md",
+              "docs/BUILD-AND-RELEASE.md",
+              "docs/PROCEDURAL-HAZARDS.md",
+              "build-info.json",
+              "package-manifest.json",
+              "assets/ui/catalog.json"
+            )) {
+              if (-not $entries.ContainsKey($required)) {
+                throw "Portable ZIP is missing required file: $required"
+              }
+            }
+
+            $surfaces = @($entries.Keys | Where-Object { $_ -match '^assets/ui/surface_\d{2}\.bmp })
+            if ($surfaces.Count -ne 12) {
+              throw "Expected 12 UI material sheets in the ZIP; found $($surfaces.Count)."
+            }
+
+            $catalogReader = [System.IO.StreamReader]::new($entries["assets/ui/catalog.json"].Open())
+            try {
+              $catalog = $catalogReader.ReadToEnd() | ConvertFrom-Json
+            } finally {
+              $catalogReader.Dispose()
+            }
+            if ($catalog.texture_count -ne 12 -or $catalog.materials.Count -ne 12) {
+              throw "The embedded UI material catalog does not describe all 12 sheets."
+            }
+
+            $manifestReader = [System.IO.StreamReader]::new($entries["package-manifest.json"].Open())
+            try {
+              $manifest = @($manifestReader.ReadToEnd() | ConvertFrom-Json)
+            } finally {
+              $manifestReader.Dispose()
+            }
+            if ($manifest.Count -lt 20) {
+              throw "The package manifest looks incomplete; found only $($manifest.Count) entries."
+            }
+
+            $hasher = [System.Security.Cryptography.SHA256]::Create()
+            try {
+              foreach ($item in $manifest) {
+                $path = [string]$item.path
+                if (-not $entries.ContainsKey($path)) {
+                  throw "Manifest file is absent from the ZIP: $path"
+                }
+                $entry = $entries[$path]
+                if ($entry.Length -ne [long]$item.bytes) {
+                  throw "Package size mismatch for $path"
+                }
+                $stream = $entry.Open()
+                try {
+                  $digest = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace("-", "").ToLowerInvariant()
+                } finally {
+                  $stream.Dispose()
+                }
+                if ($digest -ne [string]$item.sha256) {
+                  throw "Package SHA-256 mismatch for $path"
+                }
+              }
+            } finally {
+              $hasher.Dispose()
+            }
+            Write-Host "Portable ZIP verified: $($manifest.Count) hashed files and 12 UI material sheets."
+          } finally {
+            $archive.Dispose()
+          }
+
       - name: Publish portable development package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: TUNRUN-Windows-x64-portable-dev
-          path: build/package/TUNRUN-Windows-x64-Portable/
+          path: build/package/TUNRUN-Windows-x64-Portable.zip
           if-no-files-found: error
           retention-days: 14

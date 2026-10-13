@@ -21,6 +21,9 @@ REQUIRED_FILES = (
     "docs/SECURITY-AND-PRIVACY.md",
     "docs/THIRD-PARTY-AND-LICENSES.md",
     ".github/workflows/repo-checks.yml",
+    ".github/workflows/windows-build.yml",
+    "scripts/package-windows.ps1",
+    "scripts/build-ui-materials.py",
 )
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 
@@ -157,11 +160,42 @@ def check_workflow_policy(errors: list[str]) -> None:
                 f"{relative}: custom secrets/tokens are forbidden in workflows; use the read-only GITHUB_TOKEN only"
             )
 
+
+def check_portable_package_workflow(errors: list[str]) -> None:
+    """Keep the file uploaded by CI identical to the generated, verified release ZIP."""
+    workflow_path = ROOT / ".github" / "workflows" / "windows-build.yml"
+    if not workflow_path.is_file():
+        return
+    content = workflow_path.read_text(encoding="utf-8")
+    expected_archive = "path: build/package/TUNRUN-Windows-x64-Portable.zip"
+    if expected_archive not in content:
+        errors.append(
+            ".github/workflows/windows-build.yml: upload the generated portable ZIP, "
+            "not only its staging directory"
+        )
+    if "path: build/package/TUNRUN-Windows-x64-Portable/" in content:
+        errors.append(
+            ".github/workflows/windows-build.yml: staging-directory upload bypasses the "
+            "standalone portable ZIP"
+        )
+    for required in (
+        "Verify portable ZIP, embedded catalogue, and SHA-256 manifest",
+        "assets/ui/surface_",
+        "package-manifest.json",
+        "SHA-256 mismatch",
+    ):
+        if required not in content:
+            errors.append(
+                ".github/workflows/windows-build.yml: archive verification is missing "
+                f"the expected guard {required!r}"
+            )
+
 def main() -> int:
     errors: list[str] = []
     check_required_files(errors)
     check_local_markdown_links(errors)
     check_workflow_policy(errors)
+    check_portable_package_workflow(errors)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

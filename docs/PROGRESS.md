@@ -21,6 +21,9 @@ The segmented bar is intentionally **not** labelled with an overall completion p
 
 ## Latest implementation slice
 
+- Correctness and package-delivery pass (2026-10-14): mouse-sensitivity slider input now uses the 1280×720 logical pointer coordinate already used by hover/click hit-testing, avoiding scaled-resolution offset errors. Regression coverage checks 150% scaling, the slider's lower/upper bounds, zero-width sliders, and non-finite coordinates. The Windows package workflow now validates the actual portable ZIP, requires its executable/notices/catalog, checks all 12 original material sheets, and verifies every package-manifest size and SHA-256 before upload; the artifact path targets the generated ZIP instead of only the staging folder. This new archive check must pass in the next Windows CI run.
+
+
 - Practice speed rule (2026-10-12): Practice applies a 0.65 scale to forward travel and the run clock that drives moving hazards, so the same seeded route keeps its course-relative hazard rhythm while giving players more reaction time. Steering and collision rules stay unchanged. Regression tests compare forward-distance ratios and check that Endless and Custom Seed retain normal speed. Section restart and richer practice controls remain unfinished.
 
 - Impact-time flight-state freeze (2026-10-12): a crash now rewinds orientation, lateral velocity, forward-speed state, boost energy and dash state to the same frame fraction as the swept contact, rather than combining an impact position with end-of-frame animation values. Wrapped angles interpolate over the short arc. Tests cover position and energy interpolation, angular wraparound, endpoint/clamped fractions, and invalid timing input. The exact position/distance from the collision solver remains authoritative; visual validation still requires a real gameplay run.

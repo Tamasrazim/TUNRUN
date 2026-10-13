@@ -25,7 +25,7 @@ raylib 5.5 is fetched from an immutable upstream commit recorded in `THIRD-PARTY
 
 ### Input and presentation
 
-The game supports keyboard and gamepad UI navigation, keyboard/gamepad flight control, pointer-driven menus, and a fixed 1280×720 logical canvas letterboxed inside other aspect ratios. Pointer hit-testing is converted back into logical coordinates. On Windows, `WM_INPUT` supplies relative camera-look deltas while a focused run has mouse-look enabled; capture and clipping are released when gameplay ends or focus is lost. Physical Windows DPI, focus-loss, and resize behavior still require hardware validation.
+The game supports keyboard and gamepad UI navigation, keyboard/gamepad flight control, pointer-driven menus, and a fixed 1280×720 logical canvas letterboxed inside other aspect ratios. Pointer hit-testing and the mouse-sensitivity slider both use the same logical coordinates; a regression helper rejects invalid slider widths and non-finite values. On Windows, `WM_INPUT` supplies relative camera-look deltas while a focused run has mouse-look enabled; capture and clipping are released when gameplay ends or focus is lost. Physical Windows DPI, focus-loss, and resize behavior still require hardware validation.
 
 ### Flight, collision, and camera
 
