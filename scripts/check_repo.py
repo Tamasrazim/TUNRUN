@@ -200,7 +200,8 @@ def check_seed_lab_documentation(errors: list[str]) -> None:
         if not path.is_file():
             continue
         content = path.read_text(encoding="utf-8")
-        if re.search(r"\\b32-state route graph\\b|\\b32 candidates are mode-balanced\\b", content, re.IGNORECASE):
+        lowered = content.lower()
+        if "32-state route graph" in lowered or "32 candidates are mode-balanced" in lowered:
             errors.append(
                 f"{relative}: stale 32-state Seed Lab wording conflicts with the tested 64-state beam"
             )
