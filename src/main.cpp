@@ -1500,7 +1500,7 @@ void drawProceduralHazard(std::uint64_t seed,float playerDistance,
     }
 }
 
-void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
+void drawTunnel(std::uint64_t seed, double distance, float shipX, float shipY,
                 std::uint32_t shipId, const char* modeName, bool tpp, bool reduceMotion,
                 bool showAimReticle,
                 float pitch, float yaw, float cameraLookYaw, float cameraLookPitch,
@@ -2038,7 +2038,7 @@ void drawTunnel(std::uint64_t seed, float distance, float shipX, float shipY,
     DrawRectangle(170, 123, static_cast<int>(
         148.0F * std::clamp(boostEnergy, 0.0F, 100.0F) / 100.0F), 7, kAccent);
     DrawText("DISTANCE", 38, 145, 9, kMuted);
-    DrawText(TextFormat("%.1f U", std::max(0.0F, distance)),
+    DrawText(TextFormat("%.1f U", std::max(0.0, distance)),
              111, 145, 10, kText);
 
     const auto clearanceGate = tunrun::gateAt(
