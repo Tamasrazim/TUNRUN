@@ -187,6 +187,9 @@ def check_portable_package_workflow(errors: list[str]) -> None:
         r"$_ -match '^assets/ui/surface_\d{2}\.bmp$'",
         "package-manifest.json",
         "SHA-256 mismatch",
+        "Duplicate ZIP path:",
+        "HashSet[string]",
+        "Package manifest does not enumerate every payload file exactly once.",
     ):
         if required not in content:
             errors.append(

@@ -45,7 +45,12 @@ jobs:
           try {
             $entries = @{}
             foreach ($entry in $archive.Entries) {
-              $entries[$entry.FullName.Replace('\', '/')] = $entry
+              $entryPath = $entry.FullName.Replace('\', '/')
+              if ($entries.ContainsKey($entryPath)) {
+                throw "Duplicate ZIP path: $entryPath"
+              }
+              $entries[$entryPath] = $entry
+            }
             }
 
             foreach ($required in @(
@@ -87,6 +92,32 @@ jobs:
             }
             if ($manifest.Count -lt 20) {
               throw "The package manifest looks incomplete; found only $($manifest.Count) entries."
+            }
+
+            # The manifest deliberately excludes itself, but it must include every other file.
+            $manifestPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+            foreach ($item in $manifest) {
+              $manifestPath = [string]$item.path
+              if ([string]::IsNullOrWhiteSpace($manifestPath)) {
+                throw "The package manifest contains an empty file path."
+              }
+              if ($manifestPath -eq "package-manifest.json") {
+                throw "The package manifest must not attempt to hash itself."
+              }
+              if (-not $manifestPaths.Add($manifestPath)) {
+                throw "Duplicate manifest path: $manifestPath"
+              }
+            }
+
+            $expectedManifestPaths = @(
+              $entries.Keys |
+                Where-Object { -not $_.EndsWith('/') -and $_ -ne "package-manifest.json" } |
+                Sort-Object -CaseSensitive
+            )
+            $actualManifestPaths = @($manifestPaths | Sort-Object -CaseSensitive)
+            if ($expectedManifestPaths.Count -ne $actualManifestPaths.Count -or
+                ($expectedManifestPaths -join "`n") -cne ($actualManifestPaths -join "`n")) {
+              throw "Package manifest does not enumerate every payload file exactly once."
             }
 
             $hasher = [System.Security.Cryptography.SHA256]::Create()
