@@ -3116,8 +3116,10 @@ int main() {
             const bool draggingSensitivity =
                 IsMouseButtonDown(MOUSE_BUTTON_LEFT) && pointerOnSensitivityRow;
             if (draggingSensitivity) {
-                const float normalized = std::clamp(
-                    (GetMouseX() - sliderX) / sliderWidth, 0.0F, 1.0F);
+                // Hit-testing and slider values must use the same 1280×720 logical canvas.
+                const Vector2 sliderPointer = virtualMousePosition();
+                const float normalized = tunrun::normalizedSliderPosition(
+                    sliderPointer.x, sliderX, sliderWidth);
                 app.profile.mouseSensitivity = mouseSensitivityFromSlider(normalized);
                 sensitivityChanged = true;
             } else if (settingsSelection == 4 && picked < 0 &&
