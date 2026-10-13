@@ -2822,6 +2822,29 @@ int main() {
     assert(tempSentinelText == "leave this file unchanged");
     std::filesystem::remove_all(tempSymlinkDirectory, filesystemError);
 
+    // A regular-looking hard link at the temporary name must be unlinked before
+    // the new profile temp is created; saving must never truncate its target.
+    const auto tempHardlinkDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-temp-hardlink-") + std::to_string(stamp));
+    std::filesystem::remove_all(tempHardlinkDirectory, filesystemError);
+    std::filesystem::create_directories(tempHardlinkDirectory, filesystemError);
+    assert(!filesystemError);
+    const auto tempHardlinkSentinel = tempHardlinkDirectory / "sentinel.txt";
+    assert(writeTestFile(tempHardlinkSentinel, "hard-link target must remain unchanged"));
+    std::filesystem::create_hard_link(tempHardlinkSentinel,
+        tempHardlinkDirectory / "profile.json.tmp", filesystemError);
+    assert(!filesystemError);
+    tunrun::ProfileStore tempHardlinkStore(tempHardlinkDirectory);
+    assert(tempHardlinkStore.save(profile).success);
+    std::ifstream tempHardlinkSentinelFile(tempHardlinkSentinel, std::ios::binary);
+    const std::string tempHardlinkSentinelText{
+        std::istreambuf_iterator<char>(tempHardlinkSentinelFile),
+        std::istreambuf_iterator<char>()};
+    assert(tempHardlinkSentinelText == "hard-link target must remain unchanged");
+    assert(tempHardlinkStore.load().status == tunrun::ProfileLoadStatus::Loaded);
+    std::filesystem::remove_all(tempHardlinkDirectory, filesystemError);
+
     // A linked backup must not be overwritten by the primary profile's contents.
     const auto backupSymlinkDirectory =
         std::filesystem::temp_directory_path() /
@@ -2842,6 +2865,36 @@ int main() {
     assert(backupSentinelText == "backup target must remain untouched");
     assert(backupSymlinkStore.load().profile.runSerial == profile.runSerial);
     std::filesystem::remove_all(backupSymlinkDirectory, filesystemError);
+
+    // Replacing an existing backup hard link must swap the directory entry, not
+    // write the old primary into the sentinel inode shared by that hard link.
+    const auto backupHardlinkDirectory =
+        std::filesystem::temp_directory_path() /
+        (std::string("tunrun-profile-backup-hardlink-") + std::to_string(stamp));
+    std::filesystem::remove_all(backupHardlinkDirectory, filesystemError);
+    tunrun::ProfileStore backupHardlinkStore(backupHardlinkDirectory);
+    assert(backupHardlinkStore.save(profile).success);
+    const auto backupHardlinkSentinel = backupHardlinkDirectory / "sentinel.txt";
+    assert(writeTestFile(backupHardlinkSentinel, "backup hard-link target stays intact"));
+    std::filesystem::create_hard_link(backupHardlinkSentinel,
+        backupHardlinkDirectory / "profile.bak", filesystemError);
+    assert(!filesystemError);
+    assert(backupHardlinkStore.save(nextProfile).success);
+    std::ifstream backupHardlinkSentinelFile(backupHardlinkSentinel, std::ios::binary);
+    const std::string backupHardlinkSentinelText{
+        std::istreambuf_iterator<char>(backupHardlinkSentinelFile),
+        std::istreambuf_iterator<char>()};
+    assert(backupHardlinkSentinelText == "backup hard-link target stays intact");
+    assert(backupHardlinkStore.load().profile.runSerial == nextProfile.runSerial);
+    std::ifstream stagedBackupFile(backupHardlinkDirectory / "profile.bak", std::ios::binary);
+    tunrun::Profile restoredBackup;
+    std::string restoredBackupError;
+    const std::string stagedBackupText{
+        std::istreambuf_iterator<char>(stagedBackupFile),
+        std::istreambuf_iterator<char>()};
+    assert(tunrun::parseProfile(stagedBackupText, restoredBackup, restoredBackupError));
+    assert(restoredBackup.runSerial == profile.runSerial);
+    std::filesystem::remove_all(backupHardlinkDirectory, filesystemError);
 #endif
 
     std::cout << "TUNRUN input, physics, course, and profile-persistence tests passed.\n";

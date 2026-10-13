@@ -29,6 +29,11 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#else
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 namespace tunrun {
@@ -338,10 +343,12 @@ bool hidePath(const std::filesystem::path& path) noexcept {
 bool writeAndFlush(const std::filesystem::path& path, std::string_view content,
                    std::string& error) {
 #if defined(_WIN32)
-    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+    // CREATE_NEW fails for every existing directory entry, including a hard link
+    // or reparse-point link, instead of truncating a path that already exists.
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
                               FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
-        error = "unable to create temporary profile";
+        error = "unable to create temporary profile exclusively";
         return false;
     }
     std::size_t offset = 0U;
@@ -362,22 +369,42 @@ bool writeAndFlush(const std::filesystem::path& path, std::string_view content,
         ok = false;
         error = "unable to flush temporary profile";
     }
-    CloseHandle(file);
+    if (!CloseHandle(file) && ok) {
+        ok = false;
+        error = "unable to close temporary profile";
+    }
     return ok;
 #else
-    std::ofstream file(path, std::ios::binary | std::ios::trunc);
-    if (!file) {
-        error = "unable to create temporary profile";
+    // O_EXCL ensures we create a new inode rather than following or truncating an
+    // existing hard link, symlink, or leftover temporary file.
+    const int descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL,
+                                  S_IRUSR | S_IWUSR);
+    if (descriptor == -1) {
+        error = "unable to create temporary profile exclusively";
         return false;
     }
-    file.write(content.data(), static_cast<std::streamsize>(content.size()));
-    file.flush();
-    if (!file) {
-        error = "unable to write temporary profile";
-        return false;
+    std::size_t offset = 0U;
+    bool ok = true;
+    while (offset < content.size()) {
+        const ssize_t written = ::write(
+            descriptor, content.data() + offset, content.size() - offset);
+        if (written < 0 && errno == EINTR) continue;
+        if (written <= 0) {
+            ok = false;
+            error = "unable to write temporary profile";
+            break;
+        }
+        offset += static_cast<std::size_t>(written);
     }
-    file.close();
-    return true;
+    if (ok && ::fsync(descriptor) != 0) {
+        ok = false;
+        error = "unable to flush temporary profile";
+    }
+    if (::close(descriptor) != 0 && ok) {
+        ok = false;
+        error = "unable to close temporary profile";
+    }
+    return ok;
 #endif
 }
 
@@ -405,22 +432,41 @@ bool atomicReplace(const std::filesystem::path& source,
 bool copyFile(const std::filesystem::path& source,
               const std::filesystem::path& destination,
               std::string& error) {
-#if defined(_WIN32)
-    if (!CopyFileW(source.c_str(), destination.c_str(), FALSE)) {
-        error = "unable to preserve profile backup";
+    // Never copy over an existing backup in place: the destination could be a
+    // hard link to another file. Copy to a fresh staging entry, then rename that
+    // entry over the backup name so only the directory entry is replaced.
+    auto staging = destination;
+    staging += ".tmp";
+    std::filesystem::file_status stagingStatus;
+    bool stagingExists = false;
+    if (!inspectPathNoFollow(staging, stagingStatus, stagingExists)) {
+        error = "unable to inspect backup staging path";
         return false;
     }
-    return true;
-#else
+    if (stagingExists && !std::filesystem::is_regular_file(stagingStatus)) {
+        error = "backup staging path is not a regular file";
+        return false;
+    }
     std::error_code ec;
-    std::filesystem::copy_file(source, destination,
-        std::filesystem::copy_options::overwrite_existing, ec);
+    if (stagingExists) {
+        std::filesystem::remove(staging, ec);
+        if (ec) {
+            error = "unable to clear stale backup staging file";
+            return false;
+        }
+    }
+    // The default copy_file mode does not overwrite a path that appears after
+    // cleanup, so a concurrent hard link cannot redirect this write either.
+    std::filesystem::copy_file(source, staging, ec);
     if (ec) {
-        error = "unable to preserve profile backup";
+        error = "unable to stage profile backup";
+        return false;
+    }
+    if (!atomicReplace(staging, destination, error)) {
+        std::filesystem::remove(staging, ec);
         return false;
     }
     return true;
-#endif
 }
 
 } // namespace
@@ -706,6 +752,14 @@ ProfileSaveResult ProfileStore::save(const Profile& profile,
         }
         if (temporaryExists && !std::filesystem::is_regular_file(temporaryStatus)) {
             return {false, "temporary profile path is not a regular file"};
+        }
+        // Remove stale regular files as directory entries only. This safely
+        // breaks a leftover hard-link name before creating the new temp file
+        // exclusively; it never truncates the linked-to target.
+        if (temporaryExists) {
+            ec.clear();
+            std::filesystem::remove(temporary, ec);
+            if (ec) return {false, "unable to clear stale temporary profile"};
         }
 
         if (!writeAndFlush(temporary, content, error)) {
