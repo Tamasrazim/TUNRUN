@@ -20,6 +20,8 @@ REQUIRED_FILES = (
     ".editorconfig",
     "docs/SECURITY-AND-PRIVACY.md",
     "docs/THIRD-PARTY-AND-LICENSES.md",
+    "docs/ROADMAP.md",
+    "docs/PROGRESS.md",
     ".github/workflows/repo-checks.yml",
     ".github/workflows/windows-build.yml",
     "scripts/package-windows.ps1",
@@ -190,12 +192,32 @@ def check_portable_package_workflow(errors: list[str]) -> None:
                 f"the expected guard {required!r}"
             )
 
+
+def check_seed_lab_documentation(errors: list[str]) -> None:
+    """Keep the documented Seed Lab beam width in sync with the current test model."""
+    for relative in ("README.md", "docs/ROADMAP.md", "docs/PROGRESS.md"):
+        path = ROOT / relative
+        if not path.is_file():
+            continue
+        content = path.read_text(encoding="utf-8")
+        if re.search(r"\\b32-state route graph\\b|\\b32 candidates are mode-balanced\\b", content, re.IGNORECASE):
+            errors.append(
+                f"{relative}: stale 32-state Seed Lab wording conflicts with the tested 64-state beam"
+            )
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    roadmap = (ROOT / "docs" / "ROADMAP.md").read_text(encoding="utf-8")
+    if "64-state route graph" not in readme:
+        errors.append("README.md: document the current 64-state Seed Lab route graph")
+    if "64-state route graph" not in roadmap:
+        errors.append("docs/ROADMAP.md: document the current 64-state Seed Lab route graph")
+
 def main() -> int:
     errors: list[str] = []
     check_required_files(errors)
     check_local_markdown_links(errors)
     check_workflow_policy(errors)
     check_portable_package_workflow(errors)
+    check_seed_lab_documentation(errors)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
