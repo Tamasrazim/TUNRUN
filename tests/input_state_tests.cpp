@@ -2305,6 +2305,20 @@ int main() {
                     normalSpeed.actualForwardSpeed - 0.65F) < 0.001F);
     assert(practiceSpeed.x == normalSpeed.x && practiceSpeed.y == normalSpeed.y);
 
+    // Endless sessions must continue advancing course distance after float can no
+    // longer represent the normal per-step travel increment. Keep the authoritative
+    // course coordinate in double precision and test the fixed-step increment.
+    tunrun::FlightState longRunFlight;
+    longRunFlight.distance = 1048576.0;
+    float longRunAccumulator = 0.0F;
+    tunrun::advanceFlight(longRunFlight, tunrun::FlightInput{},
+                          tunrun::kFlightFixedStep, longRunAccumulator);
+    assert(longRunFlight.distance > 1048576.0);
+    const double expectedLongRunStep = static_cast<double>(
+        longRunFlight.actualForwardSpeed * tunrun::kFlightFixedStep);
+    assert(std::abs((longRunFlight.distance - 1048576.0) -
+                    expectedLongRunStep) < 1.0e-9);
+
     // With steady controls, the fixed-step simulation should produce nearly
     // identical flight states regardless of the renderer's refresh cadence.
     const auto simulateAtRefreshRate = [](int refreshRate) {

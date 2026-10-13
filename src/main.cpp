@@ -348,12 +348,12 @@ void finishRun(AppState& app) {
     if (app.profile.totalRuns < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalRuns;
     if (app.profile.totalCrashes < std::numeric_limits<std::uint64_t>::max()) ++app.profile.totalCrashes;
     app.profile.bestDistance = std::max(app.profile.bestDistance,
-                                        static_cast<double>(std::max(0.0F, app.flight.distance)));
+                                        static_cast<double>(std::max(0.0, app.flight.distance)));
     const auto recordUpdate = tunrun::updateCareerBests(
         app.runScore, app.profile.bestScore, app.profile.bestCombo);
     app.newBestScore = recordUpdate.scoreImproved;
     app.newBestCombo = recordUpdate.comboImproved;
-    const double rawReward = std::floor(std::max(0.0F, app.flight.distance) / 20.0F);
+    const double rawReward = std::floor(std::max(0.0, app.flight.distance) / 20.0F);
     const std::uint64_t distanceReward = static_cast<std::uint64_t>(
         std::clamp(rawReward, 0.0, 250000.0));
     const std::uint64_t shardRewardCap = 250000U;
@@ -2633,7 +2633,7 @@ int main() {
                     // point; use it after interpolating the remaining flight state.
                     app.flight.x = firstCollision.x;
                     app.flight.y = firstCollision.y;
-                    app.flight.distance = static_cast<float>(firstCollision.distance);
+                    app.flight.distance = firstCollision.distance;
                     app.elapsed = previousElapsed +
                         (app.elapsed - previousElapsed) * firstCollision.fraction;
                     app.crashCause = crashCauseFromCollisionKind(firstCollision.kind);

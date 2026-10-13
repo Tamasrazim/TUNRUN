@@ -23,7 +23,7 @@ struct FlightState {
     float velocityX = 0.0F;
     float velocityY = 0.0F;
     float boostEnergy = 100.0F;
-    float distance = 0.0F;
+    double distance = 0.0; // Keep long endless runs moving below float precision limits.
     float forwardSpeed = 11.0F; // selected cruise target after throttle response
     float actualForwardSpeed = 11.0F; // speed after boost/precision/dash and ship multiplier
     float dashRemaining = 0.0F;
@@ -64,7 +64,12 @@ struct FlightState {
     result.velocityX = lerp(start.velocityX, end.velocityX);
     result.velocityY = lerp(start.velocityY, end.velocityY);
     result.boostEnergy = lerp(start.boostEnergy, end.boostEnergy);
-    result.distance = lerp(start.distance, end.distance);
+    const auto lerpDistance = [t](double a, double b) noexcept {
+        if (!std::isfinite(a)) return std::isfinite(b) ? b : 0.0;
+        if (!std::isfinite(b)) return a;
+        return a + (b - a) * static_cast<double>(t);
+    };
+    result.distance = lerpDistance(start.distance, end.distance);
     result.forwardSpeed = lerp(start.forwardSpeed, end.forwardSpeed);
     result.actualForwardSpeed = lerp(start.actualForwardSpeed, end.actualForwardSpeed);
     result.dashRemaining = lerp(start.dashRemaining, end.dashRemaining);

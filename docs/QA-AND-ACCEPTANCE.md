@@ -101,6 +101,7 @@ Gameplay-specific mouse checks:
 - Verify GPU resources are created/destroyed on the rendering thread.
 - Unloading behind the player cannot break collision, replay, or the current camera.
 - Verify bounded memory use during long endless sessions.
+- Keep accumulated course distance in double precision and verify fixed-step travel still advances at large distances (at least 1,048,576 course units).
 
 ## 5. Save and economy tests
 
